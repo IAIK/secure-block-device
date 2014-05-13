@@ -1,0 +1,4 @@
+.depend
+libSecureBlock.a
+*.o
+sbdi-test

@@ -2,14 +2,14 @@ Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 	
 DEPENDFILE = .depend
-LIB_SRC = sbdi_impl.c
-PRG_SRC = sdbi_test.c
+LIB_SRC = secblock.c
+PRG_SRC = sbdi_test.c
 SRC = $(LIB_SRC) $(PRG_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
 PRG_OBJS = $(PRG_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS) $(PRG_OBJS)
-LIB = libSecureBlockDevice.a
-BIN = sdbi-test
+LIB = libSecureBlock.a
+BIN = sbdi-test
 
 all: silent
 
