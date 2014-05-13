@@ -5,6 +5,7 @@
  *      Author: dhein
  */
 
+#include "merkletree.h"
 #include "secblock.h"
 
 

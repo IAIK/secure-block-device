@@ -9,7 +9,12 @@ LIB_OBJS = $(LIB_SRC:%.c=%.o)
 PRG_OBJS = $(PRG_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS) $(PRG_OBJS)
 LIB = libSecureBlock.a
+EXT_INC = -I../../merkle-tree/src
+EXT_LIB = -L../../merkle-tree/src -lMerkleTree
 BIN = sbdi-test
+
+CFLAGS  += $(EXT_INC)
+LDFLAGS += $(EXT_LIB)
 
 all: silent
 
@@ -42,7 +47,7 @@ $(LIB): $(LIB_OBJS)
 	$(Q)$(AR) crvs $(LIB) $(LIB_OBJS)
 
 dep: $(SRC)
-	$(Q)$(CC) -MM $(SRC) > $(DEPENDFILE)
+	$(Q)$(CC) $(EXT_INC) -MM $(SRC) > $(DEPENDFILE)
 
 -include $(DEPENDFILE)
 
