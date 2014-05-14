@@ -2,7 +2,7 @@ Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 	
 DEPENDFILE = .depend
-LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c
+LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c siv.c
 PRG_SRC = crypto_test.c
 SRC = $(LIB_SRC) $(PRG_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
