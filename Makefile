@@ -6,10 +6,12 @@ Q=@
 all: debug
 
 release:
+	$(Q)$(MAKE) -C src/crypto release
 	$(Q)$(MAKE) -C src/ release
 	$(Q)$(MAKE) -C tests/ all
 
 debug:
+	$(Q)$(MAKE) -C src/crypto debug
 	$(Q)$(MAKE) -C src/ debug
 	$(Q)$(MAKE) -C tests/ all
 
@@ -17,6 +19,7 @@ coverage:
 	$(Q)$(MAKE) -C src/ coverage
 
 clean:
+	$(Q)$(MAKE) -C src/crypto clean
 	$(Q)$(MAKE) -C tests/ clean
 	$(Q)$(MAKE) -C src/ clean
 

@@ -2,16 +2,16 @@ Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 	
 DEPENDFILE = .depend
-LIB_SRC = secblock.c sbdi_file_backend.c
-PRG_SRC = sbdi_test.c
+LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c
+PRG_SRC = crypto_test.c
 SRC = $(LIB_SRC) $(PRG_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
 PRG_OBJS = $(PRG_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS) $(PRG_OBJS)
-LIB = libSecureBlock.a
-EXT_INC = -I../../merkle-tree/src -I./crypto
-EXT_LIB = -L../../merkle-tree/src -L./crypto -lMerkleTree -lSbdiCrypto
-BIN = sbdi-test
+LIB = libSbdiCrypto.a
+EXT_INC = 
+EXT_LIB = 
+BIN = sbdi-crypto-test
 
 CFLAGS  += $(EXT_INC)
 LDFLAGS += $(EXT_LIB)
