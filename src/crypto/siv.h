@@ -48,12 +48,12 @@
 #define SIV_512         512
 
 typedef struct _siv_ctx {
-    unsigned char K1[AES_BLOCK_SIZE];
-    unsigned char K2[AES_BLOCK_SIZE];
-    unsigned char T[AES_BLOCK_SIZE];
-    unsigned char benchmark[AES_BLOCK_SIZE];
-    AES_KEY ctr_sched;
-    AES_KEY s2v_sched;
+  unsigned char K1[AES_BLOCK_SIZE];
+  unsigned char K2[AES_BLOCK_SIZE];
+  unsigned char T[AES_BLOCK_SIZE];
+  unsigned char benchmark[AES_BLOCK_SIZE];
+  AES_KEY ctr_sched;
+  AES_KEY s2v_sched;
 } siv_ctx;
 
 #ifdef AES_LONG
@@ -73,24 +73,30 @@ typedef unsigned char u8;
 # define PUTU32(ct, st) { (ct)[0] = (u8)((st) >> 24); (ct)[1] = (u8)((st) >> 16); (ct)[2] = (u8)((st) >> 8); (ct)[3] = (u8)(st); }
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * exported APIs
  */
-void aes_cmac (siv_ctx *, const unsigned char *, int, unsigned char *);
+void aes_cmac(siv_ctx *, const unsigned char *, int, unsigned char *);
 int siv_init(siv_ctx *, const unsigned char *, int);
-void siv_reset(siv_ctx *);
+void s2v_reset(siv_ctx *);
 void s2v_benchmark(siv_ctx *);
 void s2v_add(siv_ctx *, const unsigned char *);
 void s2v_update(siv_ctx *, const unsigned char *, int);
 int s2v_final(siv_ctx *, const unsigned char *, int, unsigned char *);
+void vprf(siv_ctx *, unsigned char *, const int, ...);
 void siv_restart(siv_ctx *);
 void siv_aes_ctr(siv_ctx *, const unsigned char *, const int, unsigned char *,
-                 const unsigned char *);
-int siv_encrypt (siv_ctx *ctx, const unsigned char *p, unsigned char *c,
-             const int len, unsigned char *counter,
-             const int nad, const int* adlens, const unsigned char** ads);
-int siv_decrypt(siv_ctx *, const unsigned char *, unsigned char *,
-                const int, unsigned char *,
-                const int nad, const int* adlens, const unsigned char** ads);
+    const unsigned char *);
+int siv_encrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
+    unsigned char *, const int, ...);
+int siv_decrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
+    unsigned char *, const int, ...);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _SIV_H_ */
