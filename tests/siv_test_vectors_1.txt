@@ -1,0 +1,72 @@
+==================================================
+                  SIV Test Vectors
+                     Dan Harkins
+                   August 20, 2007
+==================================================
+
+TEST CASE #1
+
+Input
+   Key (K1)   fffefdfc fbfaf9f8 f7f6f5f4 f3f2f1f0
+       (K2)   f0f1f2f3 f4f5f6f7 f8f9fafb fcfdfeff
+   AD  (H1)   10111213 14151617 18191a1b 1c1d1e1f
+              20212223 24252627
+   Plaintext  11223344 55667788 99aabbcc ddee
+
+Yields (* output)
+
+   CMAC(0)    0e04dfaf c1efbf04 01405828 59bf073a 
+   dbl        1c09bf5f 83df7e08 0280b050 b37e0e74 
+   CMAC(H1)   f1f922b7 f5193ce6 4ff80cb4 7d93f23b 
+   xor        edf09de8 76c642ee 4d78bce4 ceedfc4f 
+   dbl        dbe13bd0 ed8c85dc 9af179c9 9ddbf819 
+   pad        11223344 55667788 99aabbcc ddee8000 
+   xor        cac30894 b8eaf254 035bc205 40357819 
+ * IV         85632d07 c6e8f37f 950acd32 0a2ecc93 
+
+   Ctr        85632d07 c6e8f37f 150acd32 0a2ecc93
+   E(K,Ctr)   51e218d2 c5a2ab8c 4345c4a6 23b2f08f 
+ * C          40c02b96 90c4dc04 daef7f6a fe5c
+
+--------------------------------------------------
+
+TEST CASE #2
+
+Input
+   Key (K1)   7f7e7d7c 7b7a7978 77767574 73727170
+       (K2)   40414243 44454647 48494a4b 4c4d4e4f
+   AD  (H1)   00112233 44556677 8899aabb ccddeeff
+              deaddada deaddada ffeeddcc bbaa9988
+              77665544 33221100
+       (H2)   10203040 50607080 90a0
+       (H3)   09f91102 9d74e35b d84156c5 635688c0
+   Plaintext  74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727970
+              74207573 696e6720 5349562d 414553
+
+Yields (* output)
+
+   CMAC(0)    c8b43b59 74960e7c e6a5dd85 231e591a 
+   dbl        916876b2 e92c1cf9 cd4bbb0a 463cb2b3 
+   CMAC(H1)   3c9b689a b41102e4 80954714 1dd0d15a 
+   xor        adf31e28 5d3d1e1d 4ddefc1e 5bec63e9 
+   dbl        5be63c50 ba7a3c3a 9bbdf83c b7d8c755 
+   CMAC(H2)   d98c9b0b e42cb2d7 aa98478e d11eda1b 
+   xor        826aa75b 5e568eed 3125bfb2 66c61d4e 
+   dbl        04d54eb6 bcad1dda 624b7f64 cd8c3a1b 
+   CMAC(H3)   128c62a1 ce3747a8 372c1c05 a538b96d 
+   xor        16592c17 729a5a72 55676361 68b48376 
+   xor-end    74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727966
+              2d0c6201 f3341575 342a3745 f5c625
+ * IV         7bdb6e3b 432667eb 06f4d14b ff2fbd0f 
+
+   Ctr        7bdb6e3b 432667eb 06f4d14b 7f2fbd0f 
+   E(K,Ctr)   bff8665c fdd73363 550f7400 e8f9d376 
+   Ctr+1      7bdb6e3b 432667eb 06f4d14b 7f2fbd10 
+   E(K,Ctr+1) b2c9088e 713b8617 d8839226 d9f88159 
+   Ctr+2      7bdb6e3b 432667eb 06f4d14b 7f2fbd11 
+   E(K,Ctr+2) 9e44d827 234949bc 1b12348e bc195ec7 
+ * C          cb900f2f ddbe4043 26601965 c889bf17
+              dba77ceb 094fa663 b7a3f748 ba8af829
+              ea64ad54 4a272e9c 485b62a3 fd5c0d

@@ -1,0 +1,3 @@
+*.o
+.depend
+secure-block-test

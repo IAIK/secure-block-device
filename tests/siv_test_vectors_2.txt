@@ -1,0 +1,204 @@
+
+TEST CASE #1
+
+Input, 128 bit keys
+   Key (K1)   fffefdfc fbfaf9f8 f7f6f5f4 f3f2f1f0
+       (K2)   f0f1f2f3 f4f5f6f7 f8f9fafb fcfdfeff
+   AD  (H1)   10111213 14151617 18191a1b 1c1d1e1f
+              20212223 24252627
+   Plaintext  11223344 55667788 99aabbcc ddee
+
+Yields (* output)
+
+   CMAC(0)    0e04dfaf c1efbf04 01405828 59bf073a 
+   dbl        1c09bf5f 83df7e08 0280b050 b37e0e74 
+   CMAC(H1)   f1f922b7 f5193ce6 4ff80cb4 7d93f23b 
+   xor        edf09de8 76c642ee 4d78bce4 ceedfc4f 
+   dbl        dbe13bd0 ed8c85dc 9af179c9 9ddbf819 
+   pad        11223344 55667788 99aabbcc ddee8000 
+   xor        cac30894 b8eaf254 035bc205 40357819 
+ * IV         85632d07 c6e8f37f 950acd32 0a2ecc93 
+
+   Ctr        85632d07 c6e8f37f 150acd32 0a2ecc93
+   E(K,Ctr)   51e218d2 c5a2ab8c 4345c4a6 23b2f08f 
+ * C          40c02b96 90c4dc04 daef7f6a fe5c
+
+-------
+
+Input, 192 bit keys
+   Key (K1)   fffefdfc fbfaf9f8 f7f6f5f4 f3f2f1f0
+	      6f6e6d6c 6b6a6968 
+       (K2)   f0f1f2f3 f4f5f6f7 f8f9fafb fcfdfeff
+              00010203 04050607 
+   AD  (H1)   10111213 14151617 18191a1b 1c1d1e1f
+              20212223 24252627
+   Plaintext  11223344 55667788 99aabbcc ddee
+
+Yields (* output)
+
+   CMAC(0)    e7201d9c 20aa76b9 d9a5b741 fa836c06 
+   dbl        ce403b38 4154ed73 b34b6e83 f506d88b 
+   CMAC(H1)   d5434a82 b7c82590 300d2fd4 8d22775e 
+   xor        1b0371ba f69cc8e3 83464157 7824afd5 
+   dbl        3606e375 ed3991c7 068c82ae f0495faa 
+   pad        11223344 55667788 99aabbcc ddee8000 
+   xor        2724d031 b85fe64f 9f263962 2da7dfaa 
+ * IV         02347811 daa8b274 91f24448 932775a6 
+
+   Ctr        02347811 daa8b274 11f24448 132775a6 
+   E(K,Ctr)   3bd17942 f9666160 3582f199 c9188160
+ * C          2af34a06 ac0016e8 ac284a55 14f6
+
+-------
+
+Input, 256 bit keys
+   Key (K1)   fffefdfc fbfaf9f8 f7f6f5f4 f3f2f1f0
+              6f6e6d6c 6b6a6968 67666564 63626160 
+       (K2)   f0f1f2f3 f4f5f6f7 f8f9fafb fcfdfeff
+              00010203 04050607 08090a0b 0c0d0e0f 
+   AD  (H1)   10111213 14151617 18191a1b 1c1d1e1f
+              20212223 24252627
+   Plaintext  11223344 55667788 99aabbcc ddee
+
+Yields (* output)
+
+   CMAC(0)    29f9541e fbf839bb 62082e05 0616865d 
+   dbl        53f2a83d f7f07376 c4105c0a 0c2d0cba 
+   CMAC(H1)   a53e456f ee28ecdf a212ba71 d425b602 
+   xor	      f6cced52 19d89fa9 6602e67b d808bab8 
+   dbl        ed99daa4 33b13f52 cc05ccf7 b01175f7 
+   pad        11223344 55667788 99aabbcc ddee8000 
+   xor        fcbbe9e0 66d748da 55af773b 6dfff5f7 
+ * IV         f125274c 598065cf c26b0e71 57502908 
+
+   Ctr        f125274c 598065cf 426b0e71 57502908 
+   E(K,Ctr)   9a216153 b6e6bd40 083453cc 1cc812c3
+ * C          8b035217 e380cac8 919ee800 c126
+
+--------------------------------------------------
+
+TEST CASE #2
+
+Input, 128 bit keys
+   Key (K1)   7f7e7d7c 7b7a7978 77767574 73727170
+       (K2)   40414243 44454647 48494a4b 4c4d4e4f
+   AD  (H1)   00112233 44556677 8899aabb ccddeeff
+              deaddada deaddada ffeeddcc bbaa9988
+              77665544 33221100
+       (H2)   10203040 50607080 90a0
+       (H3)   09f91102 9d74e35b d84156c5 635688c0
+   Plaintext  74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727970
+              74207573 696e6720 5349562d 414553
+
+Yields (* output)
+
+   CMAC(0)    c8b43b59 74960e7c e6a5dd85 231e591a 
+   dbl        916876b2 e92c1cf9 cd4bbb0a 463cb2b3 
+   CMAC(H1)   3c9b689a b41102e4 80954714 1dd0d15a 
+   xor        adf31e28 5d3d1e1d 4ddefc1e 5bec63e9 
+   dbl        5be63c50 ba7a3c3a 9bbdf83c b7d8c755 
+   CMAC(H2)   d98c9b0b e42cb2d7 aa98478e d11eda1b 
+   xor        826aa75b 5e568eed 3125bfb2 66c61d4e 
+   dbl        04d54eb6 bcad1dda 624b7f64 cd8c3a1b 
+   CMAC(H3)   128c62a1 ce3747a8 372c1c05 a538b96d 
+   xor        16592c17 729a5a72 55676361 68b48376 
+   xor-end    74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727966
+              2d0c6201 f3341575 342a3745 f5c625
+ * IV         7bdb6e3b 432667eb 06f4d14b ff2fbd0f 
+
+   Ctr        7bdb6e3b 432667eb 06f4d14b 7f2fbd0f 
+   E(K,Ctr)   bff8665c fdd73363 550f7400 e8f9d376 
+   Ctr+1      7bdb6e3b 432667eb 06f4d14b 7f2fbd10 
+   E(K,Ctr+1) b2c9088e 713b8617 d8839226 d9f88159 
+   Ctr+2      7bdb6e3b 432667eb 06f4d14b 7f2fbd11 
+   E(K,Ctr+2) 9e44d827 234949bc 1b12348e bc195ec7 
+ * C          cb900f2f ddbe4043 26601965 c889bf17
+              dba77ceb 094fa663 b7a3f748 ba8af829
+              ea64ad54 4a272e9c 485b62a3 fd5c0d
+
+-------
+
+Input, 192 bit keys
+   Key (K1)   7f7e7d7c 7b7a7978 77767574 73727170
+              6f6e6d6c 6b6a6968 
+   Key (K2)   40414243 44454647 48494a4b 4c4d4e4f
+              50515253 54555657 
+   AD  (H1)   00112233 44556677 8899aabb ccddeeff
+              deaddada deaddada ffeeddcc bbaa9988
+              77665544 33221100
+       (H2)   10203040 50607080 90a0
+       (H3)   09f91102 9d74e35b d84156c5 635688c0
+   Plaintext  74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727970
+              74207573 696e6720 5349562d 414553
+
+Yields (* output)
+
+   CMAC(0)    e4c31ce1 106aa406 1e7fc22f 350d7021 
+   dbl        c98639c2 20d5480c 3cff845e 6a1ae0c5 
+   CMAC(H1)   b9f50277 17c9b57b 37ae7f9e 5ea20eaa 
+   xor        70733bb5 371cfd77 0b51fbc0 34b8ee6f 
+   dbl        e0e6776a 6e39faee 16a3f780 6971dcde 
+   CMAC(H2)   f09d0a8d a275de97 c52a590a 44abd960 
+   xor        107b7de7 cc4c2479 d389ae8a 2dda05be 
+   dbl        20f6fbcf 989848f3 a7135d14 5bb40b7c 
+   CMAC(H3)   fcad4261 054ad7ed 66a6d983 364b0986 
+   xor        dc5bb9ae 9dd29f1e c1b58497 6dff02fa 
+   xor-end    74686973 20697320 736f6d65 20706c61
+	      696e7465 78742074 6f20656e 637279ac
+	      2f99dbee bbf179e1 e6cdc140 be47a9
+ * IV         de40aa1e 7180d519 cb14308e a7f77586 
+
+   Ctr        de40aa1e 7180d519 4b14308e 27f77586 
+   E(K,Ctr)   ae61ee0f 71665a45 6c2d5c7f 97588537
+   Ctr+1      de40aa1e 7180d519 4b14308e 27f77587 
+   E(K,Ctr+1) 6089aa4c ecc9d87f d6bb9fc2 806e37b0
+   Ctr+2      de40aa1e 7180d519 4b14308e 27f77588 
+   E(K,Ctr+2) a57bd323 f63d944a 846c8a86 88a7f4d5
+ * C          da09877c 510f2965 1f42311a b728e956
+	      09e7de29 94bdf80b b99bfaac e31c4ec0
+	      d15ba650 9f53f36a d725dcab c9e2a7
+
+-------
+
+Input, 256 bit keys
+   Key (K1)   7f7e7d7c 7b7a7978 77767574 73727170
+              6f6e6d6c 6b6a6968 67666564 63626160 
+   Key (K2)   40414243 44454647 48494a4b 4c4d4e4f
+	      50515253 54555657 58595a5b 5b5d5e5f 
+   AD  (H1)   00112233 44556677 8899aabb ccddeeff
+              deaddada deaddada ffeeddcc bbaa9988
+              77665544 33221100
+       (H2)   10203040 50607080 90a0
+       (H3)   09f91102 9d74e35b d84156c5 635688c0
+   Plaintext  74686973 20697320 736f6d65 20706c61
+              696e7465 78742074 6f20656e 63727970
+              74207573 696e6720 5349562d 414553
+
+   CMAC(0)    689a3570 3908ab2e 9cc1ef2c c4218fa2 
+   dbl        d1346ae0 7211565d 3983de59 88431f44 
+   CMAC(H1)   ce7cc86a 9432253b e0e62840 4216da0c 
+   xor        1f48a28a e6237366 d965f619 ca55c548 
+   dbl        3e914515 cc46e6cd b2cbec33 94ab8a90 
+   CMAC(H2)   6814d4b4 b1da05df 16ead8c8 d6b287a2 
+   xor        568591a1 7d9ce312 a42134fb 42190d32 
+   dbl        ad0b2342 fb39c625 484269f6 84321a64 
+   CMAC(H3)   0a1f8725 ee033783 432b36f4 0345c3e2 
+   xor        a714a467 153af1a6 0b695f02 8777d986 
+   xor-end    74686973 20697320 736f6d65 20706c61
+	      696e7465 78742074 6f20656e 637279d7
+	      60841266 539fc12b 3a1654aa 369cd5
+ * IV         85b81673 10038db7 dc4692c0 281ca358 
+
+   Ctr        85b81673 10038db7 5c4692c0 281ca358 
+   E(K,Ctr)   1c707254 429ab16f 5d9532dd 2cc12f30
+   Ctr+1      85b81673 10038db7 5c4692c0 281ca359 
+   E(K,Ctr+1) 0588b051 c0ec8689 e199ef2f eb308c6f
+   Ctr+2      85b81673 10038db7 5c4692c0 281ca35a 
+   E(K,Ctr+2) 12dc12ad 2ac27f7a 3594246a 1afe5b8e
+ * C          68181b27 62f3c24f 2efa5fb8 0cb14351
+	      6ce6c434 b898a6fd 8eb98a41 8842f51f
+	      66fc67de 43ac185a 66dd7247 5bbb08
+
