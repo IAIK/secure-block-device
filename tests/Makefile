@@ -7,7 +7,7 @@ CXXFLAGS += -Wall -ggdb
 CPPFLAGS += -I../src/ -I..src/crypto/
 
 TST_DEP_FILE = .depend
-TST_CXX_SRC = AesSivTest.cpp SbdiTestRunner.cpp
+TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiTestRunner.cpp
 TST_CXX_OBJS = $(TST_CXX_SRC:%.cpp=%.o)
 TST_SRC = $(TST_CXX_SRC)
 TST_OBJS = $(TST_CXX_OBJS)
