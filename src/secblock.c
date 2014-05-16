@@ -5,19 +5,10 @@
  *      Author: dhein
  */
 
-#include "merkletree.h"
 #include "secblock.h"
 
 #include <string.h>
 #include <stdio.h>
-
-//----------------------------------------------------------------------
-sbdi_error_t sbdi_derive_sym_key(master_key_t mk, sbdi_sym_key_t dk)
-{
-  // TODO Do real key deriviation or random key generation
-  memset(dk, 0x22, SBDI_HDR_V1_KS0_KEY_SIZE);
-  return SBDI_SUCCESS;
-}
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_create_hdr(sbdi_hdr_t **hdr)

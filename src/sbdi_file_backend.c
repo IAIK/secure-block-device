@@ -32,10 +32,10 @@ sbdi_error_t sbdi_fb_read_block(const int fd, sbdi_block_t block,
     uint32_t index, size_t len)
 {
   if (fd
-      == -1|| block == NULL || index > MAX_BLOCKS || len == 0 || len > BLOCK_SIZE) {
+      == -1|| block == NULL || index > SBDI_BLOCK_MAX_INDEX || len == 0 || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  ssize_t r = pread(fd, block, len, index * BLOCK_SIZE);
+  ssize_t r = pread(fd, block, len, index * SBDI_BLOCK_SIZE);
   if (r == -1) {
     return SBDI_ERR_IO;
   } else if (r < len) {
@@ -49,19 +49,19 @@ sbdi_error_t sbdi_fb_read_data_block(const int fd, sbdi_block_t block,
     uint32_t index, size_t len)
 {
   if (fd
-      == -1|| block == NULL || index > MAX_BLOCKS || len == 0 || len > BLOCK_SIZE) {
+      == -1|| block == NULL || index > SBDI_BLOCK_MAX_INDEX || len == 0 || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
 
-  uint32_t tag_block_off = ((index / MNGT_BLOCK_ENTRIES) + 1);
+  uint32_t tag_block_off = ((index / SBDI_MNGT_BLOCK_ENTRIES) + 1);
   uint32_t enc_idx = index + 1 + tag_block_off;
-  uint32_t mng_idx = (index / MNGT_BLOCK_ENTRIES) * MNGT_BLOCK_ENTRIES;
-  uint32_t tag_idx = index % MNGT_BLOCK_ENTRIES;
+  uint32_t mng_idx = (index / SBDI_MNGT_BLOCK_ENTRIES) * SBDI_MNGT_BLOCK_ENTRIES;
+  uint32_t tag_idx = index % SBDI_MNGT_BLOCK_ENTRIES;
 
   // TODO put block management into a caching layer
   sbdi_block_t mngt;
   sbdi_error_t res;
-  res = sbdi_fb_read_block(fd, mngt, mng_idx, BLOCK_SIZE);
+  res = sbdi_fb_read_block(fd, mngt, mng_idx, SBDI_BLOCK_SIZE);
   if (res != SBDI_SUCCESS) {
     return res;
   }
@@ -74,10 +74,10 @@ sbdi_error_t sbdi_fb_read_data_block(const int fd, sbdi_block_t block,
   sbdi_tag_t mng_tag;
   sbdi_tag_t blk_tag;
   siv_init(&ctx, sbdi_siv_master_key, SBDI_HDR_V1_KS0_KEY_SIZE);
-  siv_decrypt(&ctx, mngt, mngt, BLOCK_SIZE, mng_tag, 0);
+  siv_decrypt(&ctx, mngt, mngt, SBDI_BLOCK_SIZE, mng_tag, 0);
   // TODO Integrate Merkle tree
   siv_restart(&ctx);
-  siv_decrypt(&ctx, block, block, len, blk_tag, 1, &mngt[tag_idx+SBDI_HDR_V1_TAG_LEN], CTR_LENGTH);
+  siv_decrypt(&ctx, block, block, len, blk_tag, 1, &mngt[tag_idx+SBDI_HDR_V1_TAG_LEN], SBDI_BLOCK_ACCESS_COUNTER_SIZE);
   if (!memcmp(blk_tag, &mngt[tag_idx], SBDI_HDR_V1_TAG_LEN)) {
     return SBDI_ERR_TAG_MISMATCH;
   } else {
@@ -91,10 +91,10 @@ sbdi_error_t sbdi_fb_write_block(const int fd, const sbdi_block_t *block,
     uint32_t index, size_t len)
 {
   if (fd
-      == -1|| block == NULL || index > MAX_BLOCKS || len == 0 || len > BLOCK_SIZE) {
+      == -1|| block == NULL || index > SBDI_BLOCK_MAX_INDEX || len == 0 || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  ssize_t w = pwrite(fd, &block, len, index * BLOCK_SIZE);
+  ssize_t w = pwrite(fd, &block, len, index * SBDI_BLOCK_SIZE);
   if (w == -1) {
     return SBDI_ERR_IO;
   } else if (w < len) {
@@ -121,7 +121,7 @@ sbdi_error_t sbdi_fb_read_hdr(const int fd, sbdi_hdr_t **hdr)
   siv_ctx ctx;
   uint8_t tag[SBDI_HDR_V1_TAG_LEN];
   memset(hdr_blk, 0xFF, sizeof(hdr_blk));
-  res = sbdi_fb_read_block(fd, hdr_blk, 0, BLOCK_SIZE);
+  res = sbdi_fb_read_block(fd, hdr_blk, 0, SBDI_BLOCK_SIZE);
   if (res != SBDI_SUCCESS) {
     return res;
   }
@@ -147,7 +147,7 @@ sbdi_error_t sbdi_fb_read_hdr(const int fd, sbdi_hdr_t **hdr)
         &hdr_blk[SBDI_HDR_V1_KS0_ADDR], SBDI_HDR_V1_KS0_KEY_SIZE, tag, 3,
         hdr_blk, prefix_len, &hdr_blk[infix_offs], infix_len,
         &hdr_blk[SBDI_HDR_V1_KS0_ADDR + SBDI_HDR_V1_KS0_KEY_SIZE],
-        BLOCK_SIZE - (SBDI_HDR_V1_KS0_ADDR + SBDI_HDR_V1_KS0_KEY_SIZE));
+        SBDI_BLOCK_SIZE - (SBDI_HDR_V1_KS0_ADDR + SBDI_HDR_V1_KS0_KEY_SIZE));
     if (!memcmp(tag, h->tag, SBDI_HDR_V1_TAG_LEN)) {
       return SBDI_SUCCESS;
     } else {

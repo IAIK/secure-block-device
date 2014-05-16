@@ -12,8 +12,7 @@ extern "C" {
 #ifndef SECBLOCK_H_
 #define SECBLOCK_H_
 
-#include "sbdi_err.h"
-#include "config.h"
+#include "sbdi_config.h"
 #include "sbdi_ctr_128b.h"
 
 #include <sys/types.h>
@@ -34,9 +33,7 @@ extern "C" {
 #define SBDI_HDR_V1_KS_MAX_KEY_SIZE 512
 
 typedef uint8_t sbdi_magic_t[SBDI_HDR_MAGIC_LEN];
-typedef uint8_t master_key_t[MASTER_KEY_LENGTH];
 typedef uint8_t sbdi_sym_key_t[SBDI_HDR_V1_KS0_KEY_SIZE];
-typedef uint8_t sbdi_block_t[BLOCK_SIZE];
 typedef uint8_t sbdi_tag_t[SBDI_HDR_V1_TAG_LEN];
 
 static const sbdi_magic_t SBDI_MAGIC = {
