@@ -57,6 +57,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk);
 
 #ifdef SBDI_CACHE_PROFILE
+void sbdi_bc_print_stats(sbdi_bc_t *cache);
 #endif
 
 #endif /* SBDI_CACHE_H_ */

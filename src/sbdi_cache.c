@@ -9,6 +9,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef SBDI_CACHE_PROFILE
+#include <stdio.h>
+#include <inttypes.h>
+#endif
 
 #define INC_IDX(IDX) do {IDX = ((IDX) + 1) % SBDI_CACHE_MAX_SIZE;} while (0)
 #define DEC_IDX(IDX) do {IDX = ((IDX) + 1) % SBDI_CACHE_MAX_SIZE;} while (0)
@@ -107,3 +111,10 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
   INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }
+
+#ifdef SBDI_CACHE_PROFILE
+void sbdi_bc_print_stats(sbdi_bc_t *cache)
+{
+  printf("%" PRIu64 " hits/%" PRIu64 " misses; ratio: %f\n", cache->hits, cache->misses, (float)cache->hits/(float)cache->misses);
+}
+#endif
