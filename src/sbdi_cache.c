@@ -14,8 +14,7 @@
 #define DEC_IDX(IDX) do {IDX = ((IDX) + 1) % SBDI_CACHE_MAX_SIZE;} while (0)
 #define  IDX_P1(IDX) ((IDX+1) % SBDI_CACHE_MAX_SIZE)
 
-
-sbdi_bc_t *sbdi_cache_create(void)
+sbdi_bc_t *sbdi_bc_cache_create(void)
 {
   sbdi_bc_t *cache = malloc(sizeof(sbdi_bc_t));
   memset(cache, 0xFF, sizeof(sbdi_bc_t));
@@ -25,25 +24,36 @@ sbdi_bc_t *sbdi_cache_create(void)
   }
   return cache;
 }
-void sbdi_cache_destroy(sbdi_bc_t *cache)
+void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   free(cache);
 }
 
-sbdi_error_t sbdi_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
-    sbdi_block_t *blk)
+static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
+    uint32_t idx_2)
 {
-  if (!cache || blk_idx > SBDI_CACHE_MAX_SIZE || !blk) {
+  if (!idx || idx_1 > SBDI_CACHE_MAX_SIZE || idx_2 > SBDI_CACHE_MAX_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-//  sbdi_bc_idx_t idx = cache->index;
-//
-//  *blk = cache->cache[idx->lru];
-//  idx->lru = idx->lru + 1 % SBDI_CACHE_MAX_SIZE;
+
+  idx->list[idx_1].block_idx = idx->list[idx_1].block_idx
+      ^ idx->list[idx_2].block_idx;
+  idx->list[idx_2].block_idx = idx->list[idx_1].block_idx
+      ^ idx->list[idx_2].block_idx;
+  idx->list[idx_1].block_idx = idx->list[idx_1].block_idx
+      ^ idx->list[idx_2].block_idx;
+
+  idx->list[idx_1].cache_idx = idx->list[idx_1].cache_idx
+      ^ idx->list[idx_2].cache_idx;
+  idx->list[idx_2].cache_idx = idx->list[idx_1].cache_idx
+      ^ idx->list[idx_2].cache_idx;
+  idx->list[idx_1].cache_idx = idx->list[idx_1].cache_idx
+      ^ idx->list[idx_2].cache_idx;
+
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
+sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk)
 {
   if (!cache || blk_idx > SBDI_CACHE_MAX_SIZE || !blk) {
@@ -56,17 +66,32 @@ sbdi_error_t sbdi_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     if (idx->list[cdt].block_idx == blk_idx) {
       if (IDX_P1(cdt) == idx->lru) {
         *blk = cache->store + idx->list[cdt].cache_idx;
+        return SBDI_SUCCESS;
+      } else {
+        sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
+        *blk = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
+        return SBDI_SUCCESS;
       }
     }
   } while (cdt != idx->lru);
+  *blk = NULL;
+  return SBDI_SUCCESS;
+}
 
-//do {
-//  uint32_t cdt = idx->lru-1 % 4;
-//  if (idx->list[cdt] == blk_idx) {
-//    // found the block in the cache, sort it up
-//    if ((cdt+1)%SBDI_CACHE_MAX_SIZE) {}
-//  }
-//}while ()
-
-return SBDI_SUCCESS;
+sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
+    sbdi_block_t **blk)
+{
+  if (!cache || blk_idx > SBDI_CACHE_MAX_SIZE || !blk) {
+    return SBDI_ERR_ILLEGAL_PARAM;
+  }
+  sbdi_block_t *found = NULL;
+  sbdi_bc_find_blk(cache, blk_idx, &found);
+  if (found) {
+    *blk = found;
+    return SBDI_SUCCESS;
+  }
+  sbdi_bc_idx_t *idx = &cache->index;
+  *blk = cache->store + idx->lru;
+  INC_IDX(idx->lru);
+  return SBDI_SUCCESS;
 }
