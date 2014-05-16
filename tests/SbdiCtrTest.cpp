@@ -24,6 +24,8 @@ private:
   static const sbdi_ctr_128b_t ZERO;
   static const sbdi_ctr_128b_t ONE;
   static const sbdi_ctr_128b_t TWO;
+  static const sbdi_ctr_128b_t LO_MAX;
+  static const sbdi_ctr_128b_t ONE_ZERO;
   static const sbdi_ctr_128b_t MAX_LO_MAX;
   static const sbdi_ctr_128b_t MAX_M1;
   static const sbdi_ctr_128b_t MAX;
@@ -81,6 +83,9 @@ public:
     CPPUNIT_ASSERT(sbdi_ctr_128b_inc(&tst) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_ctr_128b_cmp(&tst, &cmp, &res) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(!res);
+    CPPUNIT_ASSERT(sbdi_ctr_128b_init(&tst, 0, UINT64_MAX) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_ctr_128b_cmp(&tst, &ONE_ZERO, &res) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(!res);
     CPPUNIT_ASSERT(sbdi_ctr_128b_init(&tst, UINT64_MAX, UINT64_MAX-1) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_ctr_128b_cmp(&tst, &MAX_M1, &res) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(!res);
@@ -97,6 +102,8 @@ public:
 const sbdi_ctr_128b_t SbdiCtrTest::ZERO = { 0, 0 };
 const sbdi_ctr_128b_t SbdiCtrTest::ONE = { 0, 1 };
 const sbdi_ctr_128b_t SbdiCtrTest::TWO = { 0, 2 };
+const sbdi_ctr_128b_t SbdiCtrTest::LO_MAX = { 0, UINT64_MAX };
+const sbdi_ctr_128b_t SbdiCtrTest::ONE_ZERO = { 0, UINT64_MAX };
 const sbdi_ctr_128b_t SbdiCtrTest::MAX_LO_MAX = { UINT64_MAX - 1, UINT64_MAX };
 const sbdi_ctr_128b_t SbdiCtrTest::MAX_M1 = { UINT64_MAX, UINT64_MAX - 1 };
 const sbdi_ctr_128b_t SbdiCtrTest::MAX = { UINT64_MAX, UINT64_MAX };
