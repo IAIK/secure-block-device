@@ -18,8 +18,12 @@ extern "C" {
 
 // TODO Requirement MAX BLOCK INDEX < UINT32_MAX!
 
-#define SBDI_BLOCK_SIZE      4096u
-#define SBDI_CACHE_MAX_SIZE    16u
+#define SBDI_BLOCK_SIZE                                  4096u
+#define SBDI_SIZE_MAX                     UINT32_C(2147483647)  /*!< The maximum size of a file */
+#define SBDI_BLOCK_MAX_INDEX (SBDI_SIZE_MAX / SBDI_BLOCK_SIZE)  /*!< The maximum number of blocks in a file */
+
+#define SBDI_CACHE_MAX_SIZE                                16u
+
 
 typedef uint8_t sbdi_block_t[SBDI_BLOCK_SIZE];
 

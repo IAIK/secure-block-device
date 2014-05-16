@@ -18,6 +18,8 @@ sbdi_bc_t *sbdi_bc_cache_create(void)
 {
   sbdi_bc_t *cache = malloc(sizeof(sbdi_bc_t));
   memset(cache, 0xFF, sizeof(sbdi_bc_t));
+  // Initialize lru
+  cache->index.lru = 0;
   // Initialize block cache index numbers
   for (uint32_t i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     cache->index.list[i].cache_idx = i;
@@ -56,7 +58,7 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk)
 {
-  if (!cache || blk_idx > SBDI_CACHE_MAX_SIZE || !blk) {
+  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX || !blk) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
@@ -81,7 +83,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
 sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk)
 {
-  if (!cache || blk_idx > SBDI_CACHE_MAX_SIZE || !blk) {
+  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX || !blk) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_block_t *found = NULL;
@@ -91,7 +93,8 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     return SBDI_SUCCESS;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  *blk = cache->store + idx->lru;
+  idx->list[idx->lru].block_idx = blk_idx;
+  *blk = cache->store + idx->list[idx->lru].cache_idx;
   INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }
