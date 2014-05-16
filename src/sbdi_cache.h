@@ -12,22 +12,9 @@ extern "C" {
 #ifndef SBDI_CACHE_H_
 #define SBDI_CACHE_H_
 
-#include "sbdi_err.h"
+#include "sbdi_config.h"
 
 #include <stdint.h>
-
-// TODO Requirement MAX BLOCK INDEX < UINT32_MAX!
-
-#define SBDI_BLOCK_SIZE                                  4096u
-#define SBDI_SIZE_MAX                     UINT32_C(2147483647)  /*!< The maximum size of a file */
-#define SBDI_BLOCK_MAX_INDEX (SBDI_SIZE_MAX / SBDI_BLOCK_SIZE)  /*!< The maximum number of blocks in a file */
-
-#define SBDI_CACHE_MAX_SIZE                                16u
-
-#define SBDI_CACHE_PROFILE
-
-
-typedef uint8_t sbdi_block_t[SBDI_BLOCK_SIZE];
 
 typedef struct sbdi_block_cache_index_element {
   uint32_t block_idx;
