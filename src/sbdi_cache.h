@@ -24,6 +24,8 @@ extern "C" {
 
 #define SBDI_CACHE_MAX_SIZE                                16u
 
+#define SBDI_CACHE_PROFILE
+
 
 typedef uint8_t sbdi_block_t[SBDI_BLOCK_SIZE];
 
@@ -38,6 +40,10 @@ typedef struct sbdi_block_cache_index {
 } sbdi_bc_idx_t;
 
 typedef struct sbdi_block_cache {
+#ifdef SBDI_CACHE_PROFILE
+  uint64_t hits;
+  uint64_t misses;
+#endif
   sbdi_bc_idx_t index;
   sbdi_block_t store[SBDI_CACHE_MAX_SIZE];
 } sbdi_bc_t;
@@ -49,6 +55,9 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk);
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     sbdi_block_t **blk);
+
+#ifdef SBDI_CACHE_PROFILE
+#endif
 
 #endif /* SBDI_CACHE_H_ */
 

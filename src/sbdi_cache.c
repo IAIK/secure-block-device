@@ -68,15 +68,24 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
     if (idx->list[cdt].block_idx == blk_idx) {
       if (IDX_P1(cdt) == idx->lru) {
         *blk = cache->store + idx->list[cdt].cache_idx;
+#ifdef SBDI_CACHE_PROFILE
+        cache->hits++;
+#endif
         return SBDI_SUCCESS;
       } else {
         sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
         *blk = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
+#ifdef SBDI_CACHE_PROFILE
+        cache->hits++;
+#endif
         return SBDI_SUCCESS;
       }
     }
   } while (cdt != idx->lru);
   *blk = NULL;
+#ifdef SBDI_CACHE_PROFILE
+  cache->misses++;
+#endif
   return SBDI_SUCCESS;
 }
 
