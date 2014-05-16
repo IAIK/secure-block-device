@@ -20,6 +20,7 @@ typedef enum sbdi_error {
   SBDI_ERR_IO            =   -4, /*!< An I/O error occurred */
   SBDI_ERR_MISSING_DATA  =   -5, /*!< File not found */
   SBDI_ERR_UNSUPPORTED   =   -6, /*!< This operation or data format is not supported */
+  SBDI_ERR_TAG_MISMATCH  =   -7, /*!< Cryptographic tag validation failed */
   SBDI_ERR_UNSPECIFIED   = -255  /*!< A general error occurred */
 } sbdi_error_t;
 
