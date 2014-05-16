@@ -8,7 +8,31 @@
 #include "merkletree.h"
 #include "secblock.h"
 
+#include <string.h>
 #include <stdio.h>
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_derive_sym_key(master_key_t mk, sbdi_sym_key_t dk)
+{
+  // TODO Do real key deriviation or random key generation
+  memset(dk, 0x22, SBDI_HDR_V1_KS0_KEY_SIZE);
+  return SBDI_SUCCESS;
+}
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_create_hdr(sbdi_hdr_t **hdr)
+{
+  if (!hdr) {
+    return SBDI_ERR_ILLEGAL_PARAM;
+  }
+  sbdi_hdr_t *lhdr = calloc(1, sizeof(sbdi_hdr_t));
+  if (!lhdr) {
+    return SBDI_ERR_OUT_Of_MEMORY;
+  }
+  lhdr->version = SBDI_HDR_VERSION_1;
+  *hdr = lhdr;
+  return SBDI_SUCCESS;
+}
 
 //----------------------------------------------------------------------
 static sbdi_error_t sbdi_check_hdr(sbdi_hdr_t *hdr)
