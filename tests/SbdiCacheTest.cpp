@@ -11,6 +11,11 @@
 
 #include <string.h>
 
+#ifndef UINT32_MAX
+#include <limits>
+#define UINT32_MAX std::numeric_limits<uint32_t>::max()
+#endif
+
 class SbdiCacheTest: public CppUnit::TestFixture {
   CPPUNIT_TEST_SUITE( SbdiCacheTest );
   CPPUNIT_TEST(testCacheAndFind);

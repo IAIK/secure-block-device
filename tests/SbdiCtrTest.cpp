@@ -9,8 +9,17 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 
+#ifndef UINT64_C
+#define UINT64_C(c) c ## ULL
+#endif
+#ifndef UINT64_MAX
+#include <limits>
+#define UINT64_MAX std::numeric_limits<uint64_t>::max()
+#endif
+
 #define TP_1 UINT64_C(0xFFEEDDCCBBAA9988)
 #define TP_2 UINT64_C(0x7766554433221100)
+
 
 class SbdiCtrTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiCtrTest );
