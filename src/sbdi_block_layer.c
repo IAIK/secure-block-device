@@ -44,19 +44,14 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t block,
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t **blk,
-    uint32_t blk_idx, size_t len, sbdi_tag_t *tag, int args_nbr, ...)
+    uint32_t blk_idx, size_t len, sbdi_tag_t *tag, unsigned char *blk_ctr,
+    int ctr_len)
 {
-  // TODO check parameters!
-  // args_nbr must be 1 or 2
-  va_list args;
-  va_start(args, args_nbr);
-  unsigned char *ptrs[args_nbr];
-  int lens[args_nbr];
-  for (int i = 0; i < args_nbr; ++i) {
-    ptrs[i] = (unsigned char *)va_arg(args, char*);
-    lens[i] = va_arg(args, int);
+  if (!sbdi || !blk || blk_idx > SBDI_BLOCK_MAX_INDEX || len == 0
+      || len > SBDI_BLOCK_SIZE || !tag
+      || (blk_ctr && ctr_len != SBDI_BLOCK_ACCESS_COUNTER_SIZE)) {
+    return SBDI_ERR_ILLEGAL_PARAM;
   }
-  va_end(args);
   sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk_idx, blk);
   if (r != SBDI_SUCCESS) {
     return r;
@@ -69,20 +64,17 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t **blk,
     return r;
   }
   siv_restart(sbdi->ctx);
-  if (args_nbr == 1) {
-    if (!siv_decrypt(sbdi->ctx, **blk, **blk, SBDI_BLOCK_SIZE, *tag, args_nbr,
-        ptrs[0], lens[0])) {
-      // TODO free block reservation in cache!
-      return SBDI_ERR_CRYPTO_FAIL;
-    }
-  } else if (args_nbr == 2) {
-    if (!siv_decrypt(sbdi->ctx, **blk, **blk, SBDI_BLOCK_SIZE, *tag, args_nbr,
-        ptrs[0], lens[0], ptrs[1], lens[1])) {
-      // TODO free block reservation in cache!
-      return SBDI_ERR_CRYPTO_FAIL;
-    }
+  int cr = -1;
+  if (blk_ctr == NULL) {
+    cr = siv_decrypt(sbdi->ctx, **blk, **blk, SBDI_BLOCK_SIZE, *tag, 1,
+        &blk_idx, sizeof(uint32_t));
   } else {
-    return SBDI_ERR_ILLEGAL_PARAM;
+    cr = siv_decrypt(sbdi->ctx, **blk, **blk, SBDI_BLOCK_SIZE, *tag, 2,
+        &blk_idx, sizeof(uint32_t), blk_ctr, ctr_len);
+  }
+  if (cr == -1) {
+    // TODO free block reservation in cache!
+    return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
 }
@@ -146,7 +138,8 @@ sbdi_error_t sbdi_fb_read_data_block(sbdi_t *sbdi, sbdi_block_t **block,
   unsigned char *blk_ctr = (*mngt) + tag_idx + SBDI_BLOCK_TAG_SIZE;
   if (!(*block)) {
     sbdi_tag_t tag;
-    r = sbdi_bl_cache_decrypt(sbdi, block, dat_idx, len, &tag, 2, &dat_idx, sizeof(uint32_t), blk_ctr, SBDI_BLOCK_ACCESS_COUNTER_SIZE);
+    r = sbdi_bl_cache_decrypt(sbdi, block, dat_idx, len, &tag, blk_ctr,
+        SBDI_BLOCK_ACCESS_COUNTER_SIZE);
     if (r != SBDI_SUCCESS) {
       // TODO Cleanup?
       return r;
