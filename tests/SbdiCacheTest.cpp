@@ -49,10 +49,15 @@ private:
     return sbdi_bc_find_blk(cache, blk);
   }
 
+  static sbdi_error_t sync_cb(sbdi_block_t *blk) {
+    std::cout << "Evict block " << blk->idx  << " @ " << blk->data << std::endl;
+    return SBDI_SUCCESS;
+  }
+
 public:
   void setUp()
   {
-    cache = sbdi_bc_cache_create();
+    cache = sbdi_bc_cache_create(&sync_cb);
   }
 
   void tearDown()
@@ -163,6 +168,8 @@ public:
         sbdi_bc_find_blk_i(UINT32_MAX, blk) == SBDI_ERR_ILLEGAL_PARAM);
   }
 
+  // TODO test evict function!
+  // TODO test sync function!
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(SbdiCacheTest);
