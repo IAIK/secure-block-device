@@ -24,6 +24,15 @@ typedef struct sbdi_block {
   sbdi_db_t *data;
 } sbdi_block_t;
 
+typedef struct sbdi_block_pair {
+  uint32_t mng_nbr;
+  uint32_t tag_idx;
+  sbdi_block_t mng_dat;
+  sbdi_block_t *mng;
+  sbdi_block_t blk_dat;
+  sbdi_block_t *blk;
+} sbdi_block_pair_t;
+
 static inline sbdi_error_t sbdi_block_init(sbdi_block_t *blk, uint32_t blk_idx,
     sbdi_db_t *blk_data)
 {
