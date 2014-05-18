@@ -37,9 +37,11 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync)
   // Initialize block cache index numbers
   for (uint32_t i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     cache->index.list[i].cache_idx = i;
+    cache->index.list[i].dirty = 0;
   }
   return cache;
 }
+
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   free(cache);
@@ -115,7 +117,8 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   sbdi_bc_idx_t *idx = &cache->index;
   // Make sure the block that gets evicted is in sync!
   sbdi_block_t to_sync;
-  if (idx->list[idx->lru].block_idx <= SBDI_BLOCK_MAX_INDEX) {
+  if (idx->list[idx->lru].block_idx <= SBDI_BLOCK_MAX_INDEX &&
+      idx->list[idx->lru].dirty) {
     sbdi_error_t r;
     sbdi_block_init(&to_sync, idx->list[idx->lru].block_idx,
         cache->store + idx->list[idx->lru].cache_idx);
@@ -123,6 +126,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
     if (r != SBDI_SUCCESS) {
       return r;
     }
+    idx->list[idx->lru].dirty = 0;
   }
   idx->list[idx->lru].block_idx = blk->idx;
   blk->data = cache->store + idx->list[idx->lru].cache_idx;

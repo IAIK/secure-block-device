@@ -22,6 +22,7 @@ typedef sbdi_error_t (*sbdi_sync_fp_t)(sbdi_block_t *blk);
 typedef struct sbdi_block_cache_index_element {
   uint32_t block_idx;
   uint32_t cache_idx;
+  int dirty;
 } sbdi_bc_idx_elem_t;
 
 typedef struct sbdi_block_cache_index {
