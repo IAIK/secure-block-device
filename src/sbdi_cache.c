@@ -59,26 +59,25 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
-    sbdi_block_t **blk)
+sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
-  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX || !blk) {
+  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
   uint32_t cdt = idx->lru;
   do {
     DEC_IDX(cdt);
-    if (idx->list[cdt].block_idx == blk_idx) {
+    if (idx->list[cdt].block_idx == blk->idx) {
       if (IDX_P1(cdt) == idx->lru) {
-        *blk = cache->store + idx->list[cdt].cache_idx;
+        blk->data = cache->store + idx->list[cdt].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
         cache->hits++;
 #endif
         return SBDI_SUCCESS;
       } else {
         sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
-        *blk = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
+        blk->data = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
         cache->hits++;
 #endif
@@ -86,28 +85,26 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, uint32_t blk_idx,
       }
     }
   } while (cdt != idx->lru);
-  *blk = NULL;
+  blk->data = NULL;
 #ifdef SBDI_CACHE_PROFILE
   cache->misses++;
 #endif
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, uint32_t blk_idx,
-    sbdi_block_t **blk)
+sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
-  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX || !blk) {
+  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_block_t *found = NULL;
-  sbdi_bc_find_blk(cache, blk_idx, &found);
-  if (found) {
-    *blk = found;
+  blk->data = NULL;
+  sbdi_bc_find_blk(cache, blk);
+  if (blk->data) {
     return SBDI_SUCCESS;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  idx->list[idx->lru].block_idx = blk_idx;
-  *blk = cache->store + idx->list[idx->lru].cache_idx;
+  idx->list[idx->lru].block_idx = blk->idx;
+  blk->data = cache->store + idx->list[idx->lru].cache_idx;
   INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }

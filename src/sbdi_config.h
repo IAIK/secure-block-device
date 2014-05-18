@@ -11,8 +11,4 @@
 #include "config.h"
 #include "sbdi_err.h"
 
-#include <stdint.h>
-
-typedef uint8_t sbdi_block_t[SBDI_BLOCK_SIZE];
-
 #endif /* SBDI_CONFIG_H_ */
