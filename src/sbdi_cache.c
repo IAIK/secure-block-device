@@ -19,25 +19,28 @@
 #define INC_IDX(IDX) do {IDX = IDX_P1(IDX);} while (0)
 #define DEC_IDX(IDX) do {IDX = IDX_S1(IDX);} while (0)
 
-sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync)
+sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 {
-  if (sync == NULL) {
-    // TODO better error handling?
+  if (!sync || !sync_data) {
     return NULL;
   }
-  sbdi_bc_t *cache = malloc(sizeof(sbdi_bc_t));
+  sbdi_bc_t *cache = calloc(1, sizeof(sbdi_bc_t));
   if (!cache) {
     return NULL;
   }
-  memset(cache, 0xFF, sizeof(sbdi_bc_t));
   // set sync callback
   cache->sync = sync;
-  // Initialize lru
+  cache->sync_data = sync_data;
+  // Initialize lru (Superfluous under calloc)
   cache->index.lru = 0;
   // Initialize block cache index numbers
   for (uint32_t i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
+    // set block index to invalid
+    cache->index.list[i].block_idx = UINT32_MAX;
+    // set cache index
     cache->index.list[i].cache_idx = i;
-    cache->index.list[i].dirty = 0;
+    // clear flags (Superfluous under calloc)
+    cache->index.list[i].flags = 0;
   }
   return cache;
 }
@@ -88,7 +91,10 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 #endif
         return SBDI_SUCCESS;
       } else {
-        sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
+        sbdi_error_t r = sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
+        if (r != SBDI_SUCCESS) {
+          return r;
+        }
         blk->data = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
         cache->hits++;
@@ -104,9 +110,11 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
+sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
+    sbdi_bc_bt_t blk_type)
 {
-  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX
+      || blk_type == SBDI_BC_BT_RESV) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   blk->data = NULL;
@@ -117,43 +125,46 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   sbdi_bc_idx_t *idx = &cache->index;
   // Make sure the block that gets evicted is in sync!
   sbdi_block_t to_sync;
-  if (idx->list[idx->lru].block_idx <= SBDI_BLOCK_MAX_INDEX &&
-      idx->list[idx->lru].dirty) {
-    sbdi_error_t r;
-    sbdi_block_init(&to_sync, idx->list[idx->lru].block_idx,
-        cache->store + idx->list[idx->lru].cache_idx);
-    r = cache->sync(&to_sync);
-    if (r != SBDI_SUCCESS) {
-      return r;
+  if (sbdi_bc_is_valid_and_dirty(&idx->list[idx->lru])) {
+    if (sbdi_bc_is_mngt_blk(idx->list[idx->lru].flags)) {
+      // in case we deal with a management block it is probably best to
+      // sync out all blocks. This SHOULD ensure a consistent state.
+      sbdi_error_t r = sbdi_bc_sync(cache);
+      if (r != SBDI_SUCCESS) {
+        return r;
+      }
+    } else {
+      sbdi_block_init(&to_sync, idx->list[idx->lru].block_idx,
+          cache->store + idx->list[idx->lru].cache_idx);
+      sbdi_error_t r = cache->sync(cache->sync_data, &to_sync);
+      if (r != SBDI_SUCCESS) {
+        return r;
+      }
+      sbdi_bc_clear_blk_dirty(&idx->list[idx->lru]);
     }
-    idx->list[idx->lru].dirty = 0;
   }
   idx->list[idx->lru].block_idx = blk->idx;
+  sbdi_bc_set_blk_type(&idx->list[idx->lru], blk_type);
   blk->data = cache->store + idx->list[idx->lru].cache_idx;
   INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }
 
-static sbdi_error_t sbdi_bc_find_to_evict(sbdi_bc_t *cache, uint32_t blk_idx)
+sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
-  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
   uint32_t cdt = idx->lru;
   do {
-    INC_IDX(cdt);
-    if (idx->list[cdt].block_idx == blk_idx) {
-      idx->list[cdt].block_idx = UINT32_MAX;
-      if (IDX_S1(cdt) == idx->lru) {
-        return SBDI_SUCCESS;
-      } else {
-        sbdi_bc_swap(idx, cdt, IDX_S1(cdt));
-        return SBDI_SUCCESS;
-      }
+    DEC_IDX(cdt);
+    if (idx->list[cdt].block_idx == blk->idx) {
+      sbdi_bc_set_blk_dirty(&idx->list[cdt]);
+      return SBDI_SUCCESS;
     }
   } while (cdt != idx->lru);
-  return SBDI_SUCCESS;
+  return SBDI_ERR_ILLEGAL_STATE;
 }
 
 sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
@@ -161,8 +172,36 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_bc_find_to_evict(cache, blk->idx);
-  return SBDI_SUCCESS;
+  sbdi_bc_idx_t *idx = &cache->index;
+  uint32_t cdt = idx->lru;
+  do {
+    DEC_IDX(cdt);
+    if (idx->list[cdt].block_idx == blk->idx) {
+      idx->list[cdt].block_idx = UINT32_MAX;
+      if (cdt == idx->lru) {
+        return SBDI_SUCCESS;
+      } else {
+        // need to find out if there are any valid blocks between lru and
+        // cdt. If so swap with the closest to LRU.
+        uint32_t swp = idx->lru;
+        while (swp != cdt) {
+          if (sbdi_bc_is_valid(idx->list[swp].block_idx)) {
+            sbdi_error_t r = sbdi_bc_swap(idx, cdt, swp);
+            if (r != SBDI_SUCCESS) {
+              return r;
+            }
+          }
+          INC_IDX(swp);
+        }
+        return SBDI_SUCCESS;
+      }
+    }
+  } while (cdt != idx->lru);
+  // Block marked for eviction not found, this is bad news, as the only
+  // place where this function is called, is when a cache reservation
+  // must be invalidated, because a block could not be loaded. This means
+  // the block to be evicted must be in cache at this point.
+  return SBDI_ERR_ILLEGAL_STATE;
 }
 
 sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
@@ -173,15 +212,31 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   sbdi_error_t r;
   sbdi_block_t to_sync;
   sbdi_bc_idx_t *idx = &cache->index;
+  // Sync out data blocks first and then the corresponding management
+  // blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-    if (idx->list[i].block_idx <= SBDI_BLOCK_MAX_INDEX) {
+    if (sbdi_bc_is_valid_and_dirty(&idx->list[i])
+        && !sbdi_bc_is_mngt_blk(idx->list[i].flags)) {
+      // Not a management block, but dirty ==> sync in the first round
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
           cache->store + idx->list[i].cache_idx);
-      r = cache->sync(&to_sync);
+      r = cache->sync(&to_sync, cache->sync_data);
       if (r != SBDI_SUCCESS) {
         return r;
       }
-      idx->list[idx->lru].dirty = 0;
+      sbdi_bc_clear_blk_dirty(&idx->list[i]);
+    }
+  }
+  // Second round: sync out all remaining dirty management blocks
+  for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
+    if (sbdi_bc_is_valid_and_dirty(&idx->list[i])) {
+      sbdi_block_init(&to_sync, idx->list[i].block_idx,
+          cache->store + idx->list[i].cache_idx);
+      r = cache->sync(&to_sync, cache->sync_data);
+      if (r != SBDI_SUCCESS) {
+        return r;
+      }
+      sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }
   }
   return SBDI_SUCCESS;
