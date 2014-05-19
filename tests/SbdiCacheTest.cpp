@@ -21,11 +21,14 @@ CPPUNIT_TEST_SUITE( SbdiCacheTest );
   CPPUNIT_TEST(testCacheAndFind);
   CPPUNIT_TEST(testOverfillCache);
   CPPUNIT_TEST(testUpdateCache);
+  CPPUNIT_TEST(testEvict);
+  CPPUNIT_TEST(testSync);
   CPPUNIT_TEST(testParamChecks);CPPUNIT_TEST_SUITE_END()
   ;
 
 private:
   sbdi_bc_t *cache;
+  int sync_state;
 
   int memchrcmp(unsigned char *buffer, int chr, size_t len)
   {
@@ -40,7 +43,7 @@ private:
   sbdi_error_t sbdi_bc_cache_blk_i(uint32_t idx, sbdi_block_t *blk)
   {
     blk->idx = idx;
-    return sbdi_bc_cache_blk(cache, blk);
+    return sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA);
   }
 
   sbdi_error_t sbdi_bc_find_blk_i(uint32_t idx, sbdi_block_t *blk)
@@ -49,19 +52,27 @@ private:
     return sbdi_bc_find_blk(cache, blk);
   }
 
-  static sbdi_error_t sync_cb(sbdi_block_t *blk) {
-    std::cout << "Evict block " << blk->idx  << " @ " << blk->data << std::endl;
-    return SBDI_SUCCESS;
+  static sbdi_error_t sync_cb(void *sync_data, sbdi_block_t *blk)
+  {
+    int *sync_state = (int *) sync_data;
+    std::cout << "Sync block " << blk->idx << " @ " << blk->data << std::endl;
+    if (!(*sync_state)) {
+      return SBDI_ERR_ILLEGAL_STATE;
+    } else {
+      return SBDI_SUCCESS;
+    }
   }
 
 public:
   void setUp()
   {
-    cache = sbdi_bc_cache_create(&sync_cb);
+    cache = sbdi_bc_cache_create(&sync_cb, &sync_state);
+    sync_state = 0;
   }
 
   void tearDown()
   {
+    sync_state = 0;
     sbdi_bc_cache_destroy(cache);
   }
 
@@ -152,24 +163,86 @@ public:
     }
   }
 
+  void testEvict()
+  {
+    sbdi_block_t blk_dat;
+    sbdi_block_t *blk = &blk_dat;
+    sbdi_block_invalidate(blk);
+    for (uint32_t i = 0x40; i < (0x40 + SBDI_CACHE_MAX_SIZE); ++i) {
+      CPPUNIT_ASSERT(sbdi_bc_cache_blk_i(i, blk) == SBDI_SUCCESS);
+      CPPUNIT_ASSERT(blk->data != NULL);
+      memset(blk->data, i, SBDI_BLOCK_SIZE);
+    }
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x42, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_evict_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x07, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_cache_blk_i(0x07, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(memchrcmp(*blk->data, 0x42, SBDI_BLOCK_SIZE));
+    for (uint32_t i = 0x40; i < (0x40 + SBDI_CACHE_MAX_SIZE); ++i) {
+      if (i == 0x42) {
+        continue;
+      }
+      CPPUNIT_ASSERT(sbdi_bc_find_blk_i(i, blk) == SBDI_SUCCESS);
+      CPPUNIT_ASSERT(memchrcmp(*blk->data, i, SBDI_BLOCK_SIZE));
+    }
+    CPPUNIT_ASSERT(
+        (sbdi_bc_find_blk_i(0x07, blk) == SBDI_SUCCESS) && (blk->data != NULL));
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x11, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_ERR_ILLEGAL_STATE);
+  }
+
+  void testSync()
+  {
+    sbdi_block_t blk_dat;
+    sbdi_block_t *blk = &blk_dat;
+    sbdi_block_invalidate(blk);
+    for (uint32_t i = 0x50; i < (0x50 + SBDI_CACHE_MAX_SIZE); ++i) {
+      CPPUNIT_ASSERT(sbdi_block_init(blk, i, NULL) == SBDI_SUCCESS);
+      if (i % 2) {
+        CPPUNIT_ASSERT(
+            sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA) == SBDI_SUCCESS);
+      } else {
+        CPPUNIT_ASSERT(
+            sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_MNGT) == SBDI_SUCCESS);
+      }
+      CPPUNIT_ASSERT(blk->data != NULL);
+      memset(blk->data, i, SBDI_BLOCK_SIZE);
+    }
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x50, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x51, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x52, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    sync_state = 1;
+    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x60, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(
+        sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_MNGT) == SBDI_SUCCESS);
+    sync_state = 0;
+    // No sync should happen!
+    CPPUNIT_ASSERT(sbdi_bc_sync(cache) == SBDI_SUCCESS);
+  }
+
   void testParamChecks()
   {
     sbdi_block_t blk_dat;
     sbdi_block_t *blk = &blk_dat;
     sbdi_block_invalidate(blk);
-    CPPUNIT_ASSERT(sbdi_bc_cache_blk(NULL, NULL) == SBDI_ERR_ILLEGAL_PARAM);
-    CPPUNIT_ASSERT(sbdi_bc_cache_blk(cache, NULL) == SBDI_ERR_ILLEGAL_PARAM);
+    CPPUNIT_ASSERT(
+        sbdi_bc_cache_blk(NULL, NULL, SBDI_BC_BT_DATA) == SBDI_ERR_ILLEGAL_PARAM);
+    CPPUNIT_ASSERT(
+        sbdi_bc_cache_blk(cache, NULL, SBDI_BC_BT_DATA) == SBDI_ERR_ILLEGAL_PARAM);
+    CPPUNIT_ASSERT(
+        sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_RESV)
+            == SBDI_ERR_ILLEGAL_PARAM);
     CPPUNIT_ASSERT(
         sbdi_bc_cache_blk_i(UINT32_MAX, blk) == SBDI_ERR_ILLEGAL_PARAM);
     CPPUNIT_ASSERT(sbdi_bc_find_blk(NULL, NULL) == SBDI_ERR_ILLEGAL_PARAM);
-    CPPUNIT_ASSERT(
-        sbdi_bc_find_blk(cache, NULL) == SBDI_ERR_ILLEGAL_PARAM);
+    CPPUNIT_ASSERT(sbdi_bc_find_blk(cache, NULL) == SBDI_ERR_ILLEGAL_PARAM);
     CPPUNIT_ASSERT(
         sbdi_bc_find_blk_i(UINT32_MAX, blk) == SBDI_ERR_ILLEGAL_PARAM);
   }
 
-  // TODO test evict function!
-  // TODO test sync function!
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(SbdiCacheTest);
