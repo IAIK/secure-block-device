@@ -71,8 +71,7 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
       || (blk_ctr && ctr_len != SBDI_BLOCK_ACCESS_COUNTER_SIZE)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_bc_bt_t blk_type =
-      (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
+  sbdi_bc_bt_t blk_type = (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
   sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
   if (r != SBDI_SUCCESS) {
     return r;
@@ -111,7 +110,8 @@ static inline uint32_t sbdi_get_mngt_block_number(uint32_t idx)
 //----------------------------------------------------------------------
 static inline uint32_t sbdi_get_mngt_block_index(uint32_t idx)
 {
-  return sbdi_get_mngt_block_number(idx) * SBDI_MNGT_BLOCK_ENTRIES;
+  return (sbdi_get_mngt_block_number(idx) * SBDI_MNGT_BLOCK_ENTRIES)
+      + sbdi_get_mngt_block_number(idx) + 1;
 }
 
 //----------------------------------------------------------------------
