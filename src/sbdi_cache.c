@@ -14,6 +14,8 @@
 #include <inttypes.h>
 #endif
 
+#define SBDI_BC_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
+
 #define  IDX_P1(IDX) ((IDX+1) % SBDI_CACHE_MAX_SIZE)
 #define  IDX_S1(IDX) ((IDX-1) % SBDI_CACHE_MAX_SIZE)
 #define INC_IDX(IDX) do {IDX = IDX_P1(IDX);} while (0)
@@ -56,7 +58,6 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
   if (!idx || idx_1 > SBDI_CACHE_MAX_SIZE || idx_2 > SBDI_CACHE_MAX_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-
   idx->list[idx_1].block_idx = idx->list[idx_1].block_idx
       ^ idx->list[idx_2].block_idx;
   idx->list[idx_2].block_idx = idx->list[idx_1].block_idx
@@ -70,7 +71,6 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
       ^ idx->list[idx_2].cache_idx;
   idx->list[idx_1].cache_idx = idx->list[idx_1].cache_idx
       ^ idx->list[idx_2].cache_idx;
-
   return SBDI_SUCCESS;
 }
 
@@ -91,10 +91,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 #endif
         return SBDI_SUCCESS;
       } else {
-        sbdi_error_t r = sbdi_bc_swap(idx, cdt, IDX_P1(cdt));
-        if (r != SBDI_SUCCESS) {
-          return r;
-        }
+        SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, IDX_P1(cdt)));
         blk->data = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
         cache->hits++;
@@ -118,7 +115,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   blk->data = NULL;
-  sbdi_bc_find_blk(cache, blk);
+  SBDI_BC_ERR_CHK(sbdi_bc_find_blk(cache, blk));
   if (blk->data) {
     return SBDI_SUCCESS;
   }
@@ -129,17 +126,11 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     if (sbdi_bc_is_mngt_blk(idx->list[idx->lru].flags)) {
       // in case we deal with a management block it is probably best to
       // sync out all blocks. This SHOULD ensure a consistent state.
-      sbdi_error_t r = sbdi_bc_sync(cache);
-      if (r != SBDI_SUCCESS) {
-        return r;
-      }
+      SBDI_BC_ERR_CHK(sbdi_bc_sync(cache));
     } else {
       sbdi_block_init(&to_sync, idx->list[idx->lru].block_idx,
           cache->store + idx->list[idx->lru].cache_idx);
-      sbdi_error_t r = cache->sync(cache->sync_data, &to_sync);
-      if (r != SBDI_SUCCESS) {
-        return r;
-      }
+      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[idx->lru]);
     }
   }
@@ -186,10 +177,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
         uint32_t swp = idx->lru;
         while (swp != cdt) {
           if (sbdi_bc_is_valid(idx->list[swp].block_idx)) {
-            sbdi_error_t r = sbdi_bc_swap(idx, cdt, swp);
-            if (r != SBDI_SUCCESS) {
-              return r;
-            }
+            SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, swp));
           }
           INC_IDX(swp);
         }
@@ -209,7 +197,6 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   if (!cache) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_error_t r;
   sbdi_block_t to_sync;
   sbdi_bc_idx_t *idx = &cache->index;
   // Sync out data blocks first and then the corresponding management
@@ -220,10 +207,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
       // Not a management block, but dirty ==> sync in the first round
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
           cache->store + idx->list[i].cache_idx);
-      r = cache->sync(&to_sync, cache->sync_data);
-      if (r != SBDI_SUCCESS) {
-        return r;
-      }
+      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }
   }
@@ -232,10 +216,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
     if (sbdi_bc_is_valid_and_dirty(&idx->list[i])) {
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
           cache->store + idx->list[i].cache_idx);
-      r = cache->sync(&to_sync, cache->sync_data);
-      if (r != SBDI_SUCCESS) {
-        return r;
-      }
+      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }
   }
