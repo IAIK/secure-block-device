@@ -11,6 +11,15 @@
 #include <limits>
 #define UINT32_MAX std::numeric_limits<uint32_t>::max()
 #endif
+#ifndef UINT32_C
+#define UINT32_C(c) c ## u
+#endif
+#ifndef UINT8_MAX
+#define UINT8_MAX 256u
+#endif
+#ifndef UINT16_MAX
+#define UINT16_MAX 65536u
+#endif
 
 #include "sbdi_cache.h"
 
