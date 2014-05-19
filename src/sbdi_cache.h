@@ -93,6 +93,28 @@ static inline int sbdi_bc_is_mngt_blk(int flags)
 }
 
 /*!
+ * \brief computes if the block with the given block index is in scope of the
+ * management block with the given index
+ *
+ * A data block is in scope of a management block if its counter value and
+ * tag are stored in the management block. This can be computed from the
+ * physical management block index, by simply adding the amount of entries
+ * that fit into a management block and see if the physical index of the
+ * data block is less than or equal to this number:
+ *
+ * in_scope(mng_idx, blk_idx) =
+ *   blk_idx > mng_idx && blk_idx <= (mng_idx + MNGT_BLOCK_ENTRIES)
+ *
+ * @param mng_idx the physical block index of a management block
+ * @param blk_idx the physical block index of a data block
+ * @return true if the data block with the given index is in scope of the
+ * management block with the given index
+ */
+static inline int sbdi_bc_is_in_mngt_scope(uint32_t mng_idx, uint32_t blk_idx) {
+  return blk_idx > mng_idx && blk_idx <= (mng_idx + SBDI_MNGT_BLOCK_ENTRIES);
+}
+
+/*!
  * \brief sets the block type of a specific cache index element
  *
  * Warning this function clears the dirty flag!
