@@ -238,6 +238,10 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
     return r;
   }
   memcpy(pair.blk->data, ptr, len);
+  // Nothing has of yet been written to the management block. This has to be
+  // done by the sync function, when the dependent data blocks are synced.
+  // Afterwards the management block should be written.
+  r = sbdi_bc_dirty_blk(sbdi->cache, pair.mng);
   return sbdi_bc_dirty_blk(sbdi->cache, pair.blk);
   //sbdi_error_t r;
   // Make sure block is in cache
