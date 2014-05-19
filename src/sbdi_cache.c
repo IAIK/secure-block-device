@@ -181,6 +181,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
       if (r != SBDI_SUCCESS) {
         return r;
       }
+      idx->list[idx->lru].dirty = 0;
     }
   }
   return SBDI_SUCCESS;
