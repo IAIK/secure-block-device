@@ -20,7 +20,9 @@
 #define  IDX_S1(IDX) ((IDX-1) % SBDI_CACHE_MAX_SIZE)
 #define INC_IDX(IDX) do {IDX = IDX_P1(IDX);} while (0)
 #define DEC_IDX(IDX) do {IDX = IDX_S1(IDX);} while (0)
+#define SWAP(X, Y) do {(X) = (X) ^ (Y); (Y) = (X) ^ (Y); (X) = (X) ^ (Y);} while (0)
 
+//----------------------------------------------------------------------
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 {
   if (!sync || !sync_data) {
@@ -47,33 +49,26 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
   return cache;
 }
 
+//----------------------------------------------------------------------
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   free(cache);
 }
 
+//----------------------------------------------------------------------
 static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_idx_t *idx, uint32_t idx_1,
     uint32_t idx_2)
 {
   if (!idx || idx_1 > SBDI_CACHE_MAX_SIZE || idx_2 > SBDI_CACHE_MAX_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  idx->list[idx_1].block_idx = idx->list[idx_1].block_idx
-      ^ idx->list[idx_2].block_idx;
-  idx->list[idx_2].block_idx = idx->list[idx_1].block_idx
-      ^ idx->list[idx_2].block_idx;
-  idx->list[idx_1].block_idx = idx->list[idx_1].block_idx
-      ^ idx->list[idx_2].block_idx;
-
-  idx->list[idx_1].cache_idx = idx->list[idx_1].cache_idx
-      ^ idx->list[idx_2].cache_idx;
-  idx->list[idx_2].cache_idx = idx->list[idx_1].cache_idx
-      ^ idx->list[idx_2].cache_idx;
-  idx->list[idx_1].cache_idx = idx->list[idx_1].cache_idx
-      ^ idx->list[idx_2].cache_idx;
+  SWAP(idx->list[idx_1].block_idx, idx->list[idx_2].block_idx);
+  SWAP(idx->list[idx_1].cache_idx, idx->list[idx_2].cache_idx);
+  SWAP(idx->list[idx_1].flags, idx->list[idx_2].flags);
   return SBDI_SUCCESS;
 }
 
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
   if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
