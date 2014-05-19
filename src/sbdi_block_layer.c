@@ -71,7 +71,9 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
       || (blk_ctr && ctr_len != SBDI_BLOCK_ACCESS_COUNTER_SIZE)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk);
+  sbdi_bc_bt_t blk_type =
+      (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
+  sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
   if (r != SBDI_SUCCESS) {
     return r;
   } else if (!blk->data) {
@@ -134,7 +136,8 @@ sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
   if (!pair->mng->data) {
     // Block not yet in cache
     sbdi_tag_t mng_tag;
-    r = sbdi_bl_cache_decrypt(sbdi, pair->mng, SBDI_BLOCK_SIZE, &mng_tag, NULL, 0);
+    r = sbdi_bl_cache_decrypt(sbdi, pair->mng, SBDI_BLOCK_SIZE, &mng_tag, NULL,
+        0);
     if (r != SBDI_SUCCESS) {
       // TODO Cleanup?
       return r;
@@ -171,8 +174,7 @@ sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
 sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
     uint32_t idx, size_t len)
 {
-  if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX
-      || len > SBDI_BLOCK_SIZE) {
+  if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   // TODO check that read is not beyond the bounds of file, otherwise the
@@ -226,7 +228,8 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   uint32_t dat_idx = sbdi_get_data_block_index(idx);
   uint32_t tag_idx = sbdi_get_mngt_tag_index(idx);
   sbdi_block_pair_t pair;
-  sbdi_error_t r = sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx, tag_idx);
+  sbdi_error_t r = sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx,
+      tag_idx);
   if (r != SBDI_SUCCESS) {
     return r;
   }
@@ -234,7 +237,8 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   if (r != SBDI_SUCCESS) {
     return r;
   }
-  memcpy(pair->blk->data, ptr, len);
+  memcpy(pair.blk->data, ptr, len);
+  return sbdi_bc_dirty_blk(sbdi->cache, pair.blk);
   //sbdi_error_t r;
   // Make sure block is in cache
   // What I need to do:
@@ -242,7 +246,7 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   // * Get block access counter
   // * Increment block access counter
   // * Write to cache
+  // * Cache is synced later on
   // * Write back new block access counter and tag to management block (also in cache)
   //
-  return SBDI_SUCCESS;
 }
