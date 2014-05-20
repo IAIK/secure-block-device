@@ -20,7 +20,7 @@ extern "C" {
 #define SBDI_BC_BT_MNGT_CMP 1
 #define SBDI_BC_BT_DATA_CMP 2
 #define SBDI_BC_BF_DIRTY_CMP 256
-#define SBDI_BC_BF_DIRTY_CLEAR UINT16_MAX ^ SBDI_BC_BF_DIRTY_CMP
+#define SBDI_BC_BF_DIRTY_CLEAR (UINT16_MAX ^ SBDI_BC_BF_DIRTY_CMP)
 
 typedef enum sbdi_block_cache_block_type {
   SBDI_BC_BT_RESV = 0,
