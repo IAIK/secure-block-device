@@ -1,5 +1,5 @@
 Q=@
-VGRUN = valgrind --tool=memcheck 
+VGRUN = valgrind --tool=memcheck
 
 LDFLAGS += -lcppunit -ggdb
 CFLAGS  += -Wall -ggdb
@@ -14,7 +14,11 @@ TST_OBJS = $(TST_CXX_OBJS)
 TST_LIB = ../src/crypto/libSbdiCrypto.a ../src/libSecureBlock.a
 TST_BIN = secure-block-test
 
-all: dep $(TST_BIN) 
+all: dep $(TST_BIN)
+
+coverage: LDFLAGS +=-ggdb -coverage
+coverage: CFLAGS +=-ggdb -fprofile-arcs -ftest-coverage
+coverage: dep $(TST_BIN)
 
 test: $(TST_BIN)
 	$(Q)$(VGRUN) ./$(TST_BIN)
