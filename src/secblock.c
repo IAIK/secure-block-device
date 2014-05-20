@@ -34,7 +34,7 @@ static sbdi_error_t sbdi_check_hdr(sbdi_hdr_t *hdr)
   if (hdr->version != 1) {
     return SBDI_ERR_UNSUPPORTED;
   }
-  printf("Nbr. of key slots: %lx", sizeof(hdr->key_slots));
+  printf("Nbr. of key slots: %lx", (unsigned long) sizeof(hdr->key_slots));
   if (hdr->key_slots[0].key_alg_id != SBDI_HDR_KS_ALG_AES) {
     return SBDI_ERR_UNSUPPORTED;
   }
