@@ -277,15 +277,14 @@ public:
   void testComplexSync()
   {
     sbdi_block_t blk;
-    initComplexSyncCache(0x00, (SBDI_CACHE_MAX_SIZE / 2) + 1);
-    initComplexSyncCache(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2) + 1);
-    complexSyncDirtyBlocks(0x00, (SBDI_CACHE_MAX_SIZE / 2) + 1);
-    complexSyncDirtyBlocks(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2) + 1);
+    initComplexSyncCache(0x00, (SBDI_CACHE_MAX_SIZE / 2));
+    initComplexSyncCache(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2));
+    complexSyncDirtyBlocks(0x00, (SBDI_CACHE_MAX_SIZE / 2));
+    complexSyncDirtyBlocks(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2));
     cacheBlock(&blk, 0x200, SBDI_BC_BT_DATA);
     exp_sync.insert(exp_sync.begin(), 0x02);
     exp_sync.insert(exp_sync.begin(), 0x04);
     exp_sync.insert(exp_sync.begin(), 0x06);
-    exp_sync.insert(exp_sync.begin(), 0x08);
     exp_sync.insert(exp_sync.begin(), 0x00);
     cacheBlock(&blk, 0x201, SBDI_BC_BT_DATA);
     CPPUNIT_ASSERT(exp_sync.size() == 0);
