@@ -20,7 +20,7 @@ extern "C" {
 #define SBDI_BC_BT_MNGT_CMP 1
 #define SBDI_BC_BT_DATA_CMP 2
 #define SBDI_BC_BF_DIRTY_CMP 256
-#define SBDI_BC_BF_DIRTY_CLEAR UINT16_MAX ^ SBDI_BC_BF_DIRTY_CMP
+#define SBDI_BC_BF_DIRTY_CLEAR (UINT16_MAX ^ SBDI_BC_BF_DIRTY_CMP)
 
 typedef enum sbdi_block_cache_block_type {
   SBDI_BC_BT_RESV = 0,
@@ -87,9 +87,14 @@ static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_idx_elem_t *blk)
   blk->flags &= SBDI_BC_BF_DIRTY_CLEAR;
 }
 
+static inline int sbdi_bc_get_blk_type(int flags)
+{
+  return (flags & UINT8_MAX);
+}
+
 static inline int sbdi_bc_is_mngt_blk(int flags)
 {
-  return (flags & UINT8_MAX) == SBDI_BC_BT_MNGT;
+  return sbdi_bc_get_blk_type(flags) == SBDI_BC_BT_MNGT;
 }
 
 /*!
@@ -130,7 +135,7 @@ static inline void sbdi_bc_set_blk_type(sbdi_bc_idx_elem_t *elem,
 
 static inline int sbdi_bc_is_data_blk(int flags)
 {
-  return (flags & UINT8_MAX) == SBDI_BC_BT_DATA;
+  return sbdi_bc_get_blk_type(flags) == SBDI_BC_BT_DATA;
 }
 
 #ifdef SBDI_CACHE_PROFILE
