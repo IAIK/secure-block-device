@@ -69,6 +69,7 @@ private:
     std::set<uint32_t> &exp_sync = *((std::set<uint32_t>*) sync_data);
     std::cout << "Sync block " << blk->idx << " @ " << blk->data << std::endl;
     if (exp_sync.find(blk->idx) == exp_sync.end()) {
+      std::cout << "Unexpected sync: " << blk->idx << " @ " << blk->data << std::endl;
       return SBDI_ERR_ILLEGAL_PARAM;
     } else {
       exp_sync.erase(blk->idx);
@@ -241,30 +242,30 @@ public:
     exp_sync.clear();
   }
 
-  void initComplexSyncCache(int s_idx)
+  void cacheBlock(sbdi_block_t *blk, uint32_t idx, sbdi_bc_bt_t type)
   {
-    sbdi_block_t blk_dat;
-    sbdi_block_t *blk = &blk_dat;
     sbdi_block_invalidate(blk);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, s_idx, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(
-        sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_MNGT) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_block_init(blk, idx, NULL) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_cache_blk(cache, blk, type) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(blk->data != NULL);
-    for (uint32_t i = s_idx + 1; i < (s_idx + SBDI_CACHE_MAX_SIZE / 2); ++i) {
-      CPPUNIT_ASSERT(sbdi_block_init(blk, i, NULL) == SBDI_SUCCESS);
-      CPPUNIT_ASSERT(
-          sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA) == SBDI_SUCCESS);
-      CPPUNIT_ASSERT(blk->data != NULL);
-      memset(blk->data, i, SBDI_BLOCK_SIZE);
+    memset(blk->data, idx, SBDI_BLOCK_SIZE);
+  }
+
+  void initComplexSyncCache(uint32_t s_idx, uint32_t e_idx)
+  {
+    sbdi_block_t blk;
+    cacheBlock(&blk, s_idx, SBDI_BC_BT_MNGT);
+    for (uint32_t i = s_idx + 1; i < e_idx; ++i) {
+      cacheBlock(&blk, i, SBDI_BC_BT_DATA);
     }
   }
 
-  void complexSyncDirtyBlocks(int s_idx)
+  void complexSyncDirtyBlocks(uint32_t s_idx, uint32_t e_idx)
   {
     sbdi_block_t blk_dat;
     sbdi_block_t *blk = &blk_dat;
     sbdi_block_invalidate(blk);
-    for (unsigned i = s_idx; i < SBDI_CACHE_MAX_SIZE / 2; ++i) {
+    for (uint32_t i = s_idx; i < e_idx; ++i) {
       if (i % 2) {
         continue;
       }
@@ -275,11 +276,20 @@ public:
 
   void testComplexSync()
   {
-    initComplexSyncCache(0x60);
-    initComplexSyncCache(0x80);
-    complexSyncDirtyBlocks(0x60);
-    complexSyncDirtyBlocks(0x80);
-    initComplexSyncCache(0x100);
+    sbdi_block_t blk;
+    initComplexSyncCache(0x00, (SBDI_CACHE_MAX_SIZE / 2) + 1);
+    initComplexSyncCache(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2) + 1);
+    complexSyncDirtyBlocks(0x00, (SBDI_CACHE_MAX_SIZE / 2) + 1);
+    complexSyncDirtyBlocks(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2) + 1);
+    cacheBlock(&blk, 0x200, SBDI_BC_BT_DATA);
+    exp_sync.insert(exp_sync.begin(), 0x02);
+    exp_sync.insert(exp_sync.begin(), 0x04);
+    exp_sync.insert(exp_sync.begin(), 0x06);
+    exp_sync.insert(exp_sync.begin(), 0x08);
+    exp_sync.insert(exp_sync.begin(), 0x00);
+    cacheBlock(&blk, 0x201, SBDI_BC_BT_DATA);
+    CPPUNIT_ASSERT(exp_sync.size() == 0);
+    exp_sync.clear();
   }
 
   void testParamChecks()
