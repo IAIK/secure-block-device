@@ -15,11 +15,6 @@
 #endif
 
 #define SBDI_BC_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
-
-#define  IDX_P1(IDX) ((IDX+1) % SBDI_CACHE_MAX_SIZE)
-#define  IDX_S1(IDX) ((IDX-1) % SBDI_CACHE_MAX_SIZE)
-#define INC_IDX(IDX) do {IDX = IDX_P1(IDX);} while (0)
-#define DEC_IDX(IDX) do {IDX = IDX_S1(IDX);} while (0)
 #define SWAP(X, Y) do {(X) = (X) ^ (Y); (Y) = (X) ^ (Y); (X) = (X) ^ (Y);} while (0)
 
 //----------------------------------------------------------------------
@@ -84,31 +79,28 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  uint32_t cdt = idx->lru;
-  do {
-    DEC_IDX(cdt);
-    if (idx->list[cdt].block_idx == blk->idx) {
-      if (IDX_P1(cdt) == idx->lru) {
-        blk->data = cache->store + idx->list[cdt].cache_idx;
+  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
+  if (idx_pos >= SBDI_BLOCK_MAX_INDEX) {
+    blk->data = NULL;
 #ifdef SBDI_CACHE_PROFILE
-        cache->hits++;
+    cache->misses++;
 #endif
-        return SBDI_SUCCESS;
-      } else {
-        SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, IDX_P1(cdt)));
-        blk->data = cache->store + idx->list[IDX_P1(cdt)].cache_idx;
+    return SBDI_SUCCESS;
+  }
+  if (SBDI_BC_IDX_P1(idx_pos) == idx->lru) {
+    blk->data = cache->store + idx->list[idx_pos].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
-        cache->hits++;
+    cache->hits++;
 #endif
-        return SBDI_SUCCESS;
-      }
-    }
-  } while (cdt != idx->lru);
-  blk->data = NULL;
+    return SBDI_SUCCESS;
+  } else {
+    SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
+    blk->data = cache->store + idx->list[SBDI_BC_IDX_P1(idx_pos)].cache_idx;
 #ifdef SBDI_CACHE_PROFILE
-  cache->misses++;
+    cache->hits++;
 #endif
-  return SBDI_SUCCESS;
+    return SBDI_SUCCESS;
+  }
 }
 
 /*!
@@ -182,7 +174,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
   idx->list[idx->lru].block_idx = blk->idx;
   sbdi_bc_set_blk_type(&idx->list[idx->lru], blk_type);
   blk->data = cache->store + idx->list[idx->lru].cache_idx;
-  INC_IDX(idx->lru);
+  SBDI_BC_INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }
 
@@ -195,14 +187,14 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   sbdi_bc_idx_t *idx = &cache->index;
   uint32_t cdt = idx->lru;
   do {
-    DEC_IDX(cdt);
+    SBDI_BC_DEC_IDX(cdt);
     if (idx->list[cdt].block_idx == blk->idx) {
       sbdi_bc_set_blk_dirty(&idx->list[cdt]);
       if (sbdi_bc_is_mngt_blk(idx->list[cdt].flags)
-          && IDX_P1(cdt) != idx->lru) {
+          && SBDI_BC_IDX_P1(cdt) != idx->lru) {
         // This is a management block and it's not already at the top of the
         // cache list ==> bump it up
-        SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, IDX_P1(cdt)));
+        SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, SBDI_BC_IDX_P1(cdt)));
       }
       return SBDI_SUCCESS;
     }
@@ -219,7 +211,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   sbdi_bc_idx_t *idx = &cache->index;
   uint32_t cdt = idx->lru;
   do {
-    DEC_IDX(cdt);
+    SBDI_BC_DEC_IDX(cdt);
     if (idx->list[cdt].block_idx == blk->idx) {
       idx->list[cdt].block_idx = UINT32_MAX;
       if (cdt == idx->lru) {
@@ -232,7 +224,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
           if (sbdi_bc_is_valid(idx->list[swp].block_idx)) {
             SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, swp));
           }
-          INC_IDX(swp);
+          SBDI_BC_INC_IDX(swp);
         }
         return SBDI_SUCCESS;
       }

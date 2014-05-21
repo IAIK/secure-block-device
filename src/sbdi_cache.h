@@ -22,6 +22,11 @@ extern "C" {
 #define SBDI_BC_BF_DIRTY_CMP 256
 #define SBDI_BC_BF_DIRTY_CLEAR (UINT16_MAX ^ SBDI_BC_BF_DIRTY_CMP)
 
+#define  SBDI_BC_IDX_P1(IDX) ((IDX+1) % SBDI_CACHE_MAX_SIZE)
+#define  SBDI_BC_IDX_S1(IDX) ((IDX-1) % SBDI_CACHE_MAX_SIZE)
+#define SBDI_BC_INC_IDX(IDX) do {IDX = SBDI_BC_IDX_P1(IDX);} while (0)
+#define SBDI_BC_DEC_IDX(IDX) do {IDX = SBDI_BC_IDX_S1(IDX);} while (0)
+
 typedef enum sbdi_block_cache_block_type {
   SBDI_BC_BT_RESV = 0,
   SBDI_BC_BT_MNGT = SBDI_BC_BT_MNGT_CMP,
@@ -54,6 +59,30 @@ typedef struct sbdi_block_cache {
 
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
+
+/*!
+ * \brief looks up if a block with the given physical block index is in the
+ * cache and returns the position of the cache element in the caches index
+ *
+ * @param cache the cache data type instance in which to look for the block
+ * @param blk_idx the physical block index to look for
+ * @return the position of the element in the cache index
+ */
+static inline uint32_t sbdi_bc_find_blk_idx_pos(sbdi_bc_t *cache, uint32_t blk_idx)
+{
+  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX) {
+    return UINT32_MAX;
+  }
+  sbdi_bc_idx_t *idx = &cache->index;
+  uint32_t cdt = idx->lru;
+  do {
+    SBDI_BC_DEC_IDX(cdt);
+    if (idx->list[cdt].block_idx == blk_idx) {
+      return cdt;
+    }
+  } while (cdt != idx->lru);
+  return UINT32_MAX;
+}
 
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk);
 sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
