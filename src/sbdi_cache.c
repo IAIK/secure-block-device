@@ -185,21 +185,19 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  uint32_t cdt = idx->lru;
-  do {
-    SBDI_BC_DEC_IDX(cdt);
-    if (idx->list[cdt].block_idx == blk->idx) {
-      sbdi_bc_set_blk_dirty(&idx->list[cdt]);
-      if (sbdi_bc_is_mngt_blk(idx->list[cdt].flags)
-          && SBDI_BC_IDX_P1(cdt) != idx->lru) {
-        // This is a management block and it's not already at the top of the
-        // cache list ==> bump it up
-        SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, SBDI_BC_IDX_P1(cdt)));
-      }
-      return SBDI_SUCCESS;
-    }
-  } while (cdt != idx->lru);
-  return SBDI_ERR_ILLEGAL_STATE;
+  sbdi_bc_find_blk_idx_pos(cache, blk->idx);
+  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
+  if (idx_pos >= SBDI_BLOCK_MAX_INDEX) {
+    return SBDI_ERR_ILLEGAL_STATE;
+  }
+  sbdi_bc_set_blk_dirty(&idx->list[idx_pos]);
+  if (sbdi_bc_is_mngt_blk(idx->list[idx_pos].flags)
+      && SBDI_BC_IDX_P1(idx_pos) != idx->lru) {
+    // This is a management block and it's not already at the top of the
+    // cache list ==> bump it up
+    SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
+  }
+  return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------
