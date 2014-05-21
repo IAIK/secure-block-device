@@ -23,6 +23,8 @@ typedef struct secure_block_device_interface {
   siv_ctx *ctx;
   sbdi_bc_t *cache;
   mt_t *mt;
+  sbdi_db_t write_store;
+  sbdi_ctr_128b_t g_ctr;
 } sbdi_t;
 
 typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
@@ -253,4 +255,46 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   // * Cache is synced later on
   // * Write back new block access counter and tag to management block (also in cache)
   //
+}
+
+//----------------------------------------------------------------------
+static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
+{
+  if (!sbdi || !blk || !blk->data || blk->idx > SBDI_BLOCK_MAX_INDEX) {
+    return SBDI_ERR_ILLEGAL_PARAM;
+  }
+  sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
+  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
+  if (idx_pos >= SBDI_BLOCK_MAX_INDEX
+      || !sbdi_bc_is_blk_dirty(idx_list[idx_pos].flags)) {
+    return SBDI_ERR_ILLEGAL_STATE;
+  }
+  int cr = -1;
+  sbdi_tag_t tag;
+  switch (sbdi_bc_get_blk_type(idx_list[idx_pos].flags)) {
+  case SBDI_BC_BT_MNGT:
+    // Add block index as additional information to the decryption
+    cr = siv_decrypt(sbdi->ctx, blk->data[0], blk->data[0], SBDI_BLOCK_SIZE,
+        *tag, 1, &blk->idx, sizeof(uint32_t));
+    break;
+  case SBDI_BC_BT_DATA:
+    // TODO can the same context be used for en- and decryption?
+    // encrypt block into write store using physical block index and the
+    // global counter as additional headers
+    cr = siv_encrypt(sbdi->ctx, blk->data[0], sbdi->write_store, SBDI_BLOCK_SIZE,
+        tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr, sizeof(sbdi_ctr_128b_t));
+    if (cr == -1) {
+      return SBDI_ERR_CRYPTO_FAIL;
+    }
+    break;
+  default:
+    return SBDI_ERR_ILLEGAL_STATE;
+  }
+  return SBDI_SUCCESS;
+}
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
+{
+  return sbdi_bl_sync_i((sbdi_t *) sbdi, blk);
 }
