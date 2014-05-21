@@ -67,25 +67,35 @@ sbdi_error_t sbdi_ctr_128b_dec(sbdi_ctr_128b_t *ctr)
   return SBDI_SUCCESS;
 }
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_ctr_128b_cmp(const sbdi_ctr_128b_t *ctr1, const sbdi_ctr_128b_t *ctr2,
-    int *res)
+sbdi_error_t sbdi_ctr_128b_cmp(const sbdi_ctr_128b_t *ctr1,
+    const sbdi_ctr_128b_t *ctr2, int *res)
 {
-  if (!ctr1 || !ctr2) {
+  if (!ctr1 || !ctr2 || !res) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  uint64_t hi = ctr1->hi - ctr2->hi;
-  if (hi != 0) {
-    *res = (hi < ctr1->hi) ? 1 : -1;
-  } else {
-    uint64_t lo = ctr1->lo - ctr2->lo;
-    if (lo != 0) {
-      *res = (lo < ctr1->lo) ? 1 : -1;
-    } else {
+  if (ctr1->hi == ctr2->hi) {
+    if (ctr1->lo == ctr2->lo) {
+      // Identical
       *res = 0;
+    } else {
+      // Counter differing in low part
+      if (ctr1->lo < ctr2->lo) {
+        *res =  -1;
+      } else {
+        *res =  1;
+      }
+    }
+  } else {
+    // Counter differing in high part
+    if (ctr1->hi < ctr2->hi) {
+      *res =  -1;
+    } else {
+      *res =  1;
     }
   }
   return SBDI_SUCCESS;
 }
+
 //----------------------------------------------------------------------
 void sbdi_ctr_128b_print(sbdi_ctr_128b_t *ctr)
 {
