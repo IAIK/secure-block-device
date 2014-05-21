@@ -118,7 +118,7 @@ static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_idx_elem_t *blk)
 
 static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(int flags)
 {
-  return (flags & UINT8_MAX);
+  return (sbdi_bc_bt_t)(flags & UINT8_MAX);
 }
 
 static inline int sbdi_bc_is_mngt_blk(int flags)

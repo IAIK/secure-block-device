@@ -54,6 +54,46 @@ static inline sbdi_error_t sbdi_block_invalidate(sbdi_block_t *blk)
   return SBDI_SUCCESS;
 }
 
+static inline uint32_t sbdi_get_mngt_block_number(uint32_t idx)
+{
+  return idx / SBDI_MNGT_BLOCK_ENTRIES;
+}
+
+static inline uint32_t sbdi_get_mngt_block_index(uint32_t idx)
+{
+  return (sbdi_get_mngt_block_number(idx) * SBDI_MNGT_BLOCK_ENTRIES)
+      + sbdi_get_mngt_block_number(idx) + 1;
+}
+
+static inline uint32_t sbdi_get_data_block_index(uint32_t idx)
+{
+  return idx + sbdi_get_mngt_block_number(idx) + 2;
+}
+
+static inline uint32_t sbdi_get_mngt_tag_index(uint32_t idx)
+{
+  return idx % SBDI_MNGT_BLOCK_ENTRIES;
+}
+
+static inline uint32_t sbdi_bl_idx_phy_to_log(uint32_t phy)
+{
+  if (phy < 2) {
+    // TODO Error handling?
+    return UINT32_MAX;
+  }
+  return (phy - 2) - (phy - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
+}
+
+static inline uint32_t sbdi_bl_idx_phy_to_mng(uint32_t phy)
+{
+  if (phy < 2) {
+    // TODO Error handling?
+    return UINT32_MAX;
+  }
+  uint32_t tmp = (phy - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
+  return tmp * (SBDI_MNGT_BLOCK_ENTRIES + 1) + 1;
+}
+
 #endif /* SBDI_BLOCK_H_ */
 
 #ifdef __cplusplus

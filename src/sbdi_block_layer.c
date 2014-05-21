@@ -10,6 +10,7 @@
 
 #include "sbdi_config.h"
 #include "sbdi_cache.h"
+#include "sbdi_ctr_128b.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -101,31 +102,6 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
     return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
-}
-
-//----------------------------------------------------------------------
-static inline uint32_t sbdi_get_mngt_block_number(uint32_t idx)
-{
-  return idx / SBDI_MNGT_BLOCK_ENTRIES;
-}
-
-//----------------------------------------------------------------------
-static inline uint32_t sbdi_get_mngt_block_index(uint32_t idx)
-{
-  return (sbdi_get_mngt_block_number(idx) * SBDI_MNGT_BLOCK_ENTRIES)
-      + sbdi_get_mngt_block_number(idx) + 1;
-}
-
-//----------------------------------------------------------------------
-static inline uint32_t sbdi_get_data_block_index(uint32_t idx)
-{
-  return idx + sbdi_get_mngt_block_number(idx) + 2;
-}
-
-//----------------------------------------------------------------------
-static inline uint32_t sbdi_get_mngt_tag_index(uint32_t idx)
-{
-  return idx % SBDI_MNGT_BLOCK_ENTRIES;
 }
 
 //----------------------------------------------------------------------
@@ -275,7 +251,7 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
   case SBDI_BC_BT_MNGT:
     // Add block index as additional information to the decryption
     cr = siv_decrypt(sbdi->ctx, blk->data[0], blk->data[0], SBDI_BLOCK_SIZE,
-        *tag, 1, &blk->idx, sizeof(uint32_t));
+        tag, 1, &blk->idx, sizeof(uint32_t));
     break;
   case SBDI_BC_BT_DATA:
     // TODO can the same context be used for en- and decryption?
@@ -286,6 +262,9 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
     if (cr == -1) {
       return SBDI_ERR_CRYPTO_FAIL;
     }
+    // Update tag and counter in management block
+    uint32_t mng_idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+
     break;
   default:
     return SBDI_ERR_ILLEGAL_STATE;

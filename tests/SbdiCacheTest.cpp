@@ -69,7 +69,8 @@ private:
     std::set<uint32_t> &exp_sync = *((std::set<uint32_t>*) sync_data);
     std::cout << "Sync block " << blk->idx << " @ " << blk->data << std::endl;
     if (exp_sync.find(blk->idx) == exp_sync.end()) {
-      std::cout << "Unexpected sync: " << blk->idx << " @ " << blk->data << std::endl;
+      std::cout << "Unexpected sync: " << blk->idx << " @ " << blk->data
+          << std::endl;
       return SBDI_ERR_ILLEGAL_PARAM;
     } else {
       exp_sync.erase(blk->idx);
@@ -290,6 +291,7 @@ public:
     CPPUNIT_ASSERT(exp_sync.size() == 0);
     exp_sync.clear();
   }
+
 
   void testParamChecks()
   {
