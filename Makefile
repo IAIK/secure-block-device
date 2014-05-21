@@ -16,7 +16,9 @@ debug:
 	$(Q)$(MAKE) -C tests/ all
 
 coverage:
+	$(Q)$(MAKE) -C src/crypto coverage
 	$(Q)$(MAKE) -C src/ coverage
+	$(Q)$(MAKE) -C tests/ coverage
 
 clean:
 	$(Q)$(MAKE) -C src/crypto clean
