@@ -5,6 +5,14 @@
  *      Author: dhein
  */
 
+#ifndef UINT32_MAX
+#include <limits>
+#define UINT32_MAX std::numeric_limits<uint32_t>::max()
+#endif
+#ifndef UINT32_C
+#define UINT32_C(c) c ## u
+#endif
+
 #include "sbdi_block.h"
 
 #include <cppunit/extensions/HelperMacros.h>

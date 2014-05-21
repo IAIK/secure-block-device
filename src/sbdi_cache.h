@@ -61,6 +61,22 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
 
 /*!
+ * \brief Computes the address of a data block in the cache based on the
+ * given cache block index
+ *
+ * @param cache the cache data type instance to use for the address
+ * computation
+ * @param cache_idx the cache block index;
+ * @return the memory address of the cache data block
+ */
+static inline sbdi_db_t *sbdi_bc_get_db_address(sbdi_bc_t *cache,
+    uint32_t cache_idx)
+{
+  return &cache->store[cache_idx];
+}
+
+
+/*!
  * \brief looks up if a block with the given physical block index is in the
  * cache and returns the position of the cache element in the caches index
  *

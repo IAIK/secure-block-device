@@ -50,6 +50,7 @@ void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
   free(cache);
 }
 
+
 /*!
  * \brief Swaps to elements in the block cache index
  * @param idx the block cache index type instance
@@ -88,14 +89,15 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
     return SBDI_SUCCESS;
   }
   if (SBDI_BC_IDX_P1(idx_pos) == idx->lru) {
-    blk->data = cache->store + idx->list[idx_pos].cache_idx;
+    blk->data = sbdi_bc_get_db_address(cache, idx->list[idx_pos].cache_idx);
 #ifdef SBDI_CACHE_PROFILE
     cache->hits++;
 #endif
     return SBDI_SUCCESS;
   } else {
     SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
-    blk->data = cache->store + idx->list[SBDI_BC_IDX_P1(idx_pos)].cache_idx;
+    blk->data = sbdi_bc_get_db_address(cache,
+        idx->list[SBDI_BC_IDX_P1(idx_pos)].cache_idx);
 #ifdef SBDI_CACHE_PROFILE
     cache->hits++;
 #endif
@@ -127,14 +129,14 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          cache->store + idx->list[i].cache_idx);
+          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }
   }
   // Now sync out the corresponding management block
   sbdi_block_init(&to_sync, idx->list[mng_idx].block_idx,
-      cache->store + idx->list[mng_idx].cache_idx);
+      sbdi_bc_get_db_address(cache, idx->list[mng_idx].cache_idx));
   SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
   sbdi_bc_clear_blk_dirty(&idx->list[mng_idx]);
   return SBDI_SUCCESS;
@@ -165,7 +167,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     } else {
       // This is just a data block, sync it out
       sbdi_block_init(&to_sync, idx->list[idx->lru].block_idx,
-          cache->store + idx->list[idx->lru].cache_idx);
+          sbdi_bc_get_db_address(cache, idx->list[idx->lru].cache_idx));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[idx->lru]);
     }
@@ -173,7 +175,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
   // Finally, reserve the cache entry for the new block
   idx->list[idx->lru].block_idx = blk->idx;
   sbdi_bc_set_blk_type(&idx->list[idx->lru], blk_type);
-  blk->data = cache->store + idx->list[idx->lru].cache_idx;
+  blk->data = sbdi_bc_get_db_address(cache, idx->list[idx->lru].cache_idx);
   SBDI_BC_INC_IDX(idx->lru);
   return SBDI_SUCCESS;
 }
@@ -250,7 +252,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
         && !sbdi_bc_is_mngt_blk(idx->list[i].flags)) {
       // Not a management block, but dirty ==> sync in the first round
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          cache->store + idx->list[i].cache_idx);
+          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }
@@ -259,7 +261,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(&idx->list[i])) {
       sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          cache->store + idx->list[i].cache_idx);
+          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(&idx->list[i]);
     }

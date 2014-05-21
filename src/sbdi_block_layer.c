@@ -71,7 +71,7 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
 {
   if (!sbdi || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX || len == 0
       || len > SBDI_BLOCK_SIZE || !tag
-      || (blk_ctr && ctr_len != SBDI_BLOCK_ACCESS_COUNTER_SIZE)) {
+      || (blk_ctr && ctr_len != SBDI_BLOCK_CTR_SIZE)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_bt_t blk_type = (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
@@ -104,6 +104,32 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
   return SBDI_SUCCESS;
 }
 
+/*!
+ * \brief Computes the memory address of a block tag with the specified index
+ * relative to the given management block base address.
+ * @param mng the management block that contains the memory base address
+ * @param tag_idx the index of the block tag
+ * @return the memory address of the block tag
+ */
+static inline uint8_t *sbdi_bl_get_tag_address(sbdi_block_t *mng,
+    uint32_t tag_idx)
+{
+  return mng->data[tag_idx * (SBDI_BLOCK_TAG_SIZE + SBDI_BLOCK_CTR_SIZE)];
+}
+
+/*!
+ * \brief Computes the memory address of a block counter with the specified
+ * index relative to the given management block base address.
+ * @param mng the management block that contains the memory base address
+ * @param ctr_idx the index of the block counter
+ * @return the memory address of the block counter
+ */
+static inline uint8_t *sbdi_bl_get_ctr_address(sbdi_block_t *mng,
+    uint32_t ctr_idx)
+{
+  return sbdi_bl_get_tag_address(mng, ctr_idx) + SBDI_BLOCK_TAG_SIZE;
+}
+
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
 {
@@ -132,16 +158,16 @@ sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
   if (r != SBDI_SUCCESS) {
     return r;
   }
-  unsigned char *blk_ctr = pair->mng->data[pair->tag_idx + SBDI_BLOCK_TAG_SIZE];
+  unsigned char *blk_ctr = sbdi_bl_get_ctr_address(pair->mng, pair->tag_idx);
   if (!(pair->blk->data)) {
     sbdi_tag_t tag;
-    r = sbdi_bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, &tag, blk_ctr,
-    SBDI_BLOCK_ACCESS_COUNTER_SIZE);
+    r = sbdi_bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, &tag, blk_ctr, SBDI_BLOCK_CTR_SIZE);
     if (r != SBDI_SUCCESS) {
       // TODO Cleanup?
       return r;
     }
-    if (!memcmp(tag, &pair->mng[pair->tag_idx], SBDI_BLOCK_TAG_SIZE)) {
+    if (!memcmp(tag, sbdi_bl_get_tag_address(pair->mng, pair->tag_idx),
+        SBDI_BLOCK_TAG_SIZE)) {
       return SBDI_ERR_TAG_MISMATCH;
     }
   }
@@ -155,8 +181,8 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  // TODO check that read is not beyond the bounds of file, otherwise the
-  // Merkle tree won't work correctly!
+// TODO check that read is not beyond the bounds of file, otherwise the
+// Merkle tree won't work correctly!
   uint32_t mng_nbr = sbdi_get_mngt_block_number(idx);
   uint32_t mng_idx = sbdi_get_mngt_block_index(idx);
   uint32_t dat_idx = sbdi_get_data_block_index(idx);
@@ -167,7 +193,7 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   if (r != SBDI_SUCCESS) {
     return r;
   }
-  // Copy data block from cache into target buffer
+// Copy data block from cache into target buffer
   memcpy(ptr, pair.blk->data, len);
   return SBDI_SUCCESS;
 }
@@ -198,9 +224,9 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
       || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  // TODO check that read is not beyond the bounds of file, otherwise the
-  // Merkle tree won't work correctly!
-  // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
+// TODO check that read is not beyond the bounds of file, otherwise the
+// Merkle tree won't work correctly!
+// TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_nbr = sbdi_get_mngt_block_number(idx);
   uint32_t mng_idx = sbdi_get_mngt_block_index(idx);
   uint32_t dat_idx = sbdi_get_data_block_index(idx);
@@ -216,21 +242,21 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
     return r;
   }
   memcpy(pair.blk->data, ptr, len);
-  // Nothing has of yet been written to the management block. This has to be
-  // done by the sync function, when the dependent data blocks are synced.
-  // Afterwards the management block should be written.
+// Nothing has of yet been written to the management block. This has to be
+// done by the sync function, when the dependent data blocks are synced.
+// Afterwards the management block should be written.
   r = sbdi_bc_dirty_blk(sbdi->cache, pair.mng);
   return sbdi_bc_dirty_blk(sbdi->cache, pair.blk);
-  //sbdi_error_t r;
-  // Make sure block is in cache
-  // What I need to do:
-  // * Read Block into cache (done)
-  // * Get block access counter
-  // * Increment block access counter
-  // * Write to cache
-  // * Cache is synced later on
-  // * Write back new block access counter and tag to management block (also in cache)
-  //
+//sbdi_error_t r;
+// Make sure block is in cache
+// What I need to do:
+// * Read Block into cache (done)
+// * Get block access counter
+// * Increment block access counter
+// * Write to cache
+// * Cache is synced later on
+// * Write back new block access counter and tag to management block (also in cache)
+//
 }
 
 //----------------------------------------------------------------------
@@ -257,14 +283,22 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
     // TODO can the same context be used for en- and decryption?
     // encrypt block into write store using physical block index and the
     // global counter as additional headers
-    cr = siv_encrypt(sbdi->ctx, blk->data[0], sbdi->write_store, SBDI_BLOCK_SIZE,
-        tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr, sizeof(sbdi_ctr_128b_t));
+    cr = siv_encrypt(sbdi->ctx, blk->data[0], sbdi->write_store,
+    SBDI_BLOCK_SIZE, tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
+        sizeof(sbdi_ctr_128b_t));
     if (cr == -1) {
       return SBDI_ERR_CRYPTO_FAIL;
     }
+    sbdi_block_t mng;
     // Update tag and counter in management block
-    uint32_t mng_idx = sbdi_bl_idx_phy_to_mng(blk->idx);
-
+    mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+    uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
+    if (mng_idx_pos == UINT32_MAX) {
+      // Management Block not found ==> IllegalState.
+      return SBDI_ERR_ILLEGAL_STATE;
+    }
+    mng.data = sbdi_bc_get_db_address(sbdi->cache, idx_list[mng_idx_pos].cache_idx);
+    //memcpy(sbdi_bl_get_ctr_address(mng, ))
     break;
   default:
     return SBDI_ERR_ILLEGAL_STATE;

@@ -12,9 +12,9 @@
 #define SBDI_BLOCK_SIZE                                  4096u
 #define SBDI_SIZE_MAX                     UINT32_C(2147483647)  /*!< The maximum size of a file */
 #define SBDI_BLOCK_MAX_INDEX (SBDI_SIZE_MAX / SBDI_BLOCK_SIZE)  /*!< The maximum number of blocks in a file */
-#define SBDI_BLOCK_ACCESS_COUNTER_SIZE                     16u
+#define SBDI_BLOCK_CTR_SIZE                                16u
 #define SBDI_BLOCK_TAG_SIZE                                16u
-#define SBDI_MNGT_BLOCK_ENTRIES (SBDI_BLOCK_SIZE/(SBDI_BLOCK_ACCESS_COUNTER_SIZE + SBDI_BLOCK_TAG_SIZE))
+#define SBDI_MNGT_BLOCK_ENTRIES (SBDI_BLOCK_SIZE/(SBDI_BLOCK_CTR_SIZE + SBDI_BLOCK_TAG_SIZE))
 
 #define SBDI_CACHE_MAX_SIZE                                16u
 #define SBDI_CACHE_PROFILE
