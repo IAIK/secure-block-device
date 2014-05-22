@@ -177,6 +177,32 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 }
 
 /*!
+ * \brief Synchronizes a cache block specified by its position in the cache
+ * index
+ *
+ * This is a convenience function to facilitate calling the sync callback
+ * function. It builds the parameter struct, calls the callback function, and
+ * finally clears the dirty flag if synchronizing the block succeeds.
+ *
+ * @param cache the cache data type instance which contains the data block to
+ * synchronize
+ * @param idx_pos the position of the cache index element representing the
+ * data block to sync
+ * @return SBDI_SUCCESS if the synchronization operation succeeds, otherwise
+ * it forwards the error code returned by the sync callback.
+ */
+static inline sbdi_error_t bc_sync_blk(sbdi_bc_t *cache, uint32_t idx_pos)
+{
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
+  sbdi_block_t to_sync;
+  sbdi_block_init(&to_sync, idx_get_phy_idx(cache, idx_pos),
+      sbdi_bc_get_db_for_cache_idx(cache, idx_pos));
+  SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
+  sbdi_bc_clear_blk_dirty(cache, idx_pos);
+  return SBDI_SUCCESS;
+}
+
+/*!
  *\brief Syncs all data blocks belonging to a specific management block
  * @param cache the cache data type
  * @param mng_idx the cache list index of the cache index element describing
@@ -187,7 +213,6 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
 {
   assert(cache && sbdi_bc_idx_is_valid(mng_idx));
-  sbdi_block_t to_sync;
   uint32_t mng_phy_idx = idx_get_phy_idx(cache, mng_idx);
   // Sync out data blocks first and then the corresponding management block
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
@@ -195,18 +220,11 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
         && sbdi_bc_is_in_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
-      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
-          sbdi_bc_get_db_for_cache_idx(cache, i));
-      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
-      sbdi_bc_clear_blk_dirty(cache, i);
+      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   // Now sync out the corresponding management block
-  sbdi_block_init(&to_sync, idx_get_phy_idx(cache, mng_idx),
-      sbdi_bc_get_db_for_cache_idx(cache, mng_idx));
-  SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
-  sbdi_bc_clear_blk_dirty(cache, mng_idx);
-  return SBDI_SUCCESS;
+  return bc_sync_blk(cache, mng_idx);
 }
 
 //----------------------------------------------------------------------
@@ -223,7 +241,6 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     return SBDI_SUCCESS;
   }
   // Make sure the block that gets evicted is in sync!
-  sbdi_block_t to_sync;
   if (sbdi_bc_is_valid_and_dirty(cache, idx_get_lru(cache))) {
     if (sbdi_bc_is_mngt_blk(cache, idx_get_lru(cache))) {
       // in case we deal with a management block it is probably best to
@@ -232,10 +249,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
       SBDI_BC_ERR_CHK(sbdi_bc_sync_mngt_blk(cache, idx_get_lru(cache)));
     } else {
       // This is just a data block, sync it out
-      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, idx_get_lru(cache)),
-          sbdi_bc_get_db_for_cache_idx(cache, idx_get_lru(cache)));
-      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
-      sbdi_bc_clear_blk_dirty(cache, idx_get_lru(cache));
+      SBDI_BC_ERR_CHK(bc_sync_blk(cache, idx_get_lru(cache)));
     }
   }
   // Finally, reserve the cache entry for the new block
@@ -300,26 +314,19 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   if (!cache) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  sbdi_block_t to_sync;
   // Sync out data blocks first and then the corresponding management
   // blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i)
         && !sbdi_bc_is_mngt_blk(cache, i)) {
       // Not a management block, but dirty ==> sync in the first round
-      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
-          sbdi_bc_get_db_for_cache_idx(cache, i));
-      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
-      sbdi_bc_clear_blk_dirty(cache, i);
+      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   // Second round: sync out all remaining dirty management blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i)) {
-      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
-          sbdi_bc_get_db_for_cache_idx(cache, i));
-      SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
-      sbdi_bc_clear_blk_dirty(cache, i);
+      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   return SBDI_SUCCESS;
