@@ -61,19 +61,30 @@ typedef struct sbdi_block_cache {
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
 
+
+static inline uint32_t sbdi_bc_idx_get_cache_idx(sbdi_bc_t *cache, uint32_t idx)
+{
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
+  assert(cache->index.list[idx].cache_idx < SBDI_CACHE_MAX_SIZE);
+  return cache->index.list[idx].cache_idx;
+}
+
 /*!
- * \brief Computes the address of a data block in the cache based on the
- * given cache block index
  *
- * @param cache the cache data type instance to use for the address
- * computation
- * @param cache_idx the cache block index;
+ * \brief Computes the address of a cache data block based on the given cache
+ * index position
+ *
+ * @param cache the cache data type instance to obtain the cache data block
+ * from
+ * @param idx_pos the cache index element position from which to obtain the
+ * cache block address
  * @return the memory address of the cache data block
  */
-static inline sbdi_db_t *sbdi_bc_get_db_address(sbdi_bc_t *cache,
-    uint32_t cache_idx)
+static inline sbdi_db_t *sbdi_bc_get_db_for_cache_idx(sbdi_bc_t *cache,
+    uint32_t idx_pos)
 {
-  return &cache->store[cache_idx];
+  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  return &cache->store[sbdi_bc_idx_get_cache_idx(cache, idx_pos)];
 }
 
 /*!

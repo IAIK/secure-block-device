@@ -20,6 +20,78 @@
 
 #define SWAP(X, Y) do {(X) = (X) ^ (Y); (Y) = (X) ^ (Y); (X) = (X) ^ (Y);} while (0)
 
+/*!
+ * \brief Gets the index of the cache
+ *
+ * The cache index contains information which cache storage cell contains
+ * data from which physical block index and the block flags.
+ *
+ * @param cache the cache data type instance to get the index from
+ * @return the cache index
+ */
+static inline sbdi_bc_idx_t *bc_get_idx(sbdi_bc_t *cache)
+{
+  assert(cache);
+  return &cache->index;
+}
+
+/*!
+ * \brief Gets the position of the least recently used cache index element
+ *
+ * @param cache the cache data type instance of which to get the least
+ * recently used cache element
+ * @return the position in the cache index of the least recently used element
+ */
+static inline uint32_t idx_get_lru(sbdi_bc_t *cache)
+{
+  assert(cache);
+  assert(cache->index.lru < SBDI_CACHE_MAX_SIZE);
+  return cache->index.lru;
+}
+
+/*!
+ * \brief Increments the least recently used cache index pointer
+ *
+ * The cache uses an array as backing store for the cache. This increment
+ * function make sure that the pointer does not go beyond the bounds of the
+ * cache.
+ *
+ * @param cache the cache data type instance of which the least recently used
+ * index pointer should be incremented
+ */
+static inline void idx_inc_lru(sbdi_bc_t *cache)
+{
+  assert(cache);
+  SBDI_BC_INC_IDX(cache->index.lru);
+  assert(cache->index.lru < SBDI_CACHE_MAX_SIZE);
+}
+
+static inline void idx_set_cache_idx(sbdi_bc_t *cache, uint32_t idx,
+    uint32_t val)
+{
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE && val < SBDI_CACHE_MAX_SIZE);
+  cache->index.list[idx].cache_idx = val;
+}
+
+static inline uint32_t idx_get_phy_idx(sbdi_bc_t *cache, uint32_t idx)
+{
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
+  assert(cache->index.list[idx].block_idx < SBDI_BLOCK_MAX_INDEX);
+  return cache->index.list[idx].block_idx;
+}
+
+static inline void idx_set_phy_idx(sbdi_bc_t *cache, uint32_t idx, uint32_t val)
+{
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE && val < SBDI_BLOCK_MAX_INDEX);
+  cache->index.list[idx].block_idx = val;
+}
+
+static inline void idx_invalidate_phy_idx(sbdi_bc_t *cache, uint32_t idx)
+{
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
+  cache->index.list[idx].block_idx = UINT32_MAX;
+}
+
 //----------------------------------------------------------------------
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 {
@@ -38,9 +110,9 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
   // Initialize block cache index numbers
   for (uint32_t i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     // set block index to invalid
-    cache->index.list[i].block_idx = UINT32_MAX;
+    idx_invalidate_phy_idx(cache, i);
     // set cache index
-    cache->index.list[i].cache_idx = i;
+    idx_set_cache_idx(cache, i, i);
     // clear flags (Superfluous under calloc)
     cache->index.list[i].flags = 0;
   }
@@ -51,21 +123,6 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   free(cache);
-}
-
-/*!
- * \brief Gets the index of the cache
- *
- * The cache index contains information which cache storage cell contains
- * data from which physical block index and the block flags.
- *
- * @param cache the cache data type instance to get the index from
- * @return the cache index
- */
-static inline sbdi_bc_idx_t *bc_get_idx(sbdi_bc_t *cache)
-{
-  assert(cache);
-  return &cache->index;
 }
 
 /*!
@@ -81,69 +138,12 @@ static inline sbdi_bc_idx_t *bc_get_idx(sbdi_bc_t *cache)
 static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
     uint32_t idx_2)
 {
-  if (!cache || idx_1 > SBDI_CACHE_MAX_SIZE || idx_2 > SBDI_CACHE_MAX_SIZE) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  assert(cache && sbdi_bc_idx_is_valid(idx_1) && sbdi_bc_idx_is_valid(idx_2));
   sbdi_bc_idx_t *idx = bc_get_idx(cache);
   SWAP(idx->list[idx_1].block_idx, idx->list[idx_2].block_idx);
   SWAP(idx->list[idx_1].cache_idx, idx->list[idx_2].cache_idx);
   SWAP(idx->list[idx_1].flags, idx->list[idx_2].flags);
   return SBDI_SUCCESS;
-}
-
-static inline uint32_t idx_get_lru(sbdi_bc_t *cache)
-{
-  assert(cache);
-  assert(cache->index.lru < SBDI_CACHE_MAX_SIZE);
-  return cache->index.lru;
-}
-
-static inline void idx_inc_lru(sbdi_bc_t *cache)
-{
-  assert(cache);
-  SBDI_BC_INC_IDX(cache->index.lru);
-  assert(cache->index.lru < SBDI_CACHE_MAX_SIZE);
-}
-
-static inline uint32_t idx_get_cache_idx(sbdi_bc_t *cache, uint32_t idx)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  assert(cache->index.list[idx].cache_idx < SBDI_CACHE_MAX_SIZE);
-  return cache->index.list[idx].cache_idx;
-}
-
-static inline void idx_set_cache_idx(sbdi_bc_t *cache, uint32_t idx,
-    uint32_t val)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE && val < SBDI_CACHE_MAX_SIZE);
-  cache->index.list[idx].cache_idx = val;
-}
-
-static inline uint32_t idx_get_phy_idx(sbdi_bc_t *cache, uint32_t idx)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  assert(cache->index.list[idx].block_idx < SBDI_BLOCK_MAX_INDEX);
-  return cache->index.list[idx].block_idx;
-}
-
-static inline void idx_set_phy_idx(sbdi_bc_t *cache, uint32_t idx,
-    uint32_t val)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE && val < SBDI_BLOCK_MAX_INDEX);
-  cache->index.list[idx].block_idx = val;
-}
-
-static inline void idx_invalidate_phy_idx(sbdi_bc_t *cache, uint32_t idx)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  cache->index.list[idx].block_idx = UINT32_MAX;
-}
-
-static inline sbdi_db_t *sbdi_bc_get_db_for_cache_idx(sbdi_bc_t *cache,
-    uint32_t idx)
-{
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  return sbdi_bc_get_db_address(cache, idx_get_cache_idx(cache, idx));
 }
 
 //----------------------------------------------------------------------
@@ -153,7 +153,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
-  if (idx_pos >= SBDI_CACHE_MAX_SIZE) {
+  if (!sbdi_bc_idx_is_valid(idx_pos)) {
     blk->data = NULL;
 #ifdef SBDI_CACHE_PROFILE
     cache->misses++;
@@ -186,28 +186,24 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
  */
 static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
 {
-  if (!cache || mng_idx > SBDI_CACHE_MAX_SIZE) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  assert(cache && sbdi_bc_idx_is_valid(mng_idx));
   sbdi_block_t to_sync;
-  sbdi_bc_idx_t *idx = &cache->index;
-  uint32_t mng_phy_idx = idx->list[mng_idx].block_idx;
+  uint32_t mng_phy_idx = idx_get_phy_idx(cache, mng_idx);
   // Sync out data blocks first and then the corresponding management block
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-    if (sbdi_bc_is_valid_and_dirty(cache, i)
-        && !sbdi_bc_is_mngt_blk(cache, i)
-        && sbdi_bc_is_in_mngt_scope(mng_phy_idx, idx->list[i].block_idx)) {
+    if (sbdi_bc_is_valid_and_dirty(cache, i) && !sbdi_bc_is_mngt_blk(cache, i)
+        && sbdi_bc_is_in_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
-      sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
+      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
+          sbdi_bc_get_db_for_cache_idx(cache, i));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(cache, i);
     }
   }
   // Now sync out the corresponding management block
-  sbdi_block_init(&to_sync, idx->list[mng_idx].block_idx,
-      sbdi_bc_get_db_address(cache, idx->list[mng_idx].cache_idx));
+  sbdi_block_init(&to_sync, idx_get_phy_idx(cache, mng_idx),
+      sbdi_bc_get_db_for_cache_idx(cache, mng_idx));
   SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
   sbdi_bc_clear_blk_dirty(cache, mng_idx);
   return SBDI_SUCCESS;
@@ -305,15 +301,14 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_block_t to_sync;
-  sbdi_bc_idx_t *idx = &cache->index;
   // Sync out data blocks first and then the corresponding management
   // blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i)
         && !sbdi_bc_is_mngt_blk(cache, i)) {
       // Not a management block, but dirty ==> sync in the first round
-      sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
+      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
+          sbdi_bc_get_db_for_cache_idx(cache, i));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(cache, i);
     }
@@ -321,8 +316,8 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   // Second round: sync out all remaining dirty management blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i)) {
-      sbdi_block_init(&to_sync, idx->list[i].block_idx,
-          sbdi_bc_get_db_address(cache, idx->list[i].cache_idx));
+      sbdi_block_init(&to_sync, idx_get_phy_idx(cache, i),
+          sbdi_bc_get_db_for_cache_idx(cache, i));
       SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
       sbdi_bc_clear_blk_dirty(cache, i);
     }

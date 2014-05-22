@@ -287,7 +287,6 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
 {
   sbdi_block_t mng;
   sbdi_tag_t data_tag;
-  sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
   sbdi->write_store[0].idx = blk->idx;
   int cr = siv_encrypt(sbdi->ctx, *blk->data, *sbdi->write_store[0].data,
   SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
@@ -303,8 +302,7 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     // Management Block not found ==> IllegalState.
     return SBDI_ERR_ILLEGAL_STATE;
   }
-  mng.data = sbdi_bc_get_db_address(sbdi->cache,
-      idx_list[mng_idx_pos].cache_idx);
+  mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
   uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
   memcpy(sbdi_bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
   memcpy(sbdi_bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr,
