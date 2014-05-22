@@ -61,16 +61,24 @@ typedef struct sbdi_block_cache {
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
 
-
-static inline uint32_t sbdi_bc_idx_get_cache_idx(sbdi_bc_t *cache, uint32_t idx)
+/*!
+ * \brief Determines a cache data block element index based on the position
+ * of a specific cache index element
+ * @param cache the cache data type instance to operate on
+ * @param idx_pos the position of the cache index element for which to obtain
+ * the cache data block element index
+ * @return the cache data block element index for the specified cache index
+ * element position
+ */
+static inline uint32_t sbdi_bc_idx_get_cache_idx(sbdi_bc_t *cache,
+    uint32_t idx_pos)
 {
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  assert(cache->index.list[idx].cache_idx < SBDI_CACHE_MAX_SIZE);
-  return cache->index.list[idx].cache_idx;
+  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache->index.list[idx_pos].cache_idx < SBDI_CACHE_MAX_SIZE);
+  return cache->index.list[idx_pos].cache_idx;
 }
 
 /*!
- *
  * \brief Computes the address of a cache data block based on the given cache
  * index position
  *
@@ -151,26 +159,26 @@ static inline int sbdi_bc_idx_is_valid(uint32_t cache_idx)
 
 static inline int sbdi_bc_is_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
-  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return cache->index.list[idx_pos].flags & SBDI_BC_BF_DIRTY_CMP;
 }
 
 static inline int sbdi_bc_is_valid_and_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
-  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return sbdi_bc_is_valid(cache->index.list[idx_pos].block_idx)
       && sbdi_bc_is_blk_dirty(cache, idx_pos);
 }
 
 static inline void sbdi_bc_set_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
-  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   cache->index.list[idx_pos].flags |= SBDI_BC_BF_DIRTY_CMP;
 }
 
 static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
-  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   cache->index.list[idx_pos].flags &= SBDI_BC_BF_DIRTY_CLEAR;
 }
 
@@ -181,7 +189,7 @@ static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(int flags)
 
 static inline int sbdi_bc_is_mngt_blk(sbdi_bc_t *cache, uint32_t idx_pos)
 {
-  assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return sbdi_bc_get_blk_type(cache->index.list[idx_pos].flags)
       == SBDI_BC_BT_MNGT;
 }

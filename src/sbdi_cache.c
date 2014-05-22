@@ -122,6 +122,7 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 //----------------------------------------------------------------------
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
+  // TODO make sure block layer syncs the cache before it frees it!
   free(cache);
 }
 
