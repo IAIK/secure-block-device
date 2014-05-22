@@ -24,7 +24,7 @@ typedef struct secure_block_device_interface {
   siv_ctx *ctx;
   sbdi_bc_t *cache;
   mt_t *mt;
-  sbdi_db_t write_store;
+  sbdi_db_t write_store[2];
   sbdi_ctr_128b_t g_ctr;
 } sbdi_t;
 
@@ -161,13 +161,14 @@ sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
   unsigned char *blk_ctr = sbdi_bl_get_ctr_address(pair->mng, pair->tag_idx);
   if (!(pair->blk->data)) {
     sbdi_tag_t tag;
-    r = sbdi_bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, &tag, blk_ctr, SBDI_BLOCK_CTR_SIZE);
+    r = sbdi_bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, &tag, blk_ctr,
+    SBDI_BLOCK_CTR_SIZE);
     if (r != SBDI_SUCCESS) {
       // TODO Cleanup?
       return r;
     }
     if (!memcmp(tag, sbdi_bl_get_tag_address(pair->mng, pair->tag_idx),
-        SBDI_BLOCK_TAG_SIZE)) {
+    SBDI_BLOCK_TAG_SIZE)) {
       return SBDI_ERR_TAG_MISMATCH;
     }
   }
@@ -259,6 +260,37 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 //
 }
 
+static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t blk)
+{
+  sbdi_block_t mng;
+  sbdi_tag_t data_tag;
+  sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
+  int cr = siv_encrypt(sbdi->ctx, *blk->data, sbdi->write_store[0],
+  SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
+      sizeof(sbdi_ctr_128b_t));
+  if (cr == -1) {
+    return SBDI_ERR_CRYPTO_FAIL;
+  }
+  // Update tag and counter in management block
+  mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+  uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
+  if (mng_idx_pos == UINT32_MAX) {
+    // Management Block not found ==> IllegalState.
+    return SBDI_ERR_ILLEGAL_STATE;
+  }
+  mng.data = sbdi_bc_get_db_address(sbdi->cache,
+      idx_list[mng_idx_pos].cache_idx);
+  uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
+  memcpy(sbdi_bl_get_tag_address(mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
+  memcpy(sbdi_bl_get_ctr_address(mng, tag_idx), &sbdi->g_ctr,
+      SBDI_BLOCK_CTR_SIZE);
+  // Management block updated now encrypt it
+  int cr = siv_encrypt(sbdi->ctx, *blk->data, sbdi->write_store[2],
+      SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
+      sizeof(sbdi_ctr_128b_t));
+  return SBDI_SUCCESS;
+}
+
 //----------------------------------------------------------------------
 static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
 {
@@ -272,7 +304,7 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_STATE;
   }
   int cr = -1;
-  sbdi_tag_t tag;
+
   switch (sbdi_bc_get_blk_type(idx_list[idx_pos].flags)) {
   case SBDI_BC_BT_MNGT:
     // Add block index as additional information to the decryption
@@ -283,22 +315,7 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
     // TODO can the same context be used for en- and decryption?
     // encrypt block into write store using physical block index and the
     // global counter as additional headers
-    cr = siv_encrypt(sbdi->ctx, blk->data[0], sbdi->write_store,
-    SBDI_BLOCK_SIZE, tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
-        sizeof(sbdi_ctr_128b_t));
-    if (cr == -1) {
-      return SBDI_ERR_CRYPTO_FAIL;
-    }
-    sbdi_block_t mng;
-    // Update tag and counter in management block
-    mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
-    uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
-    if (mng_idx_pos == UINT32_MAX) {
-      // Management Block not found ==> IllegalState.
-      return SBDI_ERR_ILLEGAL_STATE;
-    }
-    mng.data = sbdi_bc_get_db_address(sbdi->cache, idx_list[mng_idx_pos].cache_idx);
-    //memcpy(sbdi_bl_get_ctr_address(mng, ))
+    sbdi_bl_encrypt_write_data(sbdi, blk);
     break;
   default:
     return SBDI_ERR_ILLEGAL_STATE;
