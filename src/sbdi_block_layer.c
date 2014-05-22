@@ -12,6 +12,7 @@
 #include "sbdi_cache.h"
 #include "sbdi_ctr_128b.h"
 
+#include <assert.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,9 +80,8 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
   sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
   if (r != SBDI_SUCCESS) {
     return r;
-  } else if (!blk->data) {
-    return SBDI_ERR_ILLEGAL_STATE;
   }
+  assert(blk->data);
   r = sbdi_bl_read_block(sbdi, blk, len);
   if (r != SBDI_SUCCESS) {
     sbdi_bc_evict_blk(sbdi->cache, blk->idx);
@@ -335,7 +335,7 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     // TODO additional error handling required!
     return r;
   }
-  sbdi_bc_clear_blk_dirty(&idx_list[mng_idx_pos]);
+  sbdi_bc_clear_blk_dirty(sbdi->cache, mng_idx_pos);
   return SBDI_SUCCESS;
 }
 
@@ -348,7 +348,7 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
   sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
   if (!sbdi_bc_idx_is_valid(idx_pos)
-      || !sbdi_bc_is_blk_dirty(idx_list[idx_pos].flags)) {
+      || !sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos)) {
     return SBDI_ERR_ILLEGAL_STATE;
   }
   sbdi_error_t r;
