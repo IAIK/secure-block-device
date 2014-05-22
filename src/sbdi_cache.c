@@ -15,6 +15,8 @@
 #endif
 
 #define SBDI_BC_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
+#define SBDI_BC_CHK_IDX_POS(cache_idx) do {if (!sbdi_bc_idx_is_valid(cache_idx)) {return SBDI_ERR_ILLEGAL_STATE;}} while (0)
+
 #define SWAP(X, Y) do {(X) = (X) ^ (Y); (Y) = (X) ^ (Y); (X) = (X) ^ (Y);} while (0)
 
 //----------------------------------------------------------------------
@@ -50,7 +52,6 @@ void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
   free(cache);
 }
 
-
 /*!
  * \brief Swaps to elements in the block cache index
  * @param idx the block cache index type instance
@@ -81,7 +82,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
   }
   sbdi_bc_idx_t *idx = &cache->index;
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
-  if (idx_pos >= SBDI_BLOCK_MAX_INDEX) {
+  if (idx_pos >= SBDI_CACHE_MAX_SIZE) {
     blk->data = NULL;
 #ifdef SBDI_CACHE_PROFILE
     cache->misses++;
@@ -181,17 +182,14 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
+sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || phy_idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  sbdi_bc_find_blk_idx_pos(cache, blk->idx);
-  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
-  if (idx_pos >= SBDI_BLOCK_MAX_INDEX) {
-    return SBDI_ERR_ILLEGAL_STATE;
-  }
+  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
+  SBDI_BC_CHK_IDX_POS(idx_pos);
   sbdi_bc_set_blk_dirty(&idx->list[idx_pos]);
   if (sbdi_bc_is_mngt_blk(idx->list[idx_pos].flags)
       && SBDI_BC_IDX_P1(idx_pos) != idx->lru) {
@@ -203,38 +201,34 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
+sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || phy_idx > SBDI_BLOCK_MAX_INDEX) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   sbdi_bc_idx_t *idx = &cache->index;
-  uint32_t cdt = idx->lru;
+  uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
+  // Test if the block marked for eviction is found. If not, this is bad news,
+  // as the only place where this function is called, is when a cache
+  // reservation must be invalidated, because a block could not be loaded.
+  // This means the block to be evicted must be in cache at this point.
+  SBDI_BC_CHK_IDX_POS(idx_pos);
+  idx->list[idx_pos].block_idx = UINT32_MAX;
+  if (idx_pos == idx->lru) {
+    return SBDI_SUCCESS;
+  }
+  // need to find out if there are any valid blocks between lru and idx_pos.
+  // If so swap with the closest to LRU.
+  uint32_t swp_last = idx_pos;
+  uint32_t swp = idx_pos;
   do {
-    SBDI_BC_DEC_IDX(cdt);
-    if (idx->list[cdt].block_idx == blk->idx) {
-      idx->list[cdt].block_idx = UINT32_MAX;
-      if (cdt == idx->lru) {
-        return SBDI_SUCCESS;
-      } else {
-        // need to find out if there are any valid blocks between lru and
-        // cdt. If so swap with the closest to LRU.
-        uint32_t swp = idx->lru;
-        while (swp != cdt) {
-          if (sbdi_bc_is_valid(idx->list[swp].block_idx)) {
-            SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, cdt, swp));
-          }
-          SBDI_BC_INC_IDX(swp);
-        }
-        return SBDI_SUCCESS;
-      }
+    SBDI_BC_DEC_IDX(swp);
+    if (sbdi_bc_is_valid(idx->list[swp].block_idx)) {
+      SBDI_BC_ERR_CHK(sbdi_bc_swap(idx, swp_last, swp));
+      swp_last = swp;
     }
-  } while (cdt != idx->lru);
-  // Block marked for eviction not found, this is bad news, as the only
-  // place where this function is called, is when a cache reservation
-  // must be invalidated, because a block could not be loaded. This means
-  // the block to be evicted must be in cache at this point.
-  return SBDI_ERR_ILLEGAL_STATE;
+  } while (swp != idx->lru);
+  return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------

@@ -75,7 +75,6 @@ static inline sbdi_db_t *sbdi_bc_get_db_address(sbdi_bc_t *cache,
   return &cache->store[cache_idx];
 }
 
-
 /*!
  * \brief looks up if a block with the given physical block index is in the
  * cache and returns the position of the cache element in the caches index
@@ -84,7 +83,8 @@ static inline sbdi_db_t *sbdi_bc_get_db_address(sbdi_bc_t *cache,
  * @param blk_idx the physical block index to look for
  * @return the position of the element in the cache index
  */
-static inline uint32_t sbdi_bc_find_blk_idx_pos(sbdi_bc_t *cache, uint32_t blk_idx)
+static inline uint32_t sbdi_bc_find_blk_idx_pos(sbdi_bc_t *cache,
+    uint32_t blk_idx)
 {
   if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX) {
     return UINT32_MAX;
@@ -103,12 +103,38 @@ static inline uint32_t sbdi_bc_find_blk_idx_pos(sbdi_bc_t *cache, uint32_t blk_i
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk);
 sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     sbdi_bc_bt_t blk_type);
-sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, sbdi_block_t *blk);
-sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, sbdi_block_t *blk);
+sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx);
+sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx);
 sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache);
 
-static inline int sbdi_bc_is_valid(uint32_t blk_idx) {
-  return blk_idx <= SBDI_BLOCK_MAX_INDEX;
+/*!
+ * \brief Determines if the given physical block index is valid
+ *
+ * This function checks if the given physical block index value is less than
+ * the maximum block index.
+ *
+ * @param phy_idx the physical block index value to check
+ * @return true if the given physical block index value is less than the
+ * maximum block index value; false otherwise
+ */
+static inline int sbdi_bc_is_valid(uint32_t phy_idx)
+{
+  return phy_idx <= SBDI_BLOCK_MAX_INDEX;
+}
+
+/*!
+ * \brief Determines if the given block cache index value is valid
+ *
+ * This function checks if the given cache index value is less than the
+ * maximum size of the cache index.
+ *
+ * @param cache_idx the cache index index value to check
+ * @return true if the given cache index index value is less than the maximum
+ * cache index size; false otherwise
+ */
+static inline int sbdi_bc_idx_is_valid(uint32_t cache_idx)
+{
+  return cache_idx < SBDI_CACHE_MAX_SIZE;
 }
 
 static inline int sbdi_bc_is_blk_dirty(int flags)
@@ -134,7 +160,7 @@ static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_idx_elem_t *blk)
 
 static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(int flags)
 {
-  return (sbdi_bc_bt_t)(flags & UINT8_MAX);
+  return (sbdi_bc_bt_t) (flags & UINT8_MAX);
 }
 
 static inline int sbdi_bc_is_mngt_blk(int flags)
@@ -160,7 +186,8 @@ static inline int sbdi_bc_is_mngt_blk(int flags)
  * @return true if the data block with the given index is in scope of the
  * management block with the given index
  */
-static inline int sbdi_bc_is_in_mngt_scope(uint32_t mng_idx, uint32_t blk_idx) {
+static inline int sbdi_bc_is_in_mngt_scope(uint32_t mng_idx, uint32_t blk_idx)
+{
   return blk_idx > mng_idx && blk_idx <= (mng_idx + SBDI_MNGT_BLOCK_ENTRIES);
 }
 

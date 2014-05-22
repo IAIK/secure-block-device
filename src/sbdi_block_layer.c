@@ -24,7 +24,7 @@ typedef struct secure_block_device_interface {
   siv_ctx *ctx;
   sbdi_bc_t *cache;
   mt_t *mt;
-  sbdi_db_t write_store[2];
+  sbdi_block_t write_store[2];
   sbdi_ctr_128b_t g_ctr;
 } sbdi_t;
 
@@ -74,6 +74,7 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
       || (blk_ctr && ctr_len != SBDI_BLOCK_CTR_SIZE)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
+  // TODO derive type from index or as a parameter
   sbdi_bc_bt_t blk_type = (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
   sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
   if (r != SBDI_SUCCESS) {
@@ -83,7 +84,7 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
   }
   r = sbdi_bl_read_block(sbdi, blk, len);
   if (r != SBDI_SUCCESS) {
-    sbdi_bc_evict_blk(sbdi->cache, blk);
+    sbdi_bc_evict_blk(sbdi->cache, blk->idx);
     return r;
   }
   siv_restart(sbdi->ctx);
@@ -98,7 +99,7 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
         *tag, 2, &blk->idx, sizeof(uint32_t), blk_ctr, ctr_len);
   }
   if (cr == -1) {
-    sbdi_bc_evict_blk(sbdi->cache, blk);
+    sbdi_bc_evict_blk(sbdi->cache, blk->idx);
     return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
@@ -246,26 +247,49 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 // Nothing has of yet been written to the management block. This has to be
 // done by the sync function, when the dependent data blocks are synced.
 // Afterwards the management block should be written.
-  r = sbdi_bc_dirty_blk(sbdi->cache, pair.mng);
-  return sbdi_bc_dirty_blk(sbdi->cache, pair.blk);
+  r = sbdi_bc_dirty_blk(sbdi->cache, pair.mng->idx);
+  return sbdi_bc_dirty_blk(sbdi->cache, pair.blk->idx);
 //sbdi_error_t r;
 // Make sure block is in cache
 // What I need to do:
 // * Read Block into cache (done)
 // * Get block access counter
-// * Increment block access counter
 // * Write to cache
 // * Cache is synced later on
 // * Write back new block access counter and tag to management block (also in cache)
 //
 }
 
-static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t blk)
+static sbdi_error_t sbdi_bl_encrypt_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng)
+{
+  sbdi_tag_t mng_tag;
+  // Assumption enforced by sbdi cache: All dependent data blocks are synced
+  int cr = siv_encrypt(sbdi->ctx, *mng->data, *sbdi->write_store[0].data,
+    SBDI_BLOCK_SIZE, mng_tag, 2, &mng->idx, sizeof(uint32_t), &sbdi->g_ctr,
+      sizeof(sbdi_ctr_128b_t));
+  if (cr == -1) {
+    return SBDI_ERR_CRYPTO_FAIL;
+  }
+  sbdi->write_store[0].idx = mng->idx;
+  //sbdi->write_store[1].data = ;// TODO: Need to have actual store somewhere!
+  sbdi_error_t r = sbdi_bl_write_block(sbdi, &sbdi->write_store[0],
+  SBDI_BLOCK_SIZE);
+  if (r != SBDI_SUCCESS) {
+    // TODO additional error handing required!
+    return r;
+  }
+  // TODO Update Merkle Tree
+  mt_update(sbdi->mt, NULL, mng->idx);
+  return SBDI_SUCCESS;
+}
+
+static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
 {
   sbdi_block_t mng;
   sbdi_tag_t data_tag;
   sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
-  int cr = siv_encrypt(sbdi->ctx, *blk->data, sbdi->write_store[0],
+  sbdi->write_store[0].idx = blk->idx;
+  int cr = siv_encrypt(sbdi->ctx, *blk->data, *sbdi->write_store[0].data,
   SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
       sizeof(sbdi_ctr_128b_t));
   if (cr == -1) {
@@ -273,21 +297,45 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t blk)
   }
   // Update tag and counter in management block
   mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+  sbdi->write_store[1].idx = mng.idx;
   uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
-  if (mng_idx_pos == UINT32_MAX) {
+  if (!sbdi_bc_idx_is_valid(mng_idx_pos)) {
     // Management Block not found ==> IllegalState.
     return SBDI_ERR_ILLEGAL_STATE;
   }
   mng.data = sbdi_bc_get_db_address(sbdi->cache,
       idx_list[mng_idx_pos].cache_idx);
   uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
-  memcpy(sbdi_bl_get_tag_address(mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
-  memcpy(sbdi_bl_get_ctr_address(mng, tag_idx), &sbdi->g_ctr,
-      SBDI_BLOCK_CTR_SIZE);
+  memcpy(sbdi_bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
+  memcpy(sbdi_bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr,
+  SBDI_BLOCK_CTR_SIZE);
+  sbdi_ctr_128b_inc(&sbdi->g_ctr);
+  sbdi_tag_t mng_tag;
   // Management block updated now encrypt it
-  int cr = siv_encrypt(sbdi->ctx, *blk->data, sbdi->write_store[2],
-      SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
-      sizeof(sbdi_ctr_128b_t));
+  cr = siv_encrypt(sbdi->ctx, *mng.data, *sbdi->write_store[1].data,
+  SBDI_BLOCK_SIZE, mng_tag, 2, &blk->idx, sizeof(uint32_t));
+  if (cr == -1) {
+    return SBDI_ERR_CRYPTO_FAIL;
+  }
+  // TODO for the next three steps we need absolute consistency!
+  sbdi_error_t r = sbdi_bl_write_block(sbdi, &sbdi->write_store[0],
+  SBDI_BLOCK_SIZE);
+  if (r != SBDI_SUCCESS) {
+    // TODO additional error handing required!
+    return r;
+  }
+  r = sbdi_bl_write_block(sbdi, &sbdi->write_store[1], SBDI_BLOCK_SIZE);
+  if (r != SBDI_SUCCESS) {
+    // TODO additional error handling required!
+    return r;
+  }
+  // TODO Update Merkle Tree
+  r = mt_update(sbdi->mt, NULL, mng.idx);
+  if (r != SBDI_SUCCESS) {
+    // TODO additional error handling required!
+    return r;
+  }
+  sbdi_bc_clear_blk_dirty(&idx_list[mng_idx_pos]);
   return SBDI_SUCCESS;
 }
 
@@ -299,23 +347,26 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
   }
   sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
-  if (idx_pos >= SBDI_BLOCK_MAX_INDEX
+  if (!sbdi_bc_idx_is_valid(idx_pos)
       || !sbdi_bc_is_blk_dirty(idx_list[idx_pos].flags)) {
     return SBDI_ERR_ILLEGAL_STATE;
   }
-  int cr = -1;
-
+  sbdi_error_t r;
   switch (sbdi_bc_get_blk_type(idx_list[idx_pos].flags)) {
   case SBDI_BC_BT_MNGT:
-    // Add block index as additional information to the decryption
-    cr = siv_decrypt(sbdi->ctx, blk->data[0], blk->data[0], SBDI_BLOCK_SIZE,
-        tag, 1, &blk->idx, sizeof(uint32_t));
+    r = sbdi_bl_encrypt_write_mngt(sbdi, blk);
+    if (r != SBDI_SUCCESS) {
+      return r;
+    }
     break;
   case SBDI_BC_BT_DATA:
     // TODO can the same context be used for en- and decryption?
     // encrypt block into write store using physical block index and the
     // global counter as additional headers
-    sbdi_bl_encrypt_write_data(sbdi, blk);
+    r = sbdi_bl_encrypt_write_data(sbdi, blk);
+    if (r != SBDI_SUCCESS) {
+      return r;
+    }
     break;
   default:
     return SBDI_ERR_ILLEGAL_STATE;

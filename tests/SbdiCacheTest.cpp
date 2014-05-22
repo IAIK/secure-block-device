@@ -189,7 +189,7 @@ public:
       memset(blk->data, i, SBDI_BLOCK_SIZE);
     }
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x42, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bc_evict_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_evict_blk(cache, blk->idx) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x07, NULL) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_bc_cache_blk_i(0x07, blk) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(memchrcmp(*blk->data, 0x42, SBDI_BLOCK_SIZE));
@@ -203,7 +203,7 @@ public:
     CPPUNIT_ASSERT(
         (sbdi_bc_find_blk_i(0x07, blk) == SBDI_SUCCESS) && (blk->data != NULL));
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x11, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_ERR_ILLEGAL_STATE);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_ERR_ILLEGAL_STATE);
   }
 
   void testSync()
@@ -224,11 +224,11 @@ public:
       memset(blk->data, i, SBDI_BLOCK_SIZE);
     }
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x50, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x51, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x52, NULL) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     exp_sync.insert(exp_sync.begin(), 0x51);
     CPPUNIT_ASSERT(sbdi_block_init(blk, 0x60, NULL) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(
@@ -271,7 +271,7 @@ public:
         continue;
       }
       CPPUNIT_ASSERT(sbdi_block_init(blk, i, NULL) == SBDI_SUCCESS);
-      CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk) == SBDI_SUCCESS);
+      CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     }
   }
 
