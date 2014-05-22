@@ -15,7 +15,6 @@
 #include <inttypes.h>
 #endif
 
-#define SBDI_BC_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
 #define SBDI_BC_CHK_IDX_POS(cache_idx) do {if (!sbdi_bc_idx_is_valid(cache_idx)) {return SBDI_ERR_ILLEGAL_STATE;}} while (0)
 
 #define SWAP(X, Y) do {(X) = (X) ^ (Y); (Y) = (X) ^ (Y); (X) = (X) ^ (Y);} while (0)
@@ -168,7 +167,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 #endif
     return SBDI_SUCCESS;
   } else {
-    SBDI_BC_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
+    SBDI_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
     blk->data = sbdi_bc_get_db_for_cache_idx(cache, SBDI_BC_IDX_P1(idx_pos));
 #ifdef SBDI_CACHE_PROFILE
     cache->hits++;
@@ -198,7 +197,7 @@ static inline sbdi_error_t bc_sync_blk(sbdi_bc_t *cache, uint32_t idx_pos)
   sbdi_block_t to_sync;
   sbdi_block_init(&to_sync, idx_get_phy_idx(cache, idx_pos),
       sbdi_bc_get_db_for_cache_idx(cache, idx_pos));
-  SBDI_BC_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
+  SBDI_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
   sbdi_bc_clear_blk_dirty(cache, idx_pos);
   return SBDI_SUCCESS;
 }
@@ -221,7 +220,7 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
         && sbdi_bc_is_in_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
-      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
+      SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   // Now sync out the corresponding management block
@@ -237,7 +236,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   blk->data = NULL;
-  SBDI_BC_ERR_CHK(sbdi_bc_find_blk(cache, blk));
+  SBDI_ERR_CHK(sbdi_bc_find_blk(cache, blk));
   if (blk->data) {
     return SBDI_SUCCESS;
   }
@@ -247,10 +246,10 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
       // in case we deal with a management block it is probably best to
       // sync out all its dependent blocks. This SHOULD ensure a consistent
       // state.
-      SBDI_BC_ERR_CHK(sbdi_bc_sync_mngt_blk(cache, idx_get_lru(cache)));
+      SBDI_ERR_CHK(sbdi_bc_sync_mngt_blk(cache, idx_get_lru(cache)));
     } else {
       // This is just a data block, sync it out
-      SBDI_BC_ERR_CHK(bc_sync_blk(cache, idx_get_lru(cache)));
+      SBDI_ERR_CHK(bc_sync_blk(cache, idx_get_lru(cache)));
     }
   }
   // Finally, reserve the cache entry for the new block
@@ -274,7 +273,7 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
       && SBDI_BC_IDX_P1(idx_pos) != idx_get_lru(cache)) {
     // This is a management block and it's not already at the top of the
     // cache list ==> bump it up
-    SBDI_BC_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
+    SBDI_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
   }
   return SBDI_SUCCESS;
 }
@@ -302,7 +301,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
   do {
     SBDI_BC_DEC_IDX(swp);
     if (sbdi_bc_is_valid(idx_get_phy_idx(cache, swp))) {
-      SBDI_BC_ERR_CHK(sbdi_bc_swap(cache, swp_last, swp));
+      SBDI_ERR_CHK(sbdi_bc_swap(cache, swp_last, swp));
       swp_last = swp;
     }
   } while (swp != idx_get_lru(cache));
@@ -321,13 +320,14 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
     if (sbdi_bc_is_valid_and_dirty(cache, i)
         && !sbdi_bc_is_mngt_blk(cache, i)) {
       // Not a management block, but dirty ==> sync in the first round
-      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
+      // TODO must not trigger automatic management block syncing?
+      SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   // Second round: sync out all remaining dirty management blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i)) {
-      SBDI_BC_ERR_CHK(bc_sync_blk(cache, i));
+      SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
   return SBDI_SUCCESS;

@@ -11,4 +11,6 @@
 #include "config.h"
 #include "sbdi_err.h"
 
+#define SBDI_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
+
 #endif /* SBDI_CONFIG_H_ */
