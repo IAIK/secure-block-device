@@ -66,17 +66,27 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   return SBDI_SUCCESS;
 }
 
-//----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
-    sbdi_tag_t *tag, unsigned char *blk_ctr, int ctr_len)
+/*!
+ * \brief Reads a block, decrypts the block, verifies decryption and puts the
+ * decrypted into cache.
+ *
+ * This function reads either a data or management block and puts the
+ * decrypted data in the cache. For management blocks it passes the block tag
+ * to the calling function. For data blocks TODO: finish
+ *
+ * @param sbdi[in]
+ * @param blk[inout]
+ * @param len[in]
+ * @param tag[inout]
+ * @param ctr[in]
+ * @return
+ */
+static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
+    size_t len, uint8_t *tag, uint8_t *ctr)
 {
-  if (!sbdi || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX || len == 0
-      || len > SBDI_BLOCK_SIZE || !tag
-      || (blk_ctr && ctr_len != SBDI_BLOCK_CTR_SIZE)) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
-  // TODO derive type from index or as a parameter
-  sbdi_bc_bt_t blk_type = (blk_ctr == NULL) ? SBDI_BC_BT_MNGT : SBDI_BC_BT_DATA;
+  assert(
+      sbdi && blk && sbdi_bc_is_valid(blk->idx) && len > 0 && len < SBDI_BLOCK_SIZE && tag);
+  sbdi_bc_bt_t blk_type = (ctr) ? SBDI_BC_BT_DATA : SBDI_BC_BT_MNGT;
   sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
   if (r != SBDI_SUCCESS) {
     return r;
@@ -87,16 +97,22 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
     sbdi_bc_evict_blk(sbdi->cache, blk->idx);
     return r;
   }
-  siv_restart(sbdi->ctx);
   int cr = -1;
-  if (blk_ctr == NULL) {
+  switch (blk_type) {
+  case SBDI_BC_BT_MNGT:
+    // TODO tag is not returned but verified! Need to change this
     // Add block index as additional information to the decryption
-    cr = siv_decrypt(sbdi->ctx, blk->data[0], blk->data[0], SBDI_BLOCK_SIZE,
-        *tag, 1, &blk->idx, sizeof(uint32_t));
-  } else {
+    cr = siv_decrypt(sbdi->ctx, *blk->data, *blk->data, SBDI_BLOCK_SIZE, tag, 1,
+        &blk->idx, sizeof(uint32_t));
+    break;
+  case SBDI_BC_BT_DATA:
     // Add block index and block counter as additional information to the decryption
-    cr = siv_decrypt(sbdi->ctx, blk->data[0], blk->data[0], SBDI_BLOCK_SIZE,
-        *tag, 2, &blk->idx, sizeof(uint32_t), blk_ctr, ctr_len);
+    cr = siv_decrypt(sbdi->ctx, *blk->data, *blk->data, SBDI_BLOCK_SIZE, tag, 2,
+        &blk->idx, sizeof(uint32_t), ctr, SBDI_BLOCK_CTR_SIZE);
+    break;
+  default:
+    sbdi_bc_evict_blk(sbdi->cache, blk->idx);
+    return SBDI_ERR_ILLEGAL_STATE;
   }
   if (cr == -1) {
     sbdi_bc_evict_blk(sbdi->cache, blk->idx);
@@ -112,9 +128,9 @@ sbdi_error_t sbdi_bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk, size_t len,
  * @param tag_idx the index of the block tag
  * @return the memory address of the block tag
  */
-static inline uint8_t *sbdi_bl_get_tag_address(sbdi_block_t *mng,
-    uint32_t tag_idx)
+static inline uint8_t *bl_get_tag_address(sbdi_block_t *mng, uint32_t tag_idx)
 {
+  assert(mng && tag_idx < SBDI_MNGT_BLOCK_ENTRIES);
   return mng->data[tag_idx * (SBDI_BLOCK_TAG_SIZE + SBDI_BLOCK_CTR_SIZE)];
 }
 
@@ -125,53 +141,49 @@ static inline uint8_t *sbdi_bl_get_tag_address(sbdi_block_t *mng,
  * @param ctr_idx the index of the block counter
  * @return the memory address of the block counter
  */
-static inline uint8_t *sbdi_bl_get_ctr_address(sbdi_block_t *mng,
-    uint32_t ctr_idx)
+static inline uint8_t *bl_get_ctr_address(sbdi_block_t *mng, uint32_t ctr_idx)
 {
-  return sbdi_bl_get_tag_address(mng, ctr_idx) + SBDI_BLOCK_TAG_SIZE;
+  assert(mng && ctr_idx < SBDI_MNGT_BLOCK_ENTRIES);
+  return bl_get_tag_address(mng, ctr_idx) + SBDI_BLOCK_TAG_SIZE;
 }
 
-//----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_read_data_block_i(sbdi_t *sbdi, sbdi_block_pair_t *pair)
+static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng,
+    uint32_t mng_blk_nbr)
 {
-  sbdi_error_t r = sbdi_bc_find_blk(sbdi->cache, pair->mng);
-  if (r != SBDI_SUCCESS) {
-    return r;
+  sbdi_tag_t mng_tag;
+  SBDI_ERR_CHK(bl_cache_decrypt(sbdi, mng, SBDI_BLOCK_SIZE, mng_tag, NULL));
+  assert(mng->data);
+  // TODO add management tag to Merkle tree and validate root
+  mt_error_t mt_r;
+  mt_r = mt_verify(sbdi->mt, NULL, mng_blk_nbr);
+  if (mt_r != MT_SUCCESS) {
+    // TODO better error code mapping?
+    return SBDI_ERR_TAG_MISMATCH;
   }
+  return SBDI_SUCCESS;
+}
+
+/*!
+ * \brief TODO write documentation
+ * @param sbdi
+ * @param pair
+ * @return
+ */
+static sbdi_error_t bl_read_data_block(sbdi_t *sbdi, sbdi_block_pair_t *pair)
+{
+  assert(sbdi && pair);
+  // TODO assert internal state of the pair parameter
+  SBDI_ERR_CHK(sbdi_bc_find_blk(sbdi->cache, pair->mng));
   if (!pair->mng->data) {
-    // Block not yet in cache
-    sbdi_tag_t mng_tag;
-    r = sbdi_bl_cache_decrypt(sbdi, pair->mng, SBDI_BLOCK_SIZE, &mng_tag, NULL,
-        0);
-    if (r != SBDI_SUCCESS) {
-      // TODO Cleanup?
-      return r;
-    }
-    // TODO add management tag to Merkle tree and validate root
-    mt_error_t mt_r;
-    mt_r = mt_verify(sbdi->mt, NULL, pair->mng_nbr);
-    if (mt_r != MT_SUCCESS) {
-      // TODO better error code mapping?
-      return SBDI_ERR_TAG_MISMATCH;
-    }
+    // Management block not yet in cache
+    SBDI_ERR_CHK(bl_read_mngt_block(sbdi, pair->mng, pair->mng_nbr));
   }
-  r = sbdi_bc_find_blk(sbdi->cache, pair->blk);
-  if (r != SBDI_SUCCESS) {
-    return r;
-  }
-  unsigned char *blk_ctr = sbdi_bl_get_ctr_address(pair->mng, pair->tag_idx);
+  SBDI_ERR_CHK(sbdi_bc_find_blk(sbdi->cache, pair->blk));
   if (!(pair->blk->data)) {
-    sbdi_tag_t tag;
-    r = sbdi_bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, &tag, blk_ctr,
-    SBDI_BLOCK_CTR_SIZE);
-    if (r != SBDI_SUCCESS) {
-      // TODO Cleanup?
-      return r;
-    }
-    if (!memcmp(tag, sbdi_bl_get_tag_address(pair->mng, pair->tag_idx),
-    SBDI_BLOCK_TAG_SIZE)) {
-      return SBDI_ERR_TAG_MISMATCH;
-    }
+    // Data block not yet in cache
+    uint8_t *ctr = bl_get_ctr_address(pair->mng, pair->tag_idx);
+    uint8_t *tag = bl_get_tag_address(pair->mng, pair->tag_idx);
+    SBDI_ERR_CHK(bl_cache_decrypt(sbdi, pair->blk, SBDI_BLOCK_SIZE, tag, ctr));
   }
   return SBDI_SUCCESS;
 }
@@ -190,12 +202,9 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   uint32_t dat_idx = sbdi_get_data_block_index(idx);
   uint32_t tag_idx = sbdi_get_mngt_tag_index(idx);
   sbdi_block_pair_t pair;
-  sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx, tag_idx);
-  sbdi_error_t r = sbdi_bl_read_data_block_i(sbdi, &pair);
-  if (r != SBDI_SUCCESS) {
-    return r;
-  }
-// Copy data block from cache into target buffer
+  SBDI_ERR_CHK(sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx, tag_idx));
+  SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair));
+  // Copy data block from cache into target buffer
   memcpy(ptr, pair.blk->data, len);
   return SBDI_SUCCESS;
 }
@@ -234,22 +243,14 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   uint32_t dat_idx = sbdi_get_data_block_index(idx);
   uint32_t tag_idx = sbdi_get_mngt_tag_index(idx);
   sbdi_block_pair_t pair;
-  sbdi_error_t r = sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx,
-      tag_idx);
-  if (r != SBDI_SUCCESS) {
-    return r;
-  }
-  r = sbdi_bl_read_data_block_i(sbdi, &pair);
-  if (r != SBDI_SUCCESS) {
-    return r;
-  }
+  SBDI_ERR_CHK(sbdi_block_pair_init(&pair, mng_nbr, mng_idx, dat_idx, tag_idx));
+  SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair));
   memcpy(pair.blk->data, ptr, len);
 // Nothing has of yet been written to the management block. This has to be
 // done by the sync function, when the dependent data blocks are synced.
 // Afterwards the management block should be written.
-  r = sbdi_bc_dirty_blk(sbdi->cache, pair.mng->idx);
+  SBDI_ERR_CHK(sbdi_bc_dirty_blk(sbdi->cache, pair.mng->idx));
   return sbdi_bc_dirty_blk(sbdi->cache, pair.blk->idx);
-//sbdi_error_t r;
 // Make sure block is in cache
 // What I need to do:
 // * Read Block into cache (done)
@@ -257,34 +258,34 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 // * Write to cache
 // * Cache is synced later on
 // * Write back new block access counter and tag to management block (also in cache)
-//
 }
 
-static sbdi_error_t sbdi_bl_encrypt_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng)
+static sbdi_error_t bl_encrypt_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng)
 {
+  assert(sbdi && mng);
+  assert(sizeof(sbdi_ctr_128b_t) == SBDI_BLOCK_CTR_SIZE);
+  // TODO additional asserts?
   sbdi_tag_t mng_tag;
   // Assumption enforced by sbdi cache: All dependent data blocks are synced
   int cr = siv_encrypt(sbdi->ctx, *mng->data, *sbdi->write_store[0].data,
-    SBDI_BLOCK_SIZE, mng_tag, 2, &mng->idx, sizeof(uint32_t), &sbdi->g_ctr,
-      sizeof(sbdi_ctr_128b_t));
+  SBDI_BLOCK_SIZE, mng_tag, 2, &mng->idx, sizeof(uint32_t), &sbdi->g_ctr,
+  SBDI_BLOCK_CTR_SIZE);
   if (cr == -1) {
     return SBDI_ERR_CRYPTO_FAIL;
   }
   sbdi->write_store[0].idx = mng->idx;
   //sbdi->write_store[1].data = ;// TODO: Need to have actual store somewhere!
-  sbdi_error_t r = sbdi_bl_write_block(sbdi, &sbdi->write_store[0],
-  SBDI_BLOCK_SIZE);
-  if (r != SBDI_SUCCESS) {
-    // TODO additional error handing required!
-    return r;
-  }
-  // TODO Update Merkle Tree
+  SBDI_ERR_CHK(
+      sbdi_bl_write_block(sbdi, &sbdi->write_store[0], SBDI_BLOCK_SIZE));
+  // TODO Update Merkle Tree and do error checking
   mt_update(sbdi->mt, NULL, mng->idx);
   return SBDI_SUCCESS;
 }
 
-static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
+static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
 {
+  // encrypt block into write store using physical block index and the
+  // global counter as additional headers
   sbdi_block_t mng;
   sbdi_tag_t data_tag;
   sbdi->write_store[0].idx = blk->idx;
@@ -304,9 +305,8 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   }
   mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
   uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
-  memcpy(sbdi_bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
-  memcpy(sbdi_bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr,
-  SBDI_BLOCK_CTR_SIZE);
+  memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
+  memcpy(bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr, SBDI_BLOCK_CTR_SIZE);
   sbdi_ctr_128b_inc(&sbdi->g_ctr);
   sbdi_tag_t mng_tag;
   // Management block updated now encrypt it
@@ -338,33 +338,19 @@ static sbdi_error_t sbdi_bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
 }
 
 //----------------------------------------------------------------------
-static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
+static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 {
-  if (!sbdi || !blk || !blk->data || blk->idx > SBDI_BLOCK_MAX_INDEX) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
-  sbdi_bc_idx_elem_t *idx_list = sbdi->cache->index.list;
+  assert(sbdi && blk && blk->data && sbdi_bc_is_valid(blk->idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
-  if (!sbdi_bc_idx_is_valid(idx_pos)
-      || !sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos)) {
-    return SBDI_ERR_ILLEGAL_STATE;
-  }
-  sbdi_error_t r;
-  switch (sbdi_bc_get_blk_type(idx_list[idx_pos].flags)) {
+  assert(
+      sbdi_bc_idx_is_valid(idx_pos)
+          && sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos));
+  switch (sbdi_bc_get_blk_type(sbdi->cache, idx_pos)) {
   case SBDI_BC_BT_MNGT:
-    r = sbdi_bl_encrypt_write_mngt(sbdi, blk);
-    if (r != SBDI_SUCCESS) {
-      return r;
-    }
+    SBDI_ERR_CHK(bl_encrypt_write_mngt(sbdi, blk));
     break;
   case SBDI_BC_BT_DATA:
-    // TODO can the same context be used for en- and decryption?
-    // encrypt block into write store using physical block index and the
-    // global counter as additional headers
-    r = sbdi_bl_encrypt_write_data(sbdi, blk);
-    if (r != SBDI_SUCCESS) {
-      return r;
-    }
+    SBDI_ERR_CHK(bl_encrypt_write_data(sbdi, blk));
     break;
   default:
     return SBDI_ERR_ILLEGAL_STATE;
@@ -375,5 +361,8 @@ static sbdi_error_t sbdi_bl_sync_i(sbdi_t *sbdi, sbdi_block_t *blk)
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
 {
-  return sbdi_bl_sync_i((sbdi_t *) sbdi, blk);
+  if (!sbdi || !blk || !blk->data || !sbdi_bc_is_valid(blk->idx)) {
+    return SBDI_ERR_ILLEGAL_PARAM;
+  }
+  return bl_sync((sbdi_t *) sbdi, blk);
 }

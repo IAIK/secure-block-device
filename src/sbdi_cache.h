@@ -182,16 +182,16 @@ static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
   cache->index.list[idx_pos].flags &= SBDI_BC_BF_DIRTY_CLEAR;
 }
 
-static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(int flags)
+static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(sbdi_bc_t *cache,
+    uint32_t idx_pos)
 {
-  return (sbdi_bc_bt_t) (flags & UINT8_MAX);
+  return (sbdi_bc_bt_t) (cache->index.list[idx_pos].flags & UINT8_MAX);
 }
 
 static inline int sbdi_bc_is_mngt_blk(sbdi_bc_t *cache, uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
-  return sbdi_bc_get_blk_type(cache->index.list[idx_pos].flags)
-      == SBDI_BC_BT_MNGT;
+  return sbdi_bc_get_blk_type(cache, idx_pos) == SBDI_BC_BT_MNGT;
 }
 
 /*!
