@@ -13,7 +13,7 @@
 #define UINT32_C(c) c ## u
 #endif
 
-#include "sbdi_block.h"
+#include "sbdi.h"
 
 #include <cppunit/extensions/HelperMacros.h>
 
@@ -23,15 +23,17 @@ CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   ;
 
 private:
+  sbdi_t *sbdi;
 
 public:
   void setUp()
   {
+    sbdi = sbdi_create();
   }
 
   void tearDown()
   {
-
+    sbdi_delete(sbdi);
   }
 
   void testIndexComp()
@@ -47,7 +49,15 @@ public:
       uint32_t mng_phy_idx = sbdi_bl_idx_phy_to_mng(phy_idx);
       if (mng_log_idx != mng_phy_idx) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng(log): "
-                    << mng_log_idx << " mng(phy) " << mng_phy_idx << std::endl;
+            << mng_log_idx << " mng(phy) " << mng_phy_idx << std::endl;
+        CPPUNIT_ASSERT(0);
+      }
+      uint32_t mng_log_blk_nbr = sbdi_get_mngt_block_number(log_idx);
+      uint32_t mng_phy_blk_nbr = sbdi_bl_mng_phy_to_mng_log(mng_phy_idx);
+      if (mng_log_blk_nbr != mng_phy_blk_nbr) {
+        std::cout << "log: " << log_idx << " phy: " << phy_idx
+            << " mng_nbr(log): " << mng_log_blk_nbr << " mng_nbr(phy) "
+            << mng_phy_blk_nbr << std::endl;
         CPPUNIT_ASSERT(0);
       }
     }

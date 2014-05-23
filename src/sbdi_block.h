@@ -14,6 +14,7 @@ extern "C" {
 
 #include "sbdi_config.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -23,15 +24,6 @@ typedef struct sbdi_block {
   uint32_t idx;
   sbdi_db_t *data;
 } sbdi_block_t;
-
-typedef struct sbdi_block_pair {
-  uint32_t mng_nbr;
-  uint32_t tag_idx;
-  sbdi_block_t mng_dat;
-  sbdi_block_t *mng;
-  sbdi_block_t blk_dat;
-  sbdi_block_t *blk;
-} sbdi_block_pair_t;
 
 static inline sbdi_error_t sbdi_block_init(sbdi_block_t *blk, uint32_t blk_idx,
     sbdi_db_t *blk_data)
@@ -86,12 +78,21 @@ static inline uint32_t sbdi_bl_idx_phy_to_log(uint32_t phy)
 
 static inline uint32_t sbdi_bl_idx_phy_to_mng(uint32_t phy)
 {
-  if (phy < 2) {
-    // TODO Error handling?
-    return UINT32_MAX;
-  }
+  assert(phy > 1);
   uint32_t tmp = (phy - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
   return tmp * (SBDI_MNGT_BLOCK_ENTRIES + 1) + 1;
+}
+
+static inline int sbdi_bl_is_phy_mng(uint32_t phy) {
+  assert(phy > 0);
+  return ((phy - 1) % (SBDI_MNGT_BLOCK_ENTRIES + 1)) == 0;
+}
+
+static inline uint32_t sbdi_bl_mng_phy_to_mng_log(uint32_t mng_phy)
+{
+  assert(mng_phy > 0);
+  assert(sbdi_bl_is_phy_mng(mng_phy));
+  return (mng_phy - 1) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
 }
 
 #endif /* SBDI_BLOCK_H_ */
