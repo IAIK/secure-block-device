@@ -25,25 +25,20 @@ typedef struct sbdi_block {
   sbdi_db_t *data;
 } sbdi_block_t;
 
-static inline sbdi_error_t sbdi_block_init(sbdi_block_t *blk, uint32_t blk_idx,
+static inline void sbdi_block_init(sbdi_block_t *blk, uint32_t blk_idx,
     sbdi_db_t *blk_data)
 {
-  if (!blk) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  assert(blk);
+  // TODO assert block index valid or UINT32_MAX?
   blk->idx = blk_idx;
   blk->data = blk_data;
-  return SBDI_SUCCESS;
 }
 
-static inline sbdi_error_t sbdi_block_invalidate(sbdi_block_t *blk)
+static inline void sbdi_block_invalidate(sbdi_block_t *blk)
 {
-  if (!blk) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  assert(blk);
   blk->idx = UINT32_MAX;
   blk->data = NULL;
-  return SBDI_SUCCESS;
 }
 
 static inline uint32_t sbdi_get_mngt_block_number(uint32_t idx)

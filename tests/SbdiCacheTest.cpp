@@ -21,6 +21,8 @@
 #define UINT16_MAX 65536u
 #endif
 
+#include "SbdiTest.h"
+
 #include "sbdi_cache.h"
 
 #include <string.h>
@@ -42,15 +44,6 @@ private:
   sbdi_bc_t *cache;
   std::set<uint32_t> exp_sync;
 
-  int memchrcmp(unsigned char *buffer, int chr, size_t len)
-  {
-    for (size_t i = 0; i < len; ++i) {
-      if (buffer[i] != (unsigned char) chr) {
-        return 0;
-      }
-    }
-    return 1;
-  }
 
   sbdi_error_t sbdi_bc_cache_blk_i(uint32_t idx, sbdi_block_t *blk)
   {
@@ -188,9 +181,9 @@ public:
       CPPUNIT_ASSERT(blk->data != NULL);
       memset(blk->data, i, SBDI_BLOCK_SIZE);
     }
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x42, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x42, NULL);
     CPPUNIT_ASSERT(sbdi_bc_evict_blk(cache, blk->idx) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x07, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x07, NULL);
     CPPUNIT_ASSERT(sbdi_bc_cache_blk_i(0x07, blk) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(memchrcmp(*blk->data, 0x42, SBDI_BLOCK_SIZE));
     for (uint32_t i = 0x40; i < (0x40 + SBDI_CACHE_MAX_SIZE); ++i) {
@@ -202,7 +195,7 @@ public:
     }
     CPPUNIT_ASSERT(
         (sbdi_bc_find_blk_i(0x07, blk) == SBDI_SUCCESS) && (blk->data != NULL));
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x11, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x11, NULL);
     CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_ERR_ILLEGAL_STATE);
   }
 
@@ -212,7 +205,7 @@ public:
     sbdi_block_t *blk = &blk_dat;
     sbdi_block_invalidate(blk);
     for (uint32_t i = 0x50; i < (0x50 + SBDI_CACHE_MAX_SIZE); ++i) {
-      CPPUNIT_ASSERT(sbdi_block_init(blk, i, NULL) == SBDI_SUCCESS);
+      sbdi_block_init(blk, i, NULL);
       if (i % 2) {
         CPPUNIT_ASSERT(
             sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA) == SBDI_SUCCESS);
@@ -223,14 +216,14 @@ public:
       CPPUNIT_ASSERT(blk->data != NULL);
       memset(blk->data, i, SBDI_BLOCK_SIZE);
     }
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x50, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x50, NULL);
     CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x51, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x51, NULL);
     CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x52, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x52, NULL);
     CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     exp_sync.insert(exp_sync.begin(), 0x51);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, 0x60, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, 0x60, NULL);
     CPPUNIT_ASSERT(
         sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_MNGT) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(exp_sync.size() == 0);
@@ -246,7 +239,7 @@ public:
   void cacheBlock(sbdi_block_t *blk, uint32_t idx, sbdi_bc_bt_t type)
   {
     sbdi_block_invalidate(blk);
-    CPPUNIT_ASSERT(sbdi_block_init(blk, idx, NULL) == SBDI_SUCCESS);
+    sbdi_block_init(blk, idx, NULL);
     CPPUNIT_ASSERT(sbdi_bc_cache_blk(cache, blk, type) == SBDI_SUCCESS);
     CPPUNIT_ASSERT(blk->data != NULL);
     memset(blk->data, idx, SBDI_BLOCK_SIZE);
@@ -270,7 +263,7 @@ public:
       if (i % 2) {
         continue;
       }
-      CPPUNIT_ASSERT(sbdi_block_init(blk, i, NULL) == SBDI_SUCCESS);
+      sbdi_block_init(blk, i, NULL);
       CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
     }
   }

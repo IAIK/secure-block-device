@@ -29,8 +29,14 @@ typedef struct secure_block_device_interface {
 
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk);
 
-sbdi_t *sbdi_create(void);
+sbdi_t *sbdi_create(int fd, uint8_t *key, size_t key_len);
 void sbdi_delete(sbdi_t *sbdi);
+
+sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
+    uint32_t idx, size_t len);
+
+sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
+    uint32_t idx, size_t len);
 
 #endif /* SBDI_H_ */
 

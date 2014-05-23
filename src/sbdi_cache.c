@@ -75,7 +75,8 @@ static inline void idx_set_cache_idx(sbdi_bc_t *cache, uint32_t idx,
 static inline uint32_t idx_get_phy_idx(sbdi_bc_t *cache, uint32_t idx)
 {
   assert(cache && idx < SBDI_CACHE_MAX_SIZE);
-  assert(cache->index.list[idx].block_idx < SBDI_BLOCK_MAX_INDEX);
+  //assert(cache->index.list[idx].block_idx < SBDI_BLOCK_MAX_INDEX);
+  // The above assertion prevents getting invalid indices out of the cache
   return cache->index.list[idx].block_idx;
 }
 
