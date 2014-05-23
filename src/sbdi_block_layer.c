@@ -67,14 +67,45 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
 }
 
 /*!
+ * \brief converts a Merkle tree error into a secure block device interface
+ * error
+ *
+ * @param mr the Merkle tree error code
+ * @return the corresponding secure block device interface error code
+ */
+static inline sbdi_error_t bl_mt_sbdi_err_conv(mt_error_t mr)
+{
+  switch (mr) {
+  case MT_SUCCESS:
+    return SBDI_SUCCESS;
+  case MT_ERR_OUT_Of_MEMORY:
+    return SBDI_ERR_OUT_Of_MEMORY;
+  case MT_ERR_ILLEGAL_PARAM:
+    return SBDI_ERR_ILLEGAL_PARAM;
+  case MT_ERR_ILLEGAL_STATE:
+    return SBDI_ERR_ILLEGAL_STATE;
+  case MT_ERR_ROOT_MISMATCH:
+    return SBDI_ERR_TAG_MISMATCH;
+  case MT_ERR_UNSPECIFIED:
+    return SBDI_ERR_UNSPECIFIED;
+  default:
+    return SBDI_ERR_UNSUPPORTED;
+  }
+}
+
+/*!
  * \brief Reads a block, decrypts the block, verifies decryption and puts the
- * decrypted into cache.
+ * decrypted block into cache.
  *
  * This function reads either a data or management block and puts the
  * decrypted data in the cache. For management blocks it passes the block tag
- * to the calling function. For data blocks TODO: finish
+ * back to the calling function. For data blocks it verifies the tag and
+ * returns SBDI_ERR_TAG_MISMATCH.
  *
- * @param sbdi[in]
+ * This function works by reserving a block in the cache and then reading
+ * data into the reserved block.
+ *
+ * @param sbdi[in] // TODO finish
  * @param blk[inout]
  * @param len[in]
  * @param tag[inout]
@@ -87,12 +118,9 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
   assert(
       sbdi && blk && sbdi_bc_is_valid(blk->idx) && len > 0 && len < SBDI_BLOCK_SIZE && tag);
   sbdi_bc_bt_t blk_type = (ctr) ? SBDI_BC_BT_DATA : SBDI_BC_BT_MNGT;
-  sbdi_error_t r = sbdi_bc_cache_blk(sbdi->cache, blk, blk_type);
-  if (r != SBDI_SUCCESS) {
-    return r;
-  }
+  SBDI_ERR_CHK(sbdi_bc_cache_blk(sbdi->cache, blk, blk_type));
   assert(blk->data);
-  r = sbdi_bl_read_block(sbdi, blk, len);
+  sbdi_error_t r = sbdi_bl_read_block(sbdi, blk, len);
   if (r != SBDI_SUCCESS) {
     sbdi_bc_evict_blk(sbdi->cache, blk->idx);
     return r;
@@ -100,23 +128,24 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
   int cr = -1;
   switch (blk_type) {
   case SBDI_BC_BT_MNGT:
-    // TODO tag is not returned but verified! Need to change this
-    // Add block index as additional information to the decryption
-    cr = siv_decrypt(sbdi->ctx, *blk->data, *blk->data, SBDI_BLOCK_SIZE, tag, 1,
+    // Note: in case of a management block the tag is an out parameter,
+    // because tag verification is done using the Merkle hash tree.
+    // Note: Add block index as additional information to the decryption
+    sbdi_siv_decrypt(sbdi->ctx, *blk->data, *blk->data, SBDI_BLOCK_SIZE, tag, 1,
         &blk->idx, sizeof(uint32_t));
     break;
   case SBDI_BC_BT_DATA:
     // Add block index and block counter as additional information to the decryption
     cr = siv_decrypt(sbdi->ctx, *blk->data, *blk->data, SBDI_BLOCK_SIZE, tag, 2,
         &blk->idx, sizeof(uint32_t), ctr, SBDI_BLOCK_CTR_SIZE);
+    if (cr == -1) {
+      sbdi_bc_evict_blk(sbdi->cache, blk->idx);
+      return SBDI_ERR_TAG_MISMATCH;
+    }
     break;
   default:
     sbdi_bc_evict_blk(sbdi->cache, blk->idx);
     return SBDI_ERR_ILLEGAL_STATE;
-  }
-  if (cr == -1) {
-    sbdi_bc_evict_blk(sbdi->cache, blk->idx);
-    return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
 }
@@ -153,13 +182,9 @@ static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng,
   sbdi_tag_t mng_tag;
   SBDI_ERR_CHK(bl_cache_decrypt(sbdi, mng, SBDI_BLOCK_SIZE, mng_tag, NULL));
   assert(mng->data);
-  // TODO add management tag to Merkle tree and validate root
-  mt_error_t mt_r;
-  mt_r = mt_verify(sbdi->mt, NULL, mng_blk_nbr);
-  if (mt_r != MT_SUCCESS) {
-    // TODO better error code mapping?
-    return SBDI_ERR_TAG_MISMATCH;
-  }
+  // TODO fix Merkle tree root hash check!
+
+  SBDI_ERR_CHK(bl_mt_sbdi_err_conv(mt_verify(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), mng_blk_nbr)));
   return SBDI_SUCCESS;
 }
 
@@ -277,9 +302,7 @@ static sbdi_error_t bl_encrypt_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng)
   //sbdi->write_store[1].data = ;// TODO: Need to have actual store somewhere!
   SBDI_ERR_CHK(
       sbdi_bl_write_block(sbdi, &sbdi->write_store[0], SBDI_BLOCK_SIZE));
-  // TODO Update Merkle Tree and do error checking
-  mt_update(sbdi->mt, NULL, mng->idx);
-  return SBDI_SUCCESS;
+  return bl_mt_sbdi_err_conv(mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), mng->idx));
 }
 
 static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
@@ -328,7 +351,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return r;
   }
   // TODO Update Merkle Tree
-  r = mt_update(sbdi->mt, NULL, mng.idx);
+  r = mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), mng.idx);
   if (r != SBDI_SUCCESS) {
     // TODO additional error handling required!
     return r;

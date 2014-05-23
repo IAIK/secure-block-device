@@ -95,6 +95,23 @@ int siv_encrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
     unsigned char *, const int, ...);
 int siv_decrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
     unsigned char *, const int, ...);
+/*!
+ * \brief A version of siv_decrypt that omits the tag check.
+ *
+ * This function is required for the merkle hash tree based integrity
+ * protection mechanism used by the secure block device interface.
+ *
+ * @param ctx[in] the siv context
+ * @param c[in] the ciphertext
+ * @param p[out] the plaintext
+ * @param len[in] the length of the plaintext (also the length of the
+ * ciphertext)
+ * @param counter[out] the block tag
+ * @param nad[in] the number of (unsigned char *, int) length tuples describing
+ * additional header information for the mac.
+ */
+void sbdi_siv_decrypt(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
+    const int len, unsigned char *counter, const int nad, ...);
 #ifdef __cplusplus
 }
 #endif
