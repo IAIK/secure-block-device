@@ -2,9 +2,9 @@ Q=@
 VGRUN = valgrind --tool=memcheck
 
 LDFLAGS += -lcppunit -ggdb
-CFLAGS  += -Wall -ggdb
-CXXFLAGS += -Wall -ggdb
-CPPFLAGS += -I../src/ -I..src/crypto/
+CFLAGS  += -Wall -ggdb -std=gnu++11
+CXXFLAGS += -Wall -ggdb -std=gnu++11
+CPPFLAGS += -std=gnu++11 -I../src/ -I..src/crypto/
 
 TST_DEP_FILE = .depend
 TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cpp SbdiBlockLayerTest.cpp
@@ -28,7 +28,7 @@ test: $(TST_BIN)
 clean:
 	$(Q)rm -Rf $(TST_BIN) $(TST_OBJS) html latex .depend
 
-$(TST_BIN) : $(TST_OBJS) $(TST_LIB)
+$(TST_BIN): $(TST_OBJS) $(TST_LIB)
 	$(Q)$(CXX) $(CFLAGS) $(CPPFLAGS) -o $(TST_BIN) $(TST_OBJS) $(TST_LIB) $(LDFLAGS)
 
 $(TST_LIB):

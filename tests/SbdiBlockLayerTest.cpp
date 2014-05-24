@@ -12,6 +12,12 @@
 #ifndef UINT32_C
 #define UINT32_C(c) c ## u
 #endif
+#ifndef UINT16_MAX
+#define UINT16_MAX 65535u
+#endif
+#ifndef UINT8_MAX
+#define UINT8_MAX 255u
+#endif
 
 #include "SbdiTest.h"
 
@@ -28,27 +34,44 @@
 #define FILE_NAME "sbdi_tst_enc"
 
 class SbdiBLockLayerTest: public CppUnit::TestFixture {
-CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
-//  CPPUNIT_TEST(testIndexComp);
-  CPPUNIT_TEST(testSimpleReadWrite);CPPUNIT_TEST_SUITE_END()
-  ;
+  CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
+  CPPUNIT_TEST(testIndexComp);
+  CPPUNIT_TEST(testSimpleReadWrite);
+  CPPUNIT_TEST(testExtendedReadWrite);
+  CPPUNIT_TEST_SUITE_END();
 
 private:
   static unsigned char SIV_KEYS[32];
   sbdi_t *sbdi;
+  unsigned char b[SBDI_BLOCK_SIZE];
+
+  void loadStore()
+  {
+    int fd = open(FILE_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    CPPUNIT_ASSERT(fd != -1);
+    sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
+    CPPUNIT_ASSERT(sbdi != NULL);
+  }
+
+  void closeStore()
+  {
+    CPPUNIT_ASSERT(close(sbdi->fd) != -1);
+    sbdi_delete(sbdi);
+  }
+
+  void deleteStore() {
+    CPPUNIT_ASSERT(unlink(FILE_NAME) != -1);
+  }
 
 public:
   void setUp()
   {
-    unlink(FILE_NAME);
-    int fd = open(FILE_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-    sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
+    memset(b, 0, SBDI_BLOCK_SIZE);
   }
 
   void tearDown()
   {
-    close(sbdi->fd);
-    sbdi_delete(sbdi);
+
   }
 
   void testIndexComp()
@@ -78,25 +101,66 @@ public:
     }
   }
 
-  void testSimpleReadWrite()
-  {
-    unsigned char buf[4096];
-    memset(buf, 0x80, 4096);
-    CPPUNIT_ASSERT(sbdi_bl_write_data_block(sbdi, buf, 2049, 4096) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(sbdi_bl_write_data_block(sbdi, buf, 0, 4096) == SBDI_SUCCESS);
-    memset(buf, 0xFF, 4096);
-    CPPUNIT_ASSERT(sbdi_bl_read_data_block(sbdi, buf, 0, 4096) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(memchrcmp(buf, 0x80, 4096));
-    memset(buf, 0xF3, 4096);
-    CPPUNIT_ASSERT(sbdi_bl_write_data_block(sbdi, buf, 128, 4096) == SBDI_SUCCESS);
-    memset(buf, 0xFF, 4096);
-    CPPUNIT_ASSERT(sbdi_bl_read_data_block(sbdi, buf, 0, 4096) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(memchrcmp(buf, 0x80, 4096));
-    CPPUNIT_ASSERT(sbdi_bl_read_data_block(sbdi, buf, 128, 4096) == SBDI_SUCCESS);
-    CPPUNIT_ASSERT(memchrcmp(buf, 0xF3, 4096));
-    sbdi_bc_sync(sbdi->cache);
+  void read(uint32_t i) {
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
+  void write(uint32_t i) {
+    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+  }
+
+  void fill(uint32_t c) {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    memset(b, c, SBDI_BLOCK_SIZE);
+  }
+
+  void f_write(uint32_t i, uint32_t v) {
+    fill(v);
+    write(i);
+  }
+
+  void cmp(uint32_t c) {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+  }
+
+  void c_read(uint32_t i, uint32_t v) {
+    fill(0xFF);
+    read(i);
+    cmp(v);
+  }
+
+  void testSimpleReadWrite()
+  {
+    loadStore();
+    f_write(0, 0x10);
+    c_read(0, 0x10);
+    f_write(1, 0x11);
+    c_read(1, 0x11);
+    CPPUNIT_ASSERT(sbdi_bc_sync(sbdi->cache) == SBDI_SUCCESS);
+    closeStore();
+    loadStore();
+    c_read(1, 0x11);
+    c_read(0, 0x10);
+    closeStore();
+    deleteStore();
+  }
+
+  void testExtendedReadWrite() {
+    loadStore();
+    f_write(0x80, 0x80);
+    c_read(0x80, 0x80);
+//    CPPUNIT_ASSERT(sbdi_bl_read_data_block(sbdi, buf, 0, 4096) == SBDI_SUCCESS);
+//    CPPUNIT_ASSERT(memchrcmp(buf, 0x80, 4096));
+//    CPPUNIT_ASSERT(
+//        sbdi_bl_read_data_block(sbdi, buf, 128, 4096) == SBDI_SUCCESS);
+//    CPPUNIT_ASSERT(memchrcmp(buf, 0xF3, 4096));
+//    write(2049);
+    closeStore();
+    deleteStore();
+  }
 };
 
 unsigned char SbdiBLockLayerTest::SIV_KEYS[32] = {
