@@ -151,6 +151,20 @@ void sbdi_delete(sbdi_t *sbdi)
 }
 
 //----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_verify_block_layer(const sbdi_t *sbdi,
+    uint32_t last_blk_idx)
+{
+  assert(sbdi);
+  uint32_t last_phy = sbdi_get_data_block_index(last_blk_idx);
+  assert(sbdi_bc_is_valid(last_phy));
+  uint32_t mng_nbr = sbdi_get_mngt_block_number(last_blk_idx);
+  for (int i = 0; i < (mng_nbr + 1); ++i) {
+
+  }
+  return SBDI_SUCCESS;
+}
+
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len, uint32_t *read)
 {
@@ -294,7 +308,7 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
       || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  const sbdi_db_t *a = (const sbdi_db_t *)blk->data;
+  const sbdi_db_t *a = (const sbdi_db_t *) blk->data;
   const sbdi_db_t *b = &sbdi->write_store_dat[0];
   assert(a >= b && a < b + 2 * SBDI_BLOCK_SIZE);
   ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
