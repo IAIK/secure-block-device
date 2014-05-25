@@ -23,6 +23,7 @@
 
 #include "sbdi.h"
 
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -49,8 +50,11 @@ private:
   {
     int fd = open(FILE_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     CPPUNIT_ASSERT(fd != -1);
+    struct stat s;
+    CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
+    sbdi_bl_verify_block_layer(sbdi, (s.st_size / SBDI_BLOCK_SIZE));
   }
 
   void closeStore()

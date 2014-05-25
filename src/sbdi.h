@@ -38,6 +38,8 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
 sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
     uint32_t idx, size_t len);
 
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, uint32_t last_blk_idx);
+
 #endif /* SBDI_H_ */
 
 #ifdef __cplusplus

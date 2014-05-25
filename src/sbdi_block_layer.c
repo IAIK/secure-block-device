@@ -151,20 +151,6 @@ void sbdi_delete(sbdi_t *sbdi)
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_verify_block_layer(const sbdi_t *sbdi,
-    uint32_t last_blk_idx)
-{
-  assert(sbdi);
-  uint32_t last_phy = sbdi_get_data_block_index(last_blk_idx);
-  assert(sbdi_bc_is_valid(last_phy));
-  uint32_t mng_nbr = sbdi_get_mngt_block_number(last_blk_idx);
-  for (int i = 0; i < (mng_nbr + 1); ++i) {
-
-  }
-  return SBDI_SUCCESS;
-}
-
-//----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len, uint32_t *read)
 {
@@ -181,6 +167,49 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   if (r < len) {
     return SBDI_ERR_MISSING_DATA;
   }
+  return SBDI_SUCCESS;
+}
+
+//----------------------------------------------------------------------
+static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
+    uint32_t read)
+{
+  assert(sbdi_bc_is_valid(phy_mng_idx));
+  sbdi_tag_t tag;
+  memset(tag, 0, sizeof(tag));
+  sbdi_block_t *mng = sbdi->write_store;
+  mng->idx = 1;
+  // Management block should always be fully readable.
+  SBDI_ERR_CHK(sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read));
+  sbdi_siv_decrypt(sbdi->ctx, *mng->data, *mng->data, SBDI_BLOCK_SIZE, tag, 1,
+      &mng->idx, sizeof(uint32_t));
+  return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+}
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, uint32_t last_blk_idx)
+{
+  assert(sbdi);
+  // TODO Document that this function builds the hash tree, so that basic
+  // hash tree update operations work, which is a requirement for every data
+  // block write
+  uint32_t last_phy = sbdi_get_data_block_index(last_blk_idx);
+  assert(sbdi_bc_is_valid(last_phy));
+  uint32_t mng_nbr = sbdi_get_mngt_block_number(last_blk_idx);
+  uint32_t read = 0;
+  sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);
+  if (r == SBDI_ERR_MISSING_DATA && read == 0) {
+    // The first management block does not yet exist ==> no tree building
+    // necessary
+    return SBDI_SUCCESS;
+  } else if (r != SBDI_SUCCESS) {
+    return r;
+  }
+  for (int i = 1; i < (mng_nbr + 1); ++i) {
+    SBDI_ERR_CHK(
+        bl_verify_mngt_block(sbdi, i * (SBDI_MNGT_BLOCK_ENTRIES + 1), read));
+  }
+  // TODO @ this point I need to verify the root hash!
   return SBDI_SUCCESS;
 }
 
