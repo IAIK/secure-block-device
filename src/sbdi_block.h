@@ -78,7 +78,8 @@ static inline uint32_t sbdi_bl_idx_phy_to_mng(uint32_t phy)
   return tmp * (SBDI_MNGT_BLOCK_ENTRIES + 1) + 1;
 }
 
-static inline int sbdi_bl_is_phy_mng(uint32_t phy) {
+static inline int sbdi_bl_is_phy_mng(uint32_t phy)
+{
   assert(phy > 0);
   return ((phy - 1) % (SBDI_MNGT_BLOCK_ENTRIES + 1)) == 0;
 }
@@ -88,6 +89,17 @@ static inline uint32_t sbdi_bl_mng_phy_to_mng_log(uint32_t mng_phy)
   assert(mng_phy > 0);
   assert(sbdi_bl_is_phy_mng(mng_phy));
   return (mng_phy - 1) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
+}
+
+/*!
+ * \brief Computes the physical management block address from the management
+ * block index
+ * @param mng_idx
+ * @return
+ */
+static inline uint32_t sbdi_bl_mng_idx_to_mng_phy(uint32_t mng_idx)
+{
+  return (mng_idx * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
 }
 
 #endif /* SBDI_BLOCK_H_ */

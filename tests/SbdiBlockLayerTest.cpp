@@ -35,11 +35,11 @@
 #define FILE_NAME "sbdi_tst_enc"
 
 class SbdiBLockLayerTest: public CppUnit::TestFixture {
-  CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
+CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
   CPPUNIT_TEST(testSimpleReadWrite);
-  CPPUNIT_TEST(testExtendedReadWrite);
-  CPPUNIT_TEST_SUITE_END();
+  CPPUNIT_TEST(testExtendedReadWrite);CPPUNIT_TEST_SUITE_END()
+  ;
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -63,7 +63,8 @@ private:
     sbdi_delete(sbdi);
   }
 
-  void deleteStore() {
+  void deleteStore()
+  {
     CPPUNIT_ASSERT(unlink(FILE_NAME) != -1);
   }
 
@@ -102,35 +103,47 @@ public:
             << mng_phy_blk_nbr << std::endl;
         CPPUNIT_ASSERT(0);
       }
+      if (mng_log_idx != sbdi_bl_mng_idx_to_mng_phy(mng_log_blk_nbr)) {
+        std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng_idx_1: "
+            << mng_log_idx << " mng_idx_2 "
+            << sbdi_bl_mng_idx_to_mng_phy(mng_log_blk_nbr) << std::endl;
+        CPPUNIT_ASSERT(0);
+      }
     }
   }
 
-  void read(uint32_t i) {
+  void read(uint32_t i)
+  {
     sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
-  void write(uint32_t i) {
+  void write(uint32_t i)
+  {
     sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
-  void fill(uint32_t c) {
+  void fill(uint32_t c)
+  {
     CPPUNIT_ASSERT(c <= UINT8_MAX);
     memset(b, c, SBDI_BLOCK_SIZE);
   }
 
-  void f_write(uint32_t i, uint32_t v) {
+  void f_write(uint32_t i, uint32_t v)
+  {
     fill(v);
     write(i);
   }
 
-  void cmp(uint32_t c) {
+  void cmp(uint32_t c)
+  {
     CPPUNIT_ASSERT(c <= UINT8_MAX);
     CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
   }
 
-  void c_read(uint32_t i, uint32_t v) {
+  void c_read(uint32_t i, uint32_t v)
+  {
     fill(0xFF);
     read(i);
     cmp(v);
@@ -152,7 +165,8 @@ public:
     deleteStore();
   }
 
-  void testExtendedReadWrite() {
+  void testExtendedReadWrite()
+  {
     loadStore();
     f_write(0x80, 0x80);
     c_read(0x80, 0x80);
