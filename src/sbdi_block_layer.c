@@ -234,7 +234,7 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, uint32_t last_blk_idx)
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root, uint32_t last_blk_idx)
 {
   assert(sbdi);
   // TODO Document that this function builds the hash tree, so that basic
@@ -256,7 +256,12 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, uint32_t last_blk_idx)
     SBDI_ERR_CHK(
         bl_verify_mngt_block(sbdi, i * (SBDI_MNGT_BLOCK_ENTRIES + 1), read));
   }
-  // TODO @ this point I need to verify the root hash!
+  mt_hash_t check_root;
+  memset(check_root, 0, sizeof(mt_hash_t));
+  mt_get_root(sbdi->mt, check_root);
+  if (!memcmp(root, check_root, sizeof(mt_hash_t))) {
+    return SBDI_ERR_TAG_MISMATCH;
+  }
   return SBDI_SUCCESS;
 }
 

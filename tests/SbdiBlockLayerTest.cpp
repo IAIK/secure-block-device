@@ -45,6 +45,7 @@ private:
   static unsigned char SIV_KEYS[32];
   sbdi_t *sbdi;
   unsigned char b[SBDI_BLOCK_SIZE];
+  mt_hash_t root;
 
   void loadStore()
   {
@@ -54,7 +55,7 @@ private:
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
-    CPPUNIT_ASSERT(sbdi_bl_verify_block_layer(sbdi, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
   }
 
   void closeStore()
@@ -73,6 +74,7 @@ public:
   void setUp()
   {
     memset(b, 0, SBDI_BLOCK_SIZE);
+    memset(root, 0, sizeof(mt_hash_t));
   }
 
   void tearDown()

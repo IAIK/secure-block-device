@@ -4,14 +4,13 @@ VGRUN = valgrind --tool=memcheck
 LDFLAGS += -lcppunit -ggdb
 CFLAGS  += -Wall -ggdb -std=gnu++11
 CXXFLAGS += -Wall -ggdb -std=gnu++11
-CPPFLAGS += -std=gnu++11 -I../src/ -I..src/crypto/
+CPPFLAGS += -std=gnu++11 -I../src/ -I..src/crypto/ -I../../merkle-tree/src
 
 TST_DEP_FILE = .depend
 TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cpp SbdiBlockLayerTest.cpp
 TST_CXX_OBJS = $(TST_CXX_SRC:%.cpp=%.o)
 TST_SRC = $(TST_CXX_SRC)
 TST_OBJS = $(TST_CXX_OBJS)
-#TST_LIB =  ../src/libSecureBlock.a ../src/crypto/libSbdiCrypto.a ../../merkle-tree/src/libMerkleTree.a
 TST_LIB =  -Wl,--start-group ../../merkle-tree/src/libMerkleTree.a ../src/crypto/libSbdiCrypto.a ../src/libSecureBlock.a -Wl,--end-group 
 TST_BIN = secure-block-test
 
