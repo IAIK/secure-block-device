@@ -54,12 +54,13 @@ private:
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
-    sbdi_bl_verify_block_layer(sbdi, (s.st_size / SBDI_BLOCK_SIZE));
+    CPPUNIT_ASSERT(sbdi_bl_verify_block_layer(sbdi, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
   }
 
   void closeStore()
   {
     CPPUNIT_ASSERT(close(sbdi->fd) != -1);
+
     sbdi_delete(sbdi);
   }
 
