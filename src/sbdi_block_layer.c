@@ -10,6 +10,7 @@
 
 #include "sbdi.h"
 
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -236,7 +237,7 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root, uint32_t last_blk_idx)
 {
-  assert(sbdi);
+  assert(sbdi && root);
   // TODO Document that this function builds the hash tree, so that basic
   // hash tree update operations work, which is a requirement for every data
   // block write
@@ -258,8 +259,8 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root, uint32_t l
   }
   mt_hash_t check_root;
   memset(check_root, 0, sizeof(mt_hash_t));
-  mt_get_root(sbdi->mt, check_root);
-  if (!memcmp(root, check_root, sizeof(mt_hash_t))) {
+  SBDI_ERR_CHK(bl_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
+  if (memcmp(root, check_root, sizeof(mt_hash_t))) {
     return SBDI_ERR_TAG_MISMATCH;
   }
   return SBDI_SUCCESS;
