@@ -1,5 +1,6 @@
 Q=@
 VGRUN = valgrind --tool=memcheck
+VGPROF = valgrind --tool=callgrind --dump-instr=yes --cacheuse=yes
 
 LDFLAGS += -lcppunit -ggdb
 CFLAGS  += -Wall -ggdb -std=gnu++11
@@ -22,6 +23,9 @@ coverage: dep $(TST_BIN)
 
 test: $(TST_BIN)
 	$(Q)$(VGRUN) ./$(TST_BIN)
+	
+prof: $(TST_BIN)
+	$(Q)$(VGPROF) ./$(TST_BIN)
 
 .PHONY: clean
 clean:

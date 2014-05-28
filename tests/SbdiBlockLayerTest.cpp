@@ -34,13 +34,48 @@
 #define SIV_KEY_LEN 256
 #define FILE_NAME "sbdi_tst_enc"
 
+/*!
+ * \brief convert an SBDI error code to a human readable description
+ *
+ * @param r[in] the error code to convert
+ * @return a human readable representation of the error code
+ */
+const char *err_to_string(sbdi_error_t r) {
+  {
+    switch (r) {
+    case SBDI_SUCCESS:
+      return "success";
+    case SBDI_ERR_OUT_Of_MEMORY:
+      return "out of memory";
+    case SBDI_ERR_ILLEGAL_PARAM:
+      return "illegal parameter";
+    case SBDI_ERR_ILLEGAL_STATE:
+      return "illegal state";
+    case SBDI_ERR_IO:
+      return "IO error";
+    case SBDI_ERR_MISSING_DATA:
+      return "missing data";
+    case SBDI_ERR_UNSUPPORTED:
+      return "operation unsupported";
+    case SBDI_ERR_TAG_MISMATCH:
+      return "tag mismatch";
+    case SBDI_ERR_CRYPTO_FAIL:
+      return "crypto fail";
+    case SBDI_ERR_UNSPECIFIED:
+      return "unspecified";
+    default:
+      return "unknown error";
+    }
+  }
+}
+
 class SbdiBLockLayerTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
   CPPUNIT_TEST(testSimpleReadWrite);
   CPPUNIT_TEST(testExtendedReadWrite);
-  CPPUNIT_TEST(testLinearReadWrite);
-  CPPUNIT_TEST_SUITE_END();
+  CPPUNIT_TEST(testLinearReadWrite);CPPUNIT_TEST_SUITE_END()
+  ;
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -56,13 +91,14 @@ private:
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
-    CPPUNIT_ASSERT(sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(
+        sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
   }
 
   void closeStore()
   {
     CPPUNIT_ASSERT(close(sbdi->fd) != -1);
-    mt_get_root((mt_t*)sbdi->mt, root);
+    mt_get_root((mt_t*) sbdi->mt, root);
     sbdi_delete(sbdi);
   }
 
@@ -73,41 +109,45 @@ private:
   }
 
   void read(uint32_t i)
-    {
-      sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-    }
+  {
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+  }
 
-    void write(uint32_t i)
-    {
-      sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-    }
+  void write(uint32_t i)
+  {
+    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    if (r != SBDI_SUCCESS) {
+      std::cout << "Write file @ block " << i << ". Error: " << err_to_string(r) << std::endl;
 
-    void fill(uint32_t c)
-    {
-      CPPUNIT_ASSERT(c <= UINT8_MAX);
-      memset(b, c, SBDI_BLOCK_SIZE);
     }
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+  }
 
-    void f_write(uint32_t i, uint32_t v)
-    {
-      fill(v);
-      write(i);
-    }
+  void fill(uint32_t c)
+  {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    memset(b, c, SBDI_BLOCK_SIZE);
+  }
 
-    void cmp(uint32_t c)
-    {
-      CPPUNIT_ASSERT(c <= UINT8_MAX);
-      CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
-    }
+  void f_write(uint32_t i, uint32_t v)
+  {
+    fill(v);
+    write(i);
+  }
 
-    void c_read(uint32_t i, uint32_t v)
-    {
-      fill(0xFF);
-      read(i);
-      cmp(v);
-    }
+  void cmp(uint32_t c)
+  {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+  }
+
+  void c_read(uint32_t i, uint32_t v)
+  {
+    fill(0xFF);
+    read(i);
+    cmp(v);
+  }
 
 public:
   void setUp()
@@ -192,6 +232,9 @@ public:
     for (int i = 0; i < linear_rw_test_size; ++i) {
       c_read(i, i % UINT8_MAX);
     }
+    sbdi_bc_print_stats(sbdi->cache);
+    closeStore();
+    deleteStore();
   }
 
 };
