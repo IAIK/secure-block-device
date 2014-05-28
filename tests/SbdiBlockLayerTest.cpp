@@ -127,13 +127,13 @@ public:
   {
     for (uint32_t log_idx = 0; log_idx < SBDI_BLOCK_MAX_INDEX; ++log_idx) {
       uint32_t phy_idx = sbdi_blic_log_to_phy_dat_blk(log_idx);
-      if (log_idx != sbdi_bl_idx_phy_to_log(phy_idx)) {
+      if (log_idx != sbdi_blic_phy_dat_to_log(phy_idx)) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " phy(log): "
-            << sbdi_bl_idx_phy_to_log(phy_idx) << std::endl;
+            << sbdi_blic_phy_dat_to_log(phy_idx) << std::endl;
         CPPUNIT_ASSERT(0);
       }
       uint32_t mng_log_idx = sbdi_blic_log_to_phy_mng_blk(log_idx);
-      uint32_t mng_phy_idx = sbdi_bl_idx_phy_to_mng(phy_idx);
+      uint32_t mng_phy_idx = sbdi_blic_phy_dat_to_phy_mng_blk(phy_idx);
       if (mng_log_idx != mng_phy_idx) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng(log): "
             << mng_log_idx << " mng(phy) " << mng_phy_idx << std::endl;
@@ -147,10 +147,10 @@ public:
             << mng_phy_blk_nbr << std::endl;
         CPPUNIT_ASSERT(0);
       }
-      if (mng_log_idx != sbdi_bl_mng_idx_to_mng_phy(mng_log_blk_nbr)) {
+      if (mng_log_idx != sbdi_blic_mng_blk_nbr_to_mng_phy(mng_log_blk_nbr)) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng_idx_1: "
             << mng_log_idx << " mng_idx_2 "
-            << sbdi_bl_mng_idx_to_mng_phy(mng_log_blk_nbr) << std::endl;
+            << sbdi_blic_mng_blk_nbr_to_mng_phy(mng_log_blk_nbr) << std::endl;
         CPPUNIT_ASSERT(0);
       }
       mng_phy_blk_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_idx);

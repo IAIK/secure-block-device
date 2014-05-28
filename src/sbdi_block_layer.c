@@ -374,7 +374,7 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   }
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
-  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_idx(idx);
+  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
   sbdi_block_pair_t pair;
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
@@ -447,7 +447,7 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
     // TODO can I use the same key for generating the random mngt blocks?
     // TODO do I need a good Nonce?
     // TODO do I use the CMAC correctly?
-    sbdi->write_store[0].idx = sbdi_bl_mng_idx_to_mng_phy(s);
+    sbdi->write_store[0].idx = sbdi_blic_mng_blk_nbr_to_mng_phy(s);
     vprf(sbdi->ctx, *sbdi->write_store[1].data, 1, &sbdi->g_ctr,
         sizeof(sbdi_ctr_128b_t));
     sbdi_ctr_128b_inc(&sbdi->g_ctr);
@@ -471,7 +471,7 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
-  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_idx(idx);
+  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
   sbdi_block_pair_t pair;
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
@@ -511,7 +511,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
       sizeof(sbdi_ctr_128b_t));
   // Update tag and counter in management block
-  mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+  mng.idx = sbdi_blic_phy_dat_to_phy_mng_blk(blk->idx);
   sbdi->write_store[1].idx = mng.idx;
   uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
   if (!sbdi_bc_idx_is_valid(mng_idx_pos)) {
@@ -519,7 +519,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_STATE;
   }
   mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
-  uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
+  uint32_t tag_idx = sbdi_blic_phy_dat_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
   memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
   memcpy(bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr, SBDI_BLOCK_CTR_SIZE);
   sbdi_ctr_128b_inc(&sbdi->g_ctr);

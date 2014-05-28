@@ -50,7 +50,7 @@ static inline uint32_t sbdi_blic_log_to_mng_blk_nbr(uint32_t log)
  * management blocks required up to the physical index
  * @param phy the physical block index
  * @return the number of management blocks required for the given physical
- *  index
+ * index
  */
 static inline uint32_t sbdi_blic_phy_to_mng_blk_nbr(uint32_t phy)
 {
@@ -58,6 +58,14 @@ static inline uint32_t sbdi_blic_phy_to_mng_blk_nbr(uint32_t phy)
   return (phy - 1) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
 }
 
+/*!
+ * \brief Converts the given physical block index into the number of
+ * management blocks required up to the physical index and checks that the
+ * given index points to a management block
+ * @param phy_mng the physical management block index
+ * @return the number of management blocks required for the given physical
+ * index
+ */
 static inline uint32_t sbdi_blic_phy_mng_to_mng_blk_nbr(uint32_t phy_mng)
 {
   assert(phy_mng > 0);
@@ -65,48 +73,100 @@ static inline uint32_t sbdi_blic_phy_mng_to_mng_blk_nbr(uint32_t phy_mng)
   return (phy_mng - 1) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
 }
 
+/*!
+ * \brief Converts the given logical index into the physical management block
+ * index of the management block that stores the management information for
+ * the logical block specified by the given index
+ * @param log the logical block index
+ * @return the physical management block index that stores the management
+ * information for the data block specified by the given logical index
+ */
 static inline uint32_t sbdi_blic_log_to_phy_mng_blk(uint32_t log)
 {
-  // TODO replace with mng_blk_nbr * (SBDI_MNGT_BLOCK_ENTRIES + 1) + 1
-  return (sbdi_blic_log_to_mng_blk_nbr(log) * SBDI_MNGT_BLOCK_ENTRIES)
-      + sbdi_blic_log_to_mng_blk_nbr(log) + 1;
+  return (sbdi_blic_log_to_mng_blk_nbr(log) * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
 }
 
+/*!
+ * \brief Converts the given logical data block index into the corresponding
+ * physical data block index
+ * @param log the logical data block index to convert
+ * @return the physical data block index for the given logical block index
+ */
 static inline uint32_t sbdi_blic_log_to_phy_dat_blk(uint32_t log)
 {
   return log + sbdi_blic_log_to_mng_blk_nbr(log) + 2;
 }
 
-static inline uint32_t sbdi_blic_log_to_mng_tag_idx(uint32_t log)
+/*!
+ * \brief Computes the position of a data block's tag in its management block
+ *
+ * Each data block is associated with a management block. The management
+ * block stores the block counter used to make the last encryption of the
+ * data block unique and also the tag(MAC) that was computed of the data
+ * block. The tag and the counter for a specific data block are stored in the
+ * management block at a position depending on the data blocks logical index.
+ * This function computes this position.
+ *
+ * @param log the logical data block index
+ * @return the position of a data block's tag from the management block base
+ * address
+ */
+static inline uint32_t sbdi_blic_log_to_mng_tag_pos(uint32_t log)
 {
   return log % SBDI_MNGT_BLOCK_ENTRIES;
 }
 
-static inline uint32_t sbdi_bl_idx_phy_to_log(uint32_t phy)
+/*!
+ * \brief Converts a physical data block index into its corresponding logical
+ * index
+ *
+ * This function asserts that the given index is greater than one (otherwise
+ * is either points to the header, or is the first management block) and
+ * makes sure the given physical index does not point to a management block!
+ *
+ * @param phy_dat the physical data block index to convert into a logical
+ * data block index
+ * @return the logical data block index for the given physical data block
+ * index
+ */
+static inline uint32_t sbdi_blic_phy_dat_to_log(uint32_t phy_dat)
 {
-  if (phy < 2) {
-    // TODO Error handling?
-    return UINT32_MAX;
-  }
-  return (phy - 2) - (phy - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
+  assert(phy_dat > 1 && !sbdi_blic_is_phy_mng_blk(phy_dat));
+  return (phy_dat - 2) - (phy_dat - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
 }
 
-static inline uint32_t sbdi_bl_idx_phy_to_mng(uint32_t phy)
+
+/*!
+ * \brief Computes a physical management block index from a physical data
+ * block index
+ *
+ * This function asserts that the given index is greater than one (otherwise
+ * is either points to the header, or is the first management block) and
+ * makes sure the given physical index does not point to a management block!
+ *
+ * @param phy the physical data block index to compute the physical
+ * management block index for
+ * @return the physical management block index for the given physical data
+ * block index
+ */
+static inline uint32_t sbdi_blic_phy_dat_to_phy_mng_blk(uint32_t phy_dat)
 {
-  assert(phy > 1);
-  uint32_t tmp = (phy - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
+  assert(phy_dat > 1 && !sbdi_blic_is_phy_mng_blk(phy_dat));
+  uint32_t tmp = (phy_dat - 2) / (SBDI_MNGT_BLOCK_ENTRIES + 1);
   return tmp * (SBDI_MNGT_BLOCK_ENTRIES + 1) + 1;
 }
 
 /*!
- * \brief Computes the physical management block address from the management
- * block index
- * @param mng_idx
- * @return
+ * \brief Computes the physical management block index from the given
+ * management block number
+ * @param mng_blk_nbr the management block number to compute the physical
+ * management block index for
+ * @return the physical management block index for the given management
+ * number
  */
-static inline uint32_t sbdi_bl_mng_idx_to_mng_phy(uint32_t mng_idx)
+static inline uint32_t sbdi_blic_mng_blk_nbr_to_mng_phy(uint32_t mng_blk_nbr)
 {
-  return (mng_idx * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
+  return (mng_blk_nbr * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
 }
 
 #endif /* SBDI_BLIC_H_ */
