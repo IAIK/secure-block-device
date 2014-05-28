@@ -38,8 +38,9 @@ class SbdiBLockLayerTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
   CPPUNIT_TEST(testSimpleReadWrite);
-  CPPUNIT_TEST(testExtendedReadWrite);CPPUNIT_TEST_SUITE_END()
-  ;
+  CPPUNIT_TEST(testExtendedReadWrite);
+  CPPUNIT_TEST(testLinearReadWrite);
+  CPPUNIT_TEST_SUITE_END();
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -71,9 +72,47 @@ private:
     CPPUNIT_ASSERT(unlink(FILE_NAME) != -1);
   }
 
+  void read(uint32_t i)
+    {
+      sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+    }
+
+    void write(uint32_t i)
+    {
+      sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+    }
+
+    void fill(uint32_t c)
+    {
+      CPPUNIT_ASSERT(c <= UINT8_MAX);
+      memset(b, c, SBDI_BLOCK_SIZE);
+    }
+
+    void f_write(uint32_t i, uint32_t v)
+    {
+      fill(v);
+      write(i);
+    }
+
+    void cmp(uint32_t c)
+    {
+      CPPUNIT_ASSERT(c <= UINT8_MAX);
+      CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+    }
+
+    void c_read(uint32_t i, uint32_t v)
+    {
+      fill(0xFF);
+      read(i);
+      cmp(v);
+    }
+
 public:
   void setUp()
   {
+    unlink(FILE_NAME);
     memset(b, 0, SBDI_BLOCK_SIZE);
     memset(root, 0, sizeof(mt_hash_t));
   }
@@ -116,43 +155,6 @@ public:
     }
   }
 
-  void read(uint32_t i)
-  {
-    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-  }
-
-  void write(uint32_t i)
-  {
-    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-  }
-
-  void fill(uint32_t c)
-  {
-    CPPUNIT_ASSERT(c <= UINT8_MAX);
-    memset(b, c, SBDI_BLOCK_SIZE);
-  }
-
-  void f_write(uint32_t i, uint32_t v)
-  {
-    fill(v);
-    write(i);
-  }
-
-  void cmp(uint32_t c)
-  {
-    CPPUNIT_ASSERT(c <= UINT8_MAX);
-    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
-  }
-
-  void c_read(uint32_t i, uint32_t v)
-  {
-    fill(0xFF);
-    read(i);
-    cmp(v);
-  }
-
   void testSimpleReadWrite()
   {
     loadStore();
@@ -179,6 +181,19 @@ public:
     closeStore();
     deleteStore();
   }
+
+  void testLinearReadWrite()
+  {
+    loadStore();
+    const int linear_rw_test_size = 4122;
+    for (int i = 0; i < linear_rw_test_size; ++i) {
+      f_write(i, i % UINT8_MAX);
+    }
+    for (int i = 0; i < linear_rw_test_size; ++i) {
+      c_read(i, i % UINT8_MAX);
+    }
+  }
+
 };
 
 unsigned char SbdiBLockLayerTest::SIV_KEYS[32] = {
