@@ -61,12 +61,13 @@ private:
   void closeStore()
   {
     CPPUNIT_ASSERT(close(sbdi->fd) != -1);
-
+    mt_get_root((mt_t*)sbdi->mt, root);
     sbdi_delete(sbdi);
   }
 
   void deleteStore()
   {
+    memset(root, 0, sizeof(mt_hash_t));
     CPPUNIT_ASSERT(unlink(FILE_NAME) != -1);
   }
 
@@ -173,12 +174,8 @@ public:
     loadStore();
     f_write(0x80, 0x80);
     c_read(0x80, 0x80);
-//    CPPUNIT_ASSERT(sbdi_bl_read_data_block(sbdi, buf, 0, 4096) == SBDI_SUCCESS);
-//    CPPUNIT_ASSERT(memchrcmp(buf, 0x80, 4096));
-//    CPPUNIT_ASSERT(
-//        sbdi_bl_read_data_block(sbdi, buf, 128, 4096) == SBDI_SUCCESS);
-//    CPPUNIT_ASSERT(memchrcmp(buf, 0xF3, 4096));
-//    write(2049);
+    f_write(2049, 0xF0);
+    c_read(2049, 0xF0);
     closeStore();
     deleteStore();
   }
