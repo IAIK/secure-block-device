@@ -195,29 +195,6 @@ static inline int sbdi_bc_is_mngt_blk(sbdi_bc_t *cache, uint32_t idx_pos)
 }
 
 /*!
- * \brief computes if the block with the given block index is in scope of the
- * management block with the given index
- *
- * A data block is in scope of a management block if its counter value and
- * tag are stored in the management block. This can be computed from the
- * physical management block index, by simply adding the amount of entries
- * that fit into a management block and see if the physical index of the
- * data block is less than or equal to this number:
- *
- * in_scope(mng_idx, blk_idx) =
- *   blk_idx > mng_idx && blk_idx <= (mng_idx + MNGT_BLOCK_ENTRIES)
- *
- * @param mng_idx the physical block index of a management block
- * @param blk_idx the physical block index of a data block
- * @return true if the data block with the given index is in scope of the
- * management block with the given index
- */
-static inline int sbdi_bc_is_in_mngt_scope(uint32_t mng_idx, uint32_t blk_idx)
-{
-  return blk_idx > mng_idx && blk_idx <= (mng_idx + SBDI_MNGT_BLOCK_ENTRIES);
-}
-
-/*!
  *
  * \brief sets the block type of a specific cache index element
  *
@@ -233,6 +210,31 @@ static inline void sbdi_bc_set_blk_type(sbdi_bc_t *cache, uint32_t idx_pos,
   assert(
       cache && idx_pos < SBDI_CACHE_MAX_SIZE && (blk_type == SBDI_BC_BT_DATA || blk_type == SBDI_BC_BT_MNGT));
   cache->index.list[idx_pos].flags = blk_type;
+}
+
+/*!
+ * \brief computes if the block with the given physical data block index is
+ * in scope of the management block with the given physical block index
+ *
+ * A data block is in scope of a management block if its counter value and
+ * tag are stored in the management block. This can be computed from the
+ * physical management block index, by simply adding the amount of entries
+ * that fit into a management block and see if the physical index of the
+ * data block is less than or equal to this number:
+ *
+ * in_scope(mng_idx, blk_idx) =
+ *   blk_idx > mng_idx && blk_idx <= (mng_idx + MNGT_BLOCK_ENTRIES)
+ *
+ * @param phy_mng the physical block index of a management block
+ * @param phy_dat the physical block index of a data block
+ * @return true if the data block with the given physical index is in scope
+ * of the management block with the given index
+ */
+static inline int sbdi_blic_is_phy_dat_in_phy_mngt_scope(uint32_t phy_mng,
+    uint32_t phy_dat)
+{
+  assert(sbdi_blic_is_phy_mng_blk(phy_mng) && !sbdi_blic_is_phy_mng_blk(phy_dat));
+  return phy_dat > phy_mng && phy_dat <= (phy_mng + SBDI_MNGT_BLOCK_ENTRIES);
 }
 
 #ifdef SBDI_CACHE_PROFILE

@@ -218,7 +218,7 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
   // Sync out data blocks first and then the corresponding management block
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i) && !sbdi_bc_is_mngt_blk(cache, i)
-        && sbdi_bc_is_in_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
+        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
