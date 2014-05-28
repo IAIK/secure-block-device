@@ -151,6 +151,17 @@ void sbdi_delete(sbdi_t *sbdi)
   free(sbdi);
 }
 
+/*!
+ * \brief Determines if the given pointer points into a valid memory region
+ * to which the block read function may write
+ *
+ * @param sbdi[in] the secure block device interface that contains the valid
+ * memory regions
+ * @param mem[in] the memory pointer to check
+ * @param len[in] the length of the data that will be written
+ * @return true if the given memory pointer is a valid pointer for the block
+ * read function to write to; false otherwise
+ */
 static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem,
     size_t len)
 {
@@ -212,7 +223,7 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
  * This function is essential for checking the integrity of the secure block
  * device interface, before it gets used. It reads the content of a single
  * management block (while bypassing the cache!), decrypts the management
- * block and adds the resulting tag to the merkle tree.
+ * block and adds the resulting tag to the Merkle tree.
  *
  * @param sbdi the secure block device interface to read the management block
  * from
@@ -221,7 +232,7 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
  * @param read the number of bytes read from the secure block device
  * interface; useful for checking a management block exists.
  * @return SBDI_SUCCESS if the block can be successfully read and added to
- * the merkle tree; an SBDI_ERR_* error code otherwise.
+ * the Merkle tree; an SBDI_ERR_* error code otherwise.
  */
 static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
     uint32_t read)
