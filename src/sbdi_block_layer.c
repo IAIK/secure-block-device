@@ -154,8 +154,8 @@ void sbdi_delete(sbdi_t *sbdi)
 static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem, size_t len) {
   const uint8_t *c_s = &sbdi->cache->store[0][0];
   const uint8_t *w_s = &sbdi->write_store_dat[0][0];
-  int incache = mem >= c_s && mem < c_s + SBDI_CACHE_SIZE - len;
-  int instore = mem >= w_s && mem < w_s + (2 * SBDI_BLOCK_SIZE) - len;
+  int incache = mem >= c_s && mem <= c_s + SBDI_CACHE_SIZE - len;
+  int instore = mem >= w_s && mem <= w_s + (2 * SBDI_BLOCK_SIZE) - len;
   return (incache || instore);
 }
 
