@@ -31,7 +31,7 @@ $(TST_BIN): $(TST_OBJS) $(TST_LIB)
 	$(Q)$(CXX) $(CFLAGS) $(CPPFLAGS) -o $(TST_BIN) $(TST_OBJS) $(TST_LIB) $(LDFLAGS)
 
 $(TST_LIB):
-	$(Q)$(MAKE) -C ../src/ all
+	$(Q)$(MAKE) -C ../src/ debug
 
 dep: $(TST_SRC)
 	$(Q)$(CXX) $(CPPFLAGS) -MM $(TST_SRC) > $(TST_DEP_FILE)
