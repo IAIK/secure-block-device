@@ -233,7 +233,6 @@ static inline void sbdi_bc_set_blk_type(sbdi_bc_t *cache, uint32_t idx_pos,
 static inline int sbdi_blic_is_phy_dat_in_phy_mngt_scope(uint32_t phy_mng,
     uint32_t phy_dat)
 {
-  assert(sbdi_blic_is_phy_mng_blk(phy_mng) && !sbdi_blic_is_phy_mng_blk(phy_dat));
   return phy_dat > phy_mng && phy_dat <= (phy_mng + SBDI_MNGT_BLOCK_ENTRIES);
 }
 
