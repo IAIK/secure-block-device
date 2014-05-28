@@ -39,8 +39,8 @@ CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
   CPPUNIT_TEST(testSimpleReadWrite);
   CPPUNIT_TEST(testExtendedReadWrite);
-  CPPUNIT_TEST(testLinearReadWrite);
-  CPPUNIT_TEST_SUITE_END();
+  CPPUNIT_TEST(testLinearReadWrite);CPPUNIT_TEST_SUITE_END()
+  ;
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -56,13 +56,14 @@ private:
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
-    CPPUNIT_ASSERT(sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(
+        sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
   }
 
   void closeStore()
   {
     CPPUNIT_ASSERT(close(sbdi->fd) != -1);
-    mt_get_root((mt_t*)sbdi->mt, root);
+    mt_get_root((mt_t*) sbdi->mt, root);
     sbdi_delete(sbdi);
   }
 
@@ -73,41 +74,41 @@ private:
   }
 
   void read(uint32_t i)
-    {
-      sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-    }
+  {
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+  }
 
-    void write(uint32_t i)
-    {
-      sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
-      CPPUNIT_ASSERT(r == SBDI_SUCCESS);
-    }
+  void write(uint32_t i)
+  {
+    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    CPPUNIT_ASSERT(r == SBDI_SUCCESS);
+  }
 
-    void fill(uint32_t c)
-    {
-      CPPUNIT_ASSERT(c <= UINT8_MAX);
-      memset(b, c, SBDI_BLOCK_SIZE);
-    }
+  void fill(uint32_t c)
+  {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    memset(b, c, SBDI_BLOCK_SIZE);
+  }
 
-    void f_write(uint32_t i, uint32_t v)
-    {
-      fill(v);
-      write(i);
-    }
+  void f_write(uint32_t i, uint32_t v)
+  {
+    fill(v);
+    write(i);
+  }
 
-    void cmp(uint32_t c)
-    {
-      CPPUNIT_ASSERT(c <= UINT8_MAX);
-      CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
-    }
+  void cmp(uint32_t c)
+  {
+    CPPUNIT_ASSERT(c <= UINT8_MAX);
+    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+  }
 
-    void c_read(uint32_t i, uint32_t v)
-    {
-      fill(0xFF);
-      read(i);
-      cmp(v);
-    }
+  void c_read(uint32_t i, uint32_t v)
+  {
+    fill(0xFF);
+    read(i);
+    cmp(v);
+  }
 
 public:
   void setUp()
@@ -125,21 +126,21 @@ public:
   void testIndexComp()
   {
     for (uint32_t log_idx = 0; log_idx < SBDI_BLOCK_MAX_INDEX; ++log_idx) {
-      uint32_t phy_idx = sbdi_get_data_block_index(log_idx);
+      uint32_t phy_idx = sbdi_blic_log_to_phy_dat_blk(log_idx);
       if (log_idx != sbdi_bl_idx_phy_to_log(phy_idx)) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " phy(log): "
             << sbdi_bl_idx_phy_to_log(phy_idx) << std::endl;
         CPPUNIT_ASSERT(0);
       }
-      uint32_t mng_log_idx = sbdi_get_mngt_block_index(log_idx);
+      uint32_t mng_log_idx = sbdi_blic_log_to_phy_mng_blk(log_idx);
       uint32_t mng_phy_idx = sbdi_bl_idx_phy_to_mng(phy_idx);
       if (mng_log_idx != mng_phy_idx) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng(log): "
             << mng_log_idx << " mng(phy) " << mng_phy_idx << std::endl;
         CPPUNIT_ASSERT(0);
       }
-      uint32_t mng_log_blk_nbr = sbdi_get_mngt_block_number(log_idx);
-      uint32_t mng_phy_blk_nbr = sbdi_bl_mng_phy_to_mng_log(mng_phy_idx);
+      uint32_t mng_log_blk_nbr = sbdi_blic_log_to_mng_blk_nbr(log_idx);
+      uint32_t mng_phy_blk_nbr = sbdi_blic_phy_to_mng_blk_nbr(mng_phy_idx);
       if (mng_log_blk_nbr != mng_phy_blk_nbr) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx
             << " mng_nbr(log): " << mng_log_blk_nbr << " mng_nbr(phy) "
@@ -150,6 +151,13 @@ public:
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng_idx_1: "
             << mng_log_idx << " mng_idx_2 "
             << sbdi_bl_mng_idx_to_mng_phy(mng_log_blk_nbr) << std::endl;
+        CPPUNIT_ASSERT(0);
+      }
+      mng_phy_blk_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_idx);
+      if (mng_phy_blk_nbr != mng_log_blk_nbr) {
+        std::cout << "log: " << log_idx << " phy: " << phy_idx
+            << " mng_nbr_phy: " << mng_phy_blk_nbr << " mng_nbr_log "
+            << mng_log_blk_nbr << std::endl;
         CPPUNIT_ASSERT(0);
       }
     }
@@ -192,6 +200,14 @@ public:
     for (int i = 0; i < linear_rw_test_size; ++i) {
       c_read(i, i % UINT8_MAX);
     }
+    closeStore();
+    loadStore();
+    for (int i = 0; i < linear_rw_test_size; ++i) {
+      c_read(i, i % UINT8_MAX);
+    }
+    sbdi_bc_print_stats(sbdi->cache);
+    closeStore();
+    deleteStore();
   }
 
 };
