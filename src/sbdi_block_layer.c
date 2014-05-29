@@ -37,7 +37,7 @@ typedef struct sbdi_block_pair {
 static inline void bl_pair_init(sbdi_block_pair_t *pair, uint32_t mng_idx,
     uint32_t dat_idx)
 {
-  assert(pair && sbdi_bc_is_valid(dat_idx) && sbdi_bl_is_phy_mng(mng_idx));
+  assert(pair && sbdi_bc_is_valid(dat_idx) && sbdi_blic_is_phy_mng_blk(mng_idx));
   memset(pair, 0, sizeof(sbdi_block_pair_t));
   pair->mng = &pair->mng_dat;
   pair->blk = &pair->blk_dat;
@@ -151,7 +151,20 @@ void sbdi_delete(sbdi_t *sbdi)
   free(sbdi);
 }
 
-static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem, size_t len) {
+/*!
+ * \brief Determines if the given pointer points into a valid memory region
+ * to which the block read function may write
+ *
+ * @param sbdi[in] the secure block device interface that contains the valid
+ * memory regions
+ * @param mem[in] the memory pointer to check
+ * @param len[in] the length of the data that will be written
+ * @return true if the given memory pointer is a valid pointer for the block
+ * read function to write to; false otherwise
+ */
+static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem,
+    size_t len)
+{
   const uint8_t *c_s = &sbdi->cache->store[0][0];
   const uint8_t *w_s = &sbdi->write_store_dat[0][0];
   int incache = mem >= c_s && mem <= c_s + SBDI_CACHE_SIZE - len;
@@ -199,7 +212,8 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
   assert(sizeof(sbdi_ctr_128b_t) == AES_BLOCK_SIZE);
   sbdi_ctr_128b_init(&ctr, 0, blk->idx);
 
-  sbdi_bl_aes_cmac(ctx, (unsigned char *)&ctr, sizeof(sbdi_ctr_128b_t), msg, mlen, C);
+  sbdi_bl_aes_cmac(ctx, (unsigned char *) &ctr, sizeof(sbdi_ctr_128b_t), msg,
+      mlen, C);
 }
 
 /*!
@@ -209,7 +223,7 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
  * This function is essential for checking the integrity of the secure block
  * device interface, before it gets used. It reads the content of a single
  * management block (while bypassing the cache!), decrypts the management
- * block and adds the resulting tag to the merkle tree.
+ * block and adds the resulting tag to the Merkle tree.
  *
  * @param sbdi the secure block device interface to read the management block
  * from
@@ -218,7 +232,7 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
  * @param read the number of bytes read from the secure block device
  * interface; useful for checking a management block exists.
  * @return SBDI_SUCCESS if the block can be successfully read and added to
- * the merkle tree; an SBDI_ERR_* error code otherwise.
+ * the Merkle tree; an SBDI_ERR_* error code otherwise.
  */
 static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
     uint32_t read)
@@ -235,15 +249,24 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root, uint32_t last_blk_idx)
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
+    uint32_t phy_last_blk_idx)
 {
-  assert(sbdi && root);
+  if (!sbdi || !root) {
+    return SBDI_ERR_ILLEGAL_PARAM;
+  }
+  if (!phy_last_blk_idx) {
+    // Empty or non existing or invalid file ==> nothing to do
+    // TODO might want to change this once I have header handling and stuff
+    return SBDI_SUCCESS;
+  }
   // TODO Document that this function builds the hash tree, so that basic
   // hash tree update operations work, which is a requirement for every data
   // block write
-  uint32_t last_phy = sbdi_get_data_block_index(last_blk_idx);
-  assert(sbdi_bc_is_valid(last_phy));
-  uint32_t mng_nbr = sbdi_get_mngt_block_number(last_blk_idx);
+  // TODO Should I check logical or physical indices for being to large?
+  assert(sbdi_bc_is_valid(phy_last_blk_idx));
+  // TODO next method is for logical index not physical fix that
+  uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
   uint32_t read = 0;
   sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);
   if (r == SBDI_ERR_MISSING_DATA && read == 0) {
@@ -313,9 +336,9 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
 
 static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng)
 {
-  assert(sbdi && mng && sbdi_bl_is_phy_mng(mng->idx) && !mng->data);
+  assert(sbdi && mng && sbdi_blic_is_phy_mng_blk(mng->idx) && !mng->data);
   uint32_t read = 0;
-  uint32_t mng_blk_nbr = sbdi_bl_mng_phy_to_mng_log(mng->idx);
+  uint32_t mng_blk_nbr = sbdi_blic_phy_mng_to_mng_blk_nbr(mng->idx);
   sbdi_tag_t tag;
   memset(tag, 0, sizeof(sbdi_tag_t));
   SBDI_ERR_CHK(sbdi_bc_cache_blk(sbdi->cache, mng, SBDI_BC_BT_MNGT));
@@ -360,9 +383,9 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  uint32_t mng_idx = sbdi_get_mngt_block_index(idx);
-  uint32_t dat_idx = sbdi_get_data_block_index(idx);
-  uint32_t tag_idx = sbdi_get_mngt_tag_index(idx);
+  uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
+  uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
+  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
   sbdi_block_pair_t pair;
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
@@ -422,20 +445,20 @@ static sbdi_error_t bl_mac_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng,
  *
  * @param sbdi the secure block data interface instance of which to extend
  * the data store
- * @param l the logical index of a data block
+ * @param log the logical index of a data block
  * @return SBDI_SUCCESS if the operation succeeds, some SBDI_ERR_* otherwise
  */
-static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t l)
+static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
 {
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
-  uint32_t mng_blk_nbr = sbdi_get_mngt_block_number(l) + 1;
+  uint32_t mng_blk_nbr = sbdi_blic_log_to_mng_blk_nbr(log) + 1;
   uint32_t s = mt_get_size(sbdi->mt);
   while (s < mng_blk_nbr) {
     // TODO can I use the same key for generating the random mngt blocks?
     // TODO do I need a good Nonce?
     // TODO do I use the CMAC correctly?
-    sbdi->write_store[0].idx = sbdi_bl_mng_idx_to_mng_phy(s);
+    sbdi->write_store[0].idx = sbdi_blic_mng_blk_nbr_to_mng_phy(s);
     vprf(sbdi->ctx, *sbdi->write_store[1].data, 1, &sbdi->g_ctr,
         sizeof(sbdi_ctr_128b_t));
     sbdi_ctr_128b_inc(&sbdi->g_ctr);
@@ -457,9 +480,9 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   }
   bl_ensure_mngt_blocks_exist(sbdi, idx);
   // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
-  uint32_t mng_idx = sbdi_get_mngt_block_index(idx);
-  uint32_t dat_idx = sbdi_get_data_block_index(idx);
-  uint32_t tag_idx = sbdi_get_mngt_tag_index(idx);
+  uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
+  uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
+  uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
   sbdi_block_pair_t pair;
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
@@ -499,7 +522,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
       sizeof(sbdi_ctr_128b_t));
   // Update tag and counter in management block
-  mng.idx = sbdi_bl_idx_phy_to_mng(blk->idx);
+  mng.idx = sbdi_blic_phy_dat_to_phy_mng_blk(blk->idx);
   sbdi->write_store[1].idx = mng.idx;
   uint32_t mng_idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, mng.idx);
   if (!sbdi_bc_idx_is_valid(mng_idx_pos)) {
@@ -507,7 +530,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_STATE;
   }
   mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
-  uint32_t tag_idx = sbdi_bl_idx_phy_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
+  uint32_t tag_idx = sbdi_blic_phy_dat_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
   memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
   memcpy(bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr, SBDI_BLOCK_CTR_SIZE);
   sbdi_ctr_128b_inc(&sbdi->g_ctr);
@@ -529,7 +552,8 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return r;
   }
   // Management Index for Merkle tree needs to be logical index
-  r = mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), sbdi_bl_mng_phy_to_mng_log(mng.idx));
+  r = mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t),
+      sbdi_blic_phy_mng_to_mng_blk_nbr(mng.idx));
   if (r != SBDI_SUCCESS) {
     // TODO additional error handling required!
     return r;
