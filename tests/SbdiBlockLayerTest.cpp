@@ -40,7 +40,8 @@
  * @param r[in] the error code to convert
  * @return a human readable representation of the error code
  */
-const char *err_to_string(sbdi_error_t r) {
+const char *err_to_string(sbdi_error_t r)
+{
   {
     switch (r) {
     case SBDI_SUCCESS:
@@ -72,11 +73,11 @@ const char *err_to_string(sbdi_error_t r) {
 class SbdiBLockLayerTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
-//  CPPUNIT_TEST(testSimpleReadWrite);
+  CPPUNIT_TEST(testSimpleReadWrite);
   CPPUNIT_TEST(testSimpleIntegrityCheck);
-//  CPPUNIT_TEST(testExtendedReadWrite);
-//  CPPUNIT_TEST(testLinearReadWrite);
-  CPPUNIT_TEST_SUITE_END();
+  CPPUNIT_TEST(testExtendedReadWrite);
+  CPPUNIT_TEST(testLinearReadWrite);CPPUNIT_TEST_SUITE_END()
+  ;
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -98,6 +99,7 @@ private:
 
   void closeStore()
   {
+    sbdi_bc_sync(sbdi->cache);
     CPPUNIT_ASSERT(close(sbdi->fd) != -1);
     mt_get_root((mt_t*) sbdi->mt, root);
     sbdi_delete(sbdi);
@@ -112,6 +114,10 @@ private:
   void read(uint32_t i)
   {
     sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    if (r != SBDI_SUCCESS) {
+      std::cout << "Reading file @ block " << i << ". Error: "
+          << err_to_string(r) << std::endl;
+    }
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
@@ -119,7 +125,8 @@ private:
   {
     sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
     if (r != SBDI_SUCCESS) {
-      std::cout << "Write file @ block " << i << ". Error: " << err_to_string(r) << std::endl;
+      std::cout << "Writing file @ block " << i << ". Error: "
+          << err_to_string(r) << std::endl;
 
     }
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
@@ -219,14 +226,15 @@ public:
     deleteStore();
   }
 
-  void testSimpleIntegrityCheck() {
+  void testSimpleIntegrityCheck()
+  {
     loadStore();
-    f_write(0,0);
+    f_write(0, 0);
     f_write(128, 128);
     closeStore();
     loadStore();
-    c_read(0,0);
-    c_read(128,128);
+    c_read(0, 0);
+    c_read(128, 128);
     closeStore();
     deleteStore();
   }
@@ -256,11 +264,14 @@ public:
     for (int i = 0; i < linear_rw_test_size; ++i) {
       c_read(i, i % UINT8_MAX);
     }
+    std::cout << std::endl;
+    sbdi_bc_print_stats(sbdi->cache);
     closeStore();
     loadStore();
     for (int i = 0; i < linear_rw_test_size; ++i) {
       c_read(i, i % UINT8_MAX);
     }
+    std::cout << std::endl;
     sbdi_bc_print_stats(sbdi->cache);
     closeStore();
     deleteStore();
