@@ -28,6 +28,8 @@ extern "C" {
 #define SBDI_BC_INC_IDX(IDX) do {IDX = SBDI_BC_IDX_P1(IDX);} while (0)
 #define SBDI_BC_DEC_IDX(IDX) do {IDX = SBDI_BC_IDX_S1(IDX);} while (0)
 
+#define SBDI_CACHE_SIZE ((SBDI_CACHE_MAX_SIZE)  * (SBDI_BLOCK_SIZE))
+
 typedef enum sbdi_block_cache_block_type {
   SBDI_BC_BT_RESV = 0,
   SBDI_BC_BT_MNGT = SBDI_BC_BT_MNGT_CMP,

@@ -16,8 +16,6 @@
 #include <string.h>
 #include <stdarg.h>
 
-#define SBDI_CACHE_SIZE ((SBDI_CACHE_MAX_SIZE)  * (SBDI_BLOCK_SIZE))
-
 typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
 
 typedef struct sbdi_block_pair {
