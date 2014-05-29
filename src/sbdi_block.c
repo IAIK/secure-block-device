@@ -408,9 +408,14 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
 static int bl_is_valid_write_source(const sbdi_t *sbdi, const uint8_t *mem,
     size_t len)
 {
+  const uint8_t *c_s = &sbdi->cache->store[0][0];
   const uint8_t *w_s = &sbdi->write_store_dat[0][0];
+  int incache = mem >= c_s && mem <= c_s + (SBDI_CACHE_SIZE) - len;
+  // Management block may only be written from block 0
+  // TODO do I still need write store[1] now that I can directly write
+  // management blocks from cache?
   int instore = mem >= w_s && mem <= w_s + (SBDI_BLOCK_SIZE) - len;
-  return instore;
+  return incache||instore;
 }
 
 
