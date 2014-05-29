@@ -15,8 +15,6 @@
 #include <string.h>
 #include <stdarg.h>
 
-typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
-
 typedef struct sbdi_block_pair {
   sbdi_block_t blk_dat;
   sbdi_block_t mng_dat;

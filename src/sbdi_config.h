@@ -18,6 +18,12 @@
 #define SBDI_BLOCK_INDEX_INVALID UINT32_MAX
 
 /*!
+ * \brief the tag data type for the integrity tags used by the secure block
+ * device interface
+ */
+typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
+
+/*!
  * \brief the block data data type for storing actual block data
  */
 typedef uint8_t sbdi_bl_data_t[SBDI_BLOCK_SIZE];
