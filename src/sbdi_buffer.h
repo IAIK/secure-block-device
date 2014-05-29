@@ -66,6 +66,13 @@ void sbdi_buffer_write_uint16_t(sbdi_buffer_t *buf, uint16_t value);
  */
 void sbdi_buffer_write_uint32_t(sbdi_buffer_t *buf, const uint32_t value);
 
+/*!
+ * \brief Writes the given unsigned 64 bit integer into the buffer
+ *
+ * @param buf[inout] a pointer to the buffer to which to write
+ * @param value[in] the value to write
+ */
+void sbdi_buffer_write_uint64_t(sbdi_buffer_t *buf, const uint64_t value);
 
 /*!
  * \brief Reads a unsigned 8 bit integer from the buffer
@@ -90,6 +97,33 @@ uint16_t sbdi_buffer_read_uint16_t(sbdi_buffer_t *buf);
  * @return the unsigned 32 bit integer read from the buffer
  */
 uint32_t sbdi_buffer_read_uint32_t(sbdi_buffer_t *buf);
+
+/*!
+ * \brief Reads a unsigned 64 bit integer from the buffer
+ *
+ * @param buf[inout] a pointer to the buffer from which to read
+ * @return the unsigned 64 bit integer read from the buffer
+ */
+uint64_t sbdi_buffer_read_uint64_t(sbdi_buffer_t *buf);
+
+/*!
+ * \brief Reads length bytes from the buffer and writes them into dest
+ *
+ * @param buf[inout] a pointer to the buffer to read from
+ * @param dest[inout] a pointer to the byte buffer to write to
+ * @param length[in] the number of bytes to copy from the buffer to dest
+ */
+void sbdi_buffer_read_bytes(sbdi_buffer_t *buf, uint8_t *dest,
+    const size_t length);
+
+/*!
+ * \brief Writes length bytes from src into the buffer
+ * @param buf[inout] a pointer to the buffer to write to
+ * @param src[in] a pointer to the data buffer to read from
+ * @param length[in] the number of bytes to copy from src into the buffer
+ */
+void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
+    const size_t length);
 
 #endif /* SBDI_BUFFER_H_ */
 
