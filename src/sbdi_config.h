@@ -66,4 +66,34 @@ static inline void sbdi_block_invalidate(sbdi_block_t *blk)
   blk->data = NULL;
 }
 
+/*!
+ * \brief Determines if the given physical block index is valid
+ *
+ * This function checks if the given physical block index value is less than
+ * or equal to the maximum physical block index.
+ *
+ * @param phy[in] the physical block index value to check
+ * @return true if the given physical block index value is less than or equal
+ * to the maximum physical block index value; false otherwise
+ */
+static inline int sbdi_block_is_valid_phy(const uint32_t phy)
+{
+  return phy <= SBDI_BLK_MAX_PHY;
+}
+
+/*!
+ * \brief Determines if the given logical block index is valid
+ *
+ * This function checks if the given logical block index value is less than
+ * or equal to the maximum logical block index.
+ *
+ * @param log[in] the logical block index value to check
+ * @return true if the given logical block index value is less than or equal
+ * to the maximum logical block index value; false otherwise
+ */
+static inline int sbdi_block_is_valid_log(const uint32_t log)
+{
+  return log <= SBDI_BLK_MAX_PHY;
+}
+
 #endif /* SBDI_CONFIG_H_ */

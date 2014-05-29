@@ -82,7 +82,7 @@ static inline uint32_t idx_get_phy_idx(sbdi_bc_t *cache, uint32_t idx)
 
 static inline void idx_set_phy_idx(sbdi_bc_t *cache, uint32_t idx, uint32_t val)
 {
-  assert(cache && idx < SBDI_CACHE_MAX_SIZE && val < SBDI_BLOCK_MAX_INDEX);
+  assert(cache && idx < SBDI_CACHE_MAX_SIZE && sbdi_block_is_valid_phy(val));
   cache->index.list[idx].block_idx = val;
 }
 
@@ -150,7 +150,7 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
-  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !blk || !sbdi_block_is_valid_phy(blk->idx)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
@@ -218,7 +218,8 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
   // Sync out data blocks first and then the corresponding management block
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     if (sbdi_bc_is_valid_and_dirty(cache, i) && !sbdi_bc_is_mngt_blk(cache, i)
-        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx, idx_get_phy_idx(cache, i))) {
+        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx,
+            idx_get_phy_idx(cache, i))) {
       // Not a management block, but dirty and in scope of the management
       // block ==> sync
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
@@ -232,7 +233,7 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
 sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     sbdi_bc_bt_t blk_type)
 {
-  if (!cache || !blk || blk->idx > SBDI_BLOCK_MAX_INDEX
+  if (!cache || !blk || !sbdi_block_is_valid_phy(blk->idx)
       || blk_type == SBDI_BC_BT_RESV) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
@@ -264,7 +265,7 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || phy_idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !sbdi_block_is_valid_phy(phy_idx)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
@@ -282,7 +283,7 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || phy_idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !sbdi_block_is_valid_phy(phy_idx)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
@@ -301,7 +302,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
   uint32_t swp = idx_pos;
   do {
     SBDI_BC_DEC_IDX(swp);
-    if (sbdi_bc_is_valid(idx_get_phy_idx(cache, swp))) {
+    if (sbdi_block_is_valid_phy(idx_get_phy_idx(cache, swp))) {
       SBDI_ERR_CHK(sbdi_bc_swap(cache, swp_last, swp));
       swp_last = swp;
     }

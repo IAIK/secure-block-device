@@ -34,6 +34,19 @@ static inline int sbdi_blic_is_phy_mng_blk(const uint32_t phy)
 }
 
 /*!
+ * \brief Determines if the given physical block index points to a data block
+ *
+ * @param phy[in] the physical block index
+ * @return true if the given physical index points to a data block; false
+ * otherwise
+ */
+static inline int sbdi_blic_is_phy_dat_blk(const uint32_t phy)
+{
+  assert(phy > 1);
+  return !sbdi_blic_is_phy_mng_blk(phy);
+}
+
+/*!
  * \brief Converts a logical block index into the number of management blocks
  * required up to the logical block index
  * @param log[in] the logical block index
@@ -164,7 +177,8 @@ static inline uint32_t sbdi_blic_phy_dat_to_phy_mng_blk(const uint32_t phy_dat)
  * @return the physical management block index for the given management
  * number
  */
-static inline uint32_t sbdi_blic_mng_blk_nbr_to_mng_phy(const uint32_t mng_blk_nbr)
+static inline uint32_t sbdi_blic_mng_blk_nbr_to_mng_phy(
+    const uint32_t mng_blk_nbr)
 {
   return (mng_blk_nbr * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
 }

@@ -37,7 +37,9 @@ typedef struct sbdi_block_pair {
 static inline void bl_pair_init(sbdi_block_pair_t *pair, uint32_t mng_idx,
     uint32_t dat_idx)
 {
-  assert(pair && sbdi_bc_is_valid(dat_idx) && sbdi_blic_is_phy_mng_blk(mng_idx));
+  assert(
+      pair && sbdi_block_is_valid_phy(dat_idx)
+          && sbdi_blic_is_phy_mng_blk(mng_idx));
   memset(pair, 0, sizeof(sbdi_block_pair_t));
   pair->mng = &pair->mng_dat;
   pair->blk = &pair->blk_dat;
@@ -176,8 +178,9 @@ static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem,
 sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len, uint32_t *read)
 {
-  if (!sbdi || !blk || !blk->data || blk->idx > SBDI_BLOCK_MAX_INDEX
-      || len == 0|| len > SBDI_BLOCK_SIZE) {
+  if (!sbdi || !blk || !blk->data
+      || !sbdi_block_is_valid_phy(
+          blk->idx) || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   // Paranoia assertion
@@ -237,7 +240,7 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
 static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
     uint32_t read)
 {
-  assert(sbdi_bc_is_valid(phy_mng_idx));
+  assert(sbdi_blic_is_phy_mng_blk(phy_mng_idx));
   sbdi_tag_t tag;
   memset(tag, 0, sizeof(tag));
   sbdi_block_t *mng = sbdi->write_store;
@@ -264,7 +267,7 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
   // hash tree update operations work, which is a requirement for every data
   // block write
   // TODO Should I check logical or physical indices for being to large?
-  assert(sbdi_bc_is_valid(phy_last_blk_idx));
+  assert(sbdi_block_is_valid_phy(phy_last_blk_idx));
   // TODO next method is for logical index not physical fix that
   uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
   uint32_t read = 0;
@@ -278,8 +281,7 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
   }
   for (int i = 1; i < (mng_nbr + 1); ++i) {
     uint32_t phy_mng = sbdi_blic_mng_blk_nbr_to_mng_phy(i);
-    SBDI_ERR_CHK(
-        bl_verify_mngt_block(sbdi, phy_mng, read));
+    SBDI_ERR_CHK(bl_verify_mngt_block(sbdi, phy_mng, read));
   }
   mt_hash_t check_root;
   memset(check_root, 0, sizeof(mt_hash_t));
@@ -312,7 +314,7 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
 static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
     uint8_t *tag, uint8_t *ctr)
 {
-  assert(sbdi && blk && sbdi_bc_is_valid(blk->idx) && tag && ctr);
+  assert(sbdi && blk && sbdi_block_is_valid_phy(blk->idx) && tag && ctr);
   SBDI_ERR_CHK(sbdi_bc_cache_blk(sbdi->cache, blk, SBDI_BC_BT_DATA));
   assert(blk->data);
   uint32_t read = 0;
@@ -381,7 +383,7 @@ static sbdi_error_t bl_read_data_block(sbdi_t *sbdi, sbdi_block_pair_t *pair,
 sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
     uint32_t idx, size_t len)
 {
-  if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX || len > SBDI_BLOCK_SIZE) {
+  if (!sbdi || !ptr || !sbdi_block_is_valid_log(idx) || len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
@@ -399,8 +401,9 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
 sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len)
 {
-  if (!sbdi || !blk || !blk->data || blk->idx > SBDI_BLOCK_MAX_INDEX
-      || len == 0|| len > SBDI_BLOCK_SIZE) {
+  if (!sbdi || !blk || !blk->data
+      || !sbdi_block_is_valid_phy(
+          blk->idx)|| len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   // TODO replace with static function
@@ -478,8 +481,8 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
 sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
     uint32_t idx, size_t len)
 {
-  if (!sbdi || !ptr || idx > SBDI_BLOCK_MAX_INDEX
-      || len == 0|| len > SBDI_BLOCK_SIZE) {
+  if (!sbdi || !ptr
+      || !sbdi_block_is_valid_log(idx) || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   bl_ensure_mngt_blocks_exist(sbdi, idx);
@@ -534,7 +537,8 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return SBDI_ERR_ILLEGAL_STATE;
   }
   mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
-  uint32_t tag_idx = sbdi_blic_phy_dat_to_log(blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
+  uint32_t tag_idx = sbdi_blic_phy_dat_to_log(
+      blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
   memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
   memcpy(bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr, SBDI_BLOCK_CTR_SIZE);
   sbdi_ctr_128b_inc(&sbdi->g_ctr);
@@ -570,16 +574,18 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
 //----------------------------------------------------------------------
 static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 {
-  assert(sbdi && blk && blk->data && sbdi_bc_is_valid(blk->idx));
+  assert(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
   assert(
       sbdi_bc_idx_is_valid(idx_pos)
           && sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos));
   switch (sbdi_bc_get_blk_type(sbdi->cache, idx_pos)) {
   case SBDI_BC_BT_MNGT:
+    assert(sbdi_blic_is_phy_mng_blk(blk->idx));
     SBDI_ERR_CHK(bl_encrypt_write_update_mngt(sbdi, blk));
     break;
   case SBDI_BC_BT_DATA:
+    assert(sbdi_blic_is_phy_dat_blk(blk->idx));
     SBDI_ERR_CHK(bl_encrypt_write_data(sbdi, blk));
     break;
   default:
@@ -591,7 +597,7 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
 {
-  if (!sbdi || !blk || !blk->data || !sbdi_bc_is_valid(blk->idx)) {
+  if (!sbdi || !blk || !blk->data || !sbdi_block_is_valid_phy(blk->idx)) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   return bl_sync((sbdi_t *) sbdi, blk);

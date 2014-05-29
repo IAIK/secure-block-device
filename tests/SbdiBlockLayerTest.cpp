@@ -172,7 +172,7 @@ public:
 
   void testIndexComp()
   {
-    for (uint32_t log_idx = 0; log_idx < SBDI_BLOCK_MAX_INDEX; ++log_idx) {
+    for (uint32_t log_idx = 0; log_idx < SBDI_BLK_MAX_LOG; ++log_idx) {
       uint32_t phy_idx = sbdi_blic_log_to_phy_dat_blk(log_idx);
       if (log_idx != sbdi_blic_phy_dat_to_log(phy_idx)) {
         std::cout << "log: " << log_idx << " phy: " << phy_idx << " phy(log): "

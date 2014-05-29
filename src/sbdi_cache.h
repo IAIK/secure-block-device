@@ -106,7 +106,7 @@ static inline sbdi_bl_data_t *sbdi_bc_get_db_for_cache_idx(sbdi_bc_t *cache,
 static inline uint32_t sbdi_bc_find_blk_idx_pos(sbdi_bc_t *cache,
     uint32_t blk_idx)
 {
-  if (!cache || blk_idx > SBDI_BLOCK_MAX_INDEX) {
+  if (!cache || !sbdi_block_is_valid_phy(blk_idx)) {
     return UINT32_MAX;
   }
   sbdi_bc_idx_t *idx = &cache->index;
@@ -126,21 +126,6 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
 sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx);
 sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx);
 sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache);
-
-/*!
- * \brief Determines if the given physical block index is valid
- *
- * This function checks if the given physical block index value is less than
- * the maximum block index.
- *
- * @param phy_idx the physical block index value to check
- * @return true if the given physical block index value is less than the
- * maximum block index value; false otherwise
- */
-static inline int sbdi_bc_is_valid(uint32_t phy_idx)
-{
-  return phy_idx <= SBDI_BLOCK_MAX_INDEX;
-}
 
 /*!
  * \brief Determines if the given block cache index value is valid
@@ -166,7 +151,7 @@ static inline int sbdi_bc_is_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 static inline int sbdi_bc_is_valid_and_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
-  return sbdi_bc_is_valid(cache->index.list[idx_pos].block_idx)
+  return sbdi_block_is_valid_phy(cache->index.list[idx_pos].block_idx)
       && sbdi_bc_is_blk_dirty(cache, idx_pos);
 }
 
