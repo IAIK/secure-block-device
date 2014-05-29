@@ -13,7 +13,6 @@ extern "C" {
 #define SBDI_CACHE_H_
 
 #include "sbdi_config.h"
-#include "sbdi_block.h"
 
 #include <stdint.h>
 #include <assert.h>

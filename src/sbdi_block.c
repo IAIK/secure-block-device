@@ -7,8 +7,7 @@
 
 #include "merkletree.h"
 #include "siv.h"
-
-#include "sbdi.h"
+#include "sbdi_block.h"
 
 #include <string.h>
 #include <unistd.h>

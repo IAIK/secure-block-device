@@ -20,8 +20,7 @@
 #endif
 
 #include "SbdiTest.h"
-
-#include "sbdi.h"
+#include "sbdi_block.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
