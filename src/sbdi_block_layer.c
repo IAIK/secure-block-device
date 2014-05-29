@@ -433,6 +433,8 @@ static sbdi_error_t bl_mac_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng,
   assert(sizeof(sbdi_ctr_128b_t) == SBDI_BLOCK_CTR_SIZE);
   bl_aes_cmac(sbdi, mng, mng_tag);
   // TODO if this gets only partially written then there is a big problem!
+  // TODO I do not need to write the whole block, just the updated part is
+  // sufficient
   return sbdi_bl_write_block(sbdi, mng, SBDI_BLOCK_SIZE);
 }
 
