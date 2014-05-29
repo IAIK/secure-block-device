@@ -241,7 +241,7 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
   sbdi_tag_t tag;
   memset(tag, 0, sizeof(tag));
   sbdi_block_t *mng = sbdi->write_store;
-  mng->idx = 1;
+  mng->idx = phy_mng_idx;
   // Management block should always be fully readable.
   SBDI_ERR_CHK(sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read));
   bl_aes_cmac(sbdi, mng, tag);
@@ -277,8 +277,9 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
     return r;
   }
   for (int i = 1; i < (mng_nbr + 1); ++i) {
+    uint32_t phy_mng = sbdi_blic_mng_blk_nbr_to_mng_phy(i);
     SBDI_ERR_CHK(
-        bl_verify_mngt_block(sbdi, i * (SBDI_MNGT_BLOCK_ENTRIES + 1), read));
+        bl_verify_mngt_block(sbdi, phy_mng, read));
   }
   mt_hash_t check_root;
   memset(check_root, 0, sizeof(mt_hash_t));

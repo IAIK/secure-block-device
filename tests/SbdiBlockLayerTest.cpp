@@ -72,10 +72,11 @@ const char *err_to_string(sbdi_error_t r) {
 class SbdiBLockLayerTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
   CPPUNIT_TEST(testIndexComp);
-  CPPUNIT_TEST(testSimpleReadWrite);
-  CPPUNIT_TEST(testExtendedReadWrite);
-  CPPUNIT_TEST(testLinearReadWrite);CPPUNIT_TEST_SUITE_END()
-  ;
+//  CPPUNIT_TEST(testSimpleReadWrite);
+  CPPUNIT_TEST(testSimpleIntegrityCheck);
+//  CPPUNIT_TEST(testExtendedReadWrite);
+//  CPPUNIT_TEST(testLinearReadWrite);
+  CPPUNIT_TEST_SUITE_END();
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -218,12 +219,28 @@ public:
     deleteStore();
   }
 
+  void testSimpleIntegrityCheck() {
+    loadStore();
+    f_write(0,0);
+    f_write(128, 128);
+    closeStore();
+    loadStore();
+    c_read(0,0);
+    c_read(128,128);
+    closeStore();
+    deleteStore();
+  }
+
   void testExtendedReadWrite()
   {
     loadStore();
     f_write(0x80, 0x80);
     c_read(0x80, 0x80);
     f_write(2049, 0xF0);
+    c_read(2049, 0xF0);
+    closeStore();
+    loadStore();
+    c_read(0x80, 0x80);
     c_read(2049, 0xF0);
     closeStore();
     deleteStore();
