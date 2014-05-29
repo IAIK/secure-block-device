@@ -25,4 +25,11 @@ typedef enum sbdi_error {
   SBDI_ERR_UNSPECIFIED   = -255  /*!< A general error occurred */
 } sbdi_error_t;
 
+/*!
+ * \brief wraps a given expression (e.g. a function call) with a test if the
+ * result of the expression is MT_SUCCESS. If this is not the case, then the
+ * macro returns the error code
+ */
+#define SBDI_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
+
 #endif /* SBDI_ERR_H_ */
