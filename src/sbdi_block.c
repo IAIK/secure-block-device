@@ -162,7 +162,7 @@ void sbdi_delete(sbdi_t *sbdi)
  * @return true if the given memory pointer is a valid pointer for the block
  * read function to write to; false otherwise
  */
-static int bl_is_valid_read_target(const sbdi_t *sbdi, const uint8_t *mem,
+static int bl_is_valid_read_dest(const sbdi_t *sbdi, const uint8_t *mem,
     size_t len)
 {
   const uint8_t *c_s = &sbdi->cache->store[0][0];
@@ -182,7 +182,7 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   // Paranoia assertion
-  assert(bl_is_valid_read_target(sbdi, *blk->data, len));
+  assert(bl_is_valid_read_dest(sbdi, *blk->data, len));
   ssize_t r = pread(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
   if (r == -1) {
     return SBDI_ERR_IO;
@@ -395,6 +395,26 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   return SBDI_SUCCESS;
 }
 
+/*!
+ * \brief Determines if the given pointer points into a valid memory region
+ * from which the block write function may read
+ *
+ * @param sbdi[in] the secure block device interface that contains the valid
+ * memory regions
+ * @param mem[in] the memory pointer to check
+ * @param len[in] the length of the data that will be read
+ * @return true if the given memory pointer is a valid pointer for the block
+ * write function to read from; false otherwise
+ */
+static int bl_is_valid_write_source(const sbdi_t *sbdi, const uint8_t *mem,
+    size_t len)
+{
+  const uint8_t *w_s = &sbdi->write_store_dat[0][0];
+  int instore = mem >= w_s && mem <= w_s + (SBDI_BLOCK_SIZE) - len;
+  return instore;
+}
+
+
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len)
@@ -404,10 +424,7 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
           blk->idx)|| len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  // TODO replace with static function
-  const sbdi_bl_data_t *a = (const sbdi_bl_data_t *) blk->data;
-  const sbdi_bl_data_t *b = &sbdi->write_store_dat[0];
-  assert(a >= b && a < b + 2 * SBDI_BLOCK_SIZE);
+  assert(bl_is_valid_write_source(sbdi, *blk->data, SBDI_BLOCK_SIZE));
   ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
   if (r == -1) {
     return SBDI_ERR_IO;
