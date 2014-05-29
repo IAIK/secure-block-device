@@ -30,6 +30,12 @@ typedef enum sbdi_error {
  * result of the expression is MT_SUCCESS. If this is not the case, then the
  * macro returns the error code
  */
-#define SBDI_ERR_CHK(f) do {sbdi_error_t r = f;if (r != SBDI_SUCCESS) {return r;}} while (0)
+#define SBDI_ERR_CHK(f) do {sbdi_error_t r = (f);if (r != SBDI_SUCCESS) {return r;}} while (0)
+
+/*!
+ * \brief wraps a given expression and if the expression evaluates to false
+ * returns SBDI_ERR_ILLEGAL_PARAM
+ */
+#define SBDI_CHK_PARAM(p) do {if (!(p)) {return SBDI_ERR_ILLEGAL_PARAM;} while (0)
 
 #endif /* SBDI_ERR_H_ */
