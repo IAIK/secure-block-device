@@ -203,7 +203,7 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
  */
 void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
 {
-  const int mlen = sizeof(sbdi_db_t);
+  const int mlen = sizeof(sbdi_bl_data_t);
   siv_ctx *ctx = sbdi->ctx;
   const unsigned char *msg = *blk->data;
   sbdi_ctr_128b_t ctr;
@@ -403,8 +403,9 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
       || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  const sbdi_db_t *a = (const sbdi_db_t *) blk->data;
-  const sbdi_db_t *b = &sbdi->write_store_dat[0];
+  // TODO replace with static function
+  const sbdi_bl_data_t *a = (const sbdi_bl_data_t *) blk->data;
+  const sbdi_bl_data_t *b = &sbdi->write_store_dat[0];
   assert(a >= b && a < b + 2 * SBDI_BLOCK_SIZE);
   ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
   if (r == -1) {

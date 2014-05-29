@@ -55,7 +55,7 @@ typedef struct sbdi_block_cache {
   sbdi_sync_fp_t sync;
   void *sync_data;
   sbdi_bc_idx_t index;
-  sbdi_db_t store[SBDI_CACHE_MAX_SIZE];
+  sbdi_bl_data_t store[SBDI_CACHE_MAX_SIZE];
 } sbdi_bc_t;
 
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
@@ -88,7 +88,7 @@ static inline uint32_t sbdi_bc_idx_get_cache_idx(sbdi_bc_t *cache,
  * cache block address
  * @return the memory address of the cache data block
  */
-static inline sbdi_db_t *sbdi_bc_get_db_for_cache_idx(sbdi_bc_t *cache,
+static inline sbdi_bl_data_t *sbdi_bc_get_db_for_cache_idx(sbdi_bc_t *cache,
     uint32_t idx_pos)
 {
   assert(cache && idx_pos < SBDI_CACHE_MAX_SIZE);
