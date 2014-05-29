@@ -15,6 +15,8 @@
 #include <assert.h>
 #include <stddef.h>
 
+#define SBDI_BLOCK_INDEX_INVALID UINT32_MAX
+
 /*!
  * \brief the block data data type for storing actual block data
  */
@@ -33,19 +35,34 @@ typedef struct sbdi_block {
   sbdi_bl_data_t *data; //!< a pointer to the actual block data
 } sbdi_block_t;
 
-static inline void sbdi_block_init(sbdi_block_t *blk, uint32_t blk_idx,
+/*!
+ * \brief Initializes a secure block device interface block with the given
+ * block index and block data pointer
+ *
+ * This function is purely for initialization, the block needs to be
+ * allocated first by the caller.
+ *
+ * @param blk[inout] a pointer to the block to initialize
+ * @param blk_idx[in] the index of the block
+ * @param blk_data[in] a pointer to the block data
+ */
+static inline void sbdi_block_init(sbdi_block_t *blk, const uint32_t blk_idx,
     sbdi_bl_data_t *blk_data)
 {
-  assert(blk);
-  // TODO assert block index valid or UINT32_MAX?
+  assert(blk && blk_idx < SBDI_BLOCK_INDEX_INVALID);
   blk->idx = blk_idx;
   blk->data = blk_data;
 }
 
+/*!
+ * \brief Invalidates a given secure block device block by setting its block
+ * index to SBDI_BLOCK_INDEX_INVALID
+ * @param blk[in] a pointer to the block to invalidate
+ */
 static inline void sbdi_block_invalidate(sbdi_block_t *blk)
 {
   assert(blk);
-  blk->idx = UINT32_MAX;
+  blk->idx = SBDI_BLOCK_INDEX_INVALID;
   blk->data = NULL;
 }
 
