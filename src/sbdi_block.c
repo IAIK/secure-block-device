@@ -394,6 +394,23 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   return SBDI_SUCCESS;
 }
 
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
+    size_t len)
+{
+  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
+  ssize_t r = pread(sbdi->fd, ptr, len, 0);
+  if (r == -1) {
+    return SBDI_ERR_IO;
+  }
+  if (r < len) {
+    return SBDI_ERR_MISSING_DATA;
+  }
+  sbdi_tag_t tag;
+  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
+  return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+}
+
 /*!
  * \brief Determines if the given pointer points into a valid memory region
  * from which the block write function may read
@@ -415,9 +432,8 @@ static int bl_is_valid_write_source(const sbdi_t *sbdi, const uint8_t *mem,
   // TODO do I still need write store[1] now that I can directly write
   // management blocks from cache?
   int instore = mem >= w_s && mem <= w_s + (SBDI_BLOCK_SIZE) - len;
-  return incache||instore;
+  return incache || instore;
 }
-
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
