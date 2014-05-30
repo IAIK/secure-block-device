@@ -8,6 +8,7 @@
 #include "merkletree.h"
 #include "siv.h"
 #include "sbdi_block.h"
+#include "SecureBlockDeviceInterface.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -104,59 +105,6 @@ static inline uint8_t *bl_get_ctr_address(sbdi_block_t *mng, uint32_t ctr_idx)
   return bl_get_tag_address(mng, ctr_idx) + SBDI_BLOCK_TAG_SIZE;
 }
 
-static inline void sbdi_init(sbdi_t *sbdi, int fd, siv_ctx *ctx, mt_t *mt,
-    sbdi_bc_t *cache)
-{
-  assert(sbdi && ctx && mt && cache);
-  memset(sbdi, 0, sizeof(sbdi_t));
-  sbdi->fd = fd;
-  sbdi->ctx = ctx;
-  sbdi->mt = mt;
-  sbdi->cache = cache;
-  sbdi->write_store[0].data = &sbdi->write_store_dat[0];
-  sbdi->write_store[1].data = &sbdi->write_store_dat[1];
-}
-
-//----------------------------------------------------------------------
-sbdi_t *sbdi_create(int fd, uint8_t *key, size_t key_len)
-{
-  sbdi_t *sbdi = malloc(sizeof(sbdi_t));
-  if (!sbdi) {
-    return NULL;
-  }
-  siv_ctx *ctx = malloc(sizeof(siv_ctx));
-  siv_init(ctx, key, key_len);
-  if (!ctx) {
-    free(sbdi);
-    return NULL;
-  }
-  mt_t *mt = mt_create();
-  if (!mt) {
-    free(sbdi);
-    free(ctx);
-    return NULL;
-  }
-  sbdi_bc_t *cache = sbdi_bc_cache_create(&sbdi_bl_sync, sbdi);
-  if (!cache) {
-    free(sbdi);
-    free(ctx);
-    mt_delete(mt);
-    return NULL;
-  }
-  sbdi_init(sbdi, fd, ctx, mt, cache);
-  return sbdi;
-}
-
-//----------------------------------------------------------------------
-void sbdi_delete(sbdi_t *sbdi)
-{
-
-  free(sbdi->ctx);
-  mt_delete(sbdi->mt);
-  sbdi_bc_cache_destroy(sbdi->cache);
-  free(sbdi);
-}
-
 /*!
  * \brief Determines if the given pointer points into a valid memory region
  * to which the block read function may write
@@ -189,7 +137,8 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   }
   // Paranoia assertion
   assert(bl_is_valid_read_dest(sbdi, *blk->data, len));
-  ssize_t r = pread(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
+  ssize_t r = sbdi->pio->pread(sbdi->pio->iod, blk->data, len,
+      blk->idx * SBDI_BLOCK_SIZE);
   if (r != -1) {
     *read = r;
   }
@@ -403,7 +352,7 @@ sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
     size_t len)
 {
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
-  ssize_t r = pread(sbdi->fd, ptr, len, 0);
+  ssize_t r = sbdi->pio->pread(sbdi->pio->iod, ptr, len, 0);
   SBDI_BL_ERR_IO_CHK(r, len);
   return SBDI_SUCCESS;
 }
@@ -456,7 +405,8 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     return SBDI_ERR_ILLEGAL_PARAM;
   }
   assert(bl_is_valid_write_source(sbdi, *blk->data, SBDI_BLOCK_SIZE));
-  ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
+  ssize_t r = sbdi->pio->pwrite(sbdi->pio->iod, blk->data, len,
+      blk->idx * SBDI_BLOCK_SIZE);
   SBDI_BL_ERR_IO_CHK(r, len);
   return SBDI_SUCCESS;
 
@@ -559,7 +509,7 @@ sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
   sbdi_tag_t tag;
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
   sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
-  ssize_t r = pwrite(sbdi->fd, ptr, len, 0);
+  ssize_t r = sbdi->pio->pwrite(sbdi->pio->iod, ptr, len, 0);
   // TODO r < len is really really bad => incompletely written header!
   SBDI_BL_ERR_IO_CHK(r, len);
   if (mt_al_get_size(sbdi->mt) == 0) {

@@ -20,7 +20,7 @@
 #endif
 
 #include "SbdiTest.h"
-#include "sbdi_block.h"
+#include "SecureBlockDeviceInterface.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -85,14 +85,15 @@ private:
   sbdi_t *sbdi;
   unsigned char b[SBDI_BLOCK_SIZE];
   mt_hash_t root;
+  int fd;
 
   void loadStore()
   {
-    int fd = open(FILE_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    fd = open(FILE_NAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     CPPUNIT_ASSERT(fd != -1);
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
-    sbdi = sbdi_create(fd, SIV_KEYS, SIV_KEY_LEN);
+    sbdi = sbdi_create(sbdi_pio_create(&fd), SIV_KEYS, SIV_KEY_LEN);
     CPPUNIT_ASSERT(sbdi != NULL);
     CPPUNIT_ASSERT(
         sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
@@ -101,7 +102,8 @@ private:
   void closeStore()
   {
     sbdi_bc_sync(sbdi->cache);
-    CPPUNIT_ASSERT(close(sbdi->fd) != -1);
+    int fd = *(int *)sbdi->pio->iod;
+    CPPUNIT_ASSERT(close(fd) != -1);
     mt_get_root((mt_t*) sbdi->mt, root);
     sbdi_delete(sbdi);
   }

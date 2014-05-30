@@ -28,6 +28,8 @@ typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
  */
 typedef uint8_t sbdi_bl_data_t[SBDI_BLOCK_SIZE];
 
+typedef struct secure_block_device_interface sbdi_t;
+
 /*!
  * \brief the basic block data type combining a block index with the block
  * data

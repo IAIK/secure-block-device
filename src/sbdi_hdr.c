@@ -8,6 +8,8 @@
 #include "sbdi_hdr.h"
 #include "sbdi_buffer.h"
 
+#include "SecureBlockDeviceInterface.h"
+
 #include <string.h>
 
 //----------------------------------------------------------------------
