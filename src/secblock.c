@@ -101,12 +101,13 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_write_hdr_v1(const sbdi_t *sbdi, const sbdi_hdr_v1_t *hdr,
+sbdi_error_t sbdi_write_hdr_v1(sbdi_t *sbdi, const sbdi_hdr_v1_t *hdr,
     siv_ctx *master)
 {
   SBDI_CHK_PARAM(sbdi && hdr);
+  uint8_t *wrt_buf = *sbdi->write_store[0].data;
   sbdi_buffer_t b;
-  sbdi_buffer_init(&b, *sbdi->write_store[0].data, SBDI_HDR_V1_PACKED_SIZE);
+  sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_write_bytes(&b, hdr->id.magic, SBDI_HDR_MAGIC_LEN);
   sbdi_buffer_write_uint32_t(&b, hdr->id.version);
   sbdi_buffer_write_ctr_128b(&b, &hdr->ctr);
@@ -115,6 +116,6 @@ sbdi_error_t sbdi_write_hdr_v1(const sbdi_t *sbdi, const sbdi_hdr_v1_t *hdr,
   uint8_t *tptr = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_add_pos(&b, SBDI_HDR_V1_TAG_SIZE);
   siv_encrypt(master, hdr->key, kptr, SBDI_HDR_V1_KEY_SIZE, tptr, 0);
-// TODO actually write header somewhere!
+  sbdi_bl_write_hdr_block(sbdi, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
   return SBDI_SUCCESS;
 }
