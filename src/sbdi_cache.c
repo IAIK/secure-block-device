@@ -123,6 +123,8 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   // TODO make sure block layer syncs the cache before it frees it!
+  // Clear all sensitive information from RAM
+  if (cache) {memset(cache, 0, sizeof(sbdi_bc_t));}
   free(cache);
 }
 
