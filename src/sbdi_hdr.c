@@ -13,7 +13,7 @@
 #include <string.h>
 
 //----------------------------------------------------------------------
-void sbdi_derive_hdr_v1_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
+void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
     uint8_t *n1, size_t n1_len, uint8_t *n2, size_t n2_len)
 {
   memset(key, 0, sizeof(sbdi_hdr_v1_sym_key_t));
@@ -22,7 +22,7 @@ void sbdi_derive_hdr_v1_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr,
+sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
     const sbdi_hdr_v1_sym_key_t key)
 {
   SBDI_CHK_PARAM(hdr && key);
@@ -45,27 +45,26 @@ sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr,
   return SBDI_SUCCESS;
 }
 
-void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr)
+void sbdi_hdr_v1_delete(sbdi_hdr_v1_t *hdr)
 {
-// This should remove traces of the key from memory
-// TODO do the same for the SBDI data structure
-  assert(hdr);
+  if (!hdr) {
+    return;
+  }
   memset(hdr, 0, sizeof(sbdi_hdr_v1_t));
   free(hdr);
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
-    siv_ctx *master)
+sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
 {
-  SBDI_CHK_PARAM(sbdi && hdr && master);
+  SBDI_CHK_PARAM(sbdi && master);
   sbdi_hdr_v1_t *h = calloc(1, sizeof(sbdi_hdr_v1_t));
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
   }
   uint8_t *rd_buf = *sbdi->write_store[0].data;
   sbdi_error_t r = sbdi_bl_read_hdr_block(sbdi, rd_buf,
-      SBDI_HDR_V1_PACKED_SIZE);
+  SBDI_HDR_V1_PACKED_SIZE);
   if (r != SBDI_SUCCESS) {
     free(h);
     return r;
@@ -101,15 +100,15 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
     free(h);
     return r;
   }
-  *hdr = h;
+  sbdi->hdr = h;
   return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_write_hdr_v1(sbdi_t *sbdi, const sbdi_hdr_v1_t *hdr,
-    siv_ctx *master)
+sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
 {
-  SBDI_CHK_PARAM(sbdi && hdr);
+  SBDI_CHK_PARAM(sbdi);
+  sbdi_hdr_v1_t *hdr = sbdi->hdr;
   uint8_t *wrt_buf = *sbdi->write_store[0].data;
   sbdi_buffer_t b;
   sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);

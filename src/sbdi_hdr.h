@@ -56,7 +56,7 @@ typedef struct secure_block_device_interface_header_v1 {
 } sbdi_hdr_v1_t;
 
 
-void sbdi_derive_hdr_v1_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
+void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
     uint8_t *n1, size_t n1_len, uint8_t *n2, size_t n2_len);
 
 /*!
@@ -74,7 +74,7 @@ void sbdi_derive_hdr_v1_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
  *                                allocated;
  *         SBDI_ERR_ILLEGAL_PARAM if any of the given parameters is null.
  */
-sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr, const sbdi_hdr_v1_sym_key_t key);
+sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr, const sbdi_hdr_v1_sym_key_t key);
 
 /*!
  * \brief Overwrites the key data and frees the memory allocated for the
@@ -82,7 +82,7 @@ sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr, const sbdi_hdr_v1_sym_key_t
  *
  * @param hdr[in] the pointer to the header to delete
  */
-void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr);
+void sbdi_hdr_v1_delete(sbdi_hdr_v1_t *hdr);
 
 /*!
  * \brief tries to read a SBDI v1 header from from the secure block device
@@ -93,10 +93,8 @@ void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr);
  *
  * This function tries to decrypt the SBDI specific key stored in the header.
  *
- * @param sbdi[in] a pointer to the secure block device interface to read the
- * header from
- * @param hdr[out] an out pointer to the header set by this function on
- * successful header creation
+ * @param sbdi[inout] a pointer to the secure block device interface to read the
+ * header from, and also store the header
  * @param master[in] a pointer to the SIV context of the master key
  * @return SBDI_SUCCESS if the header could be read successfully;
  *         SBDI_ERR_ILLEGAL_PARAM if any of the given parameters is null, or
@@ -112,8 +110,7 @@ void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr);
  *                              supported version;
  *         SBDI_ERR_TAG_MISMATCH if the key in the header has been modified.
  */
-sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
-    siv_ctx *master);
+sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master);
 
 /*!
  * \brief Writes a secure block device interface header v1 to the SBDI
@@ -121,7 +118,7 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
  * This function encrypts the SBDI specific key before writing the header.
  *
  * @param sbdi[in] a pointer to the secure block device interface to write
- * the header to
+ * the header to, and it also contains the header to write
  * @param hdr[in] a pointer to the header to write to the SBDI
  * @param master[in] a pointer to the SIV context of the master key
  * @return SBDI_SUCCESS if the header could be written successfully;
@@ -133,8 +130,7 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
  *         SBDI_ERR_IO_MISSING_DATA if the header was only partially written;
  *         SBDI_ERR_TAG_MISMATCH if the key in the header has been modified.
  */
-sbdi_error_t sbdi_write_hdr_v1(sbdi_t *sbdi, const sbdi_hdr_v1_t *hdr,
-    siv_ctx *master);
+sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master);
 
 #endif /* SBDI_HDR_H_ */
 

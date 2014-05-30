@@ -17,6 +17,7 @@ extern "C" {
 #include "sbdi_cache.h"
 #include "sbdi_ctr_128b.h"
 #include "sbdi_block.h"
+#include "sbdi_hdr.h"
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -34,6 +35,7 @@ struct secure_block_device_interface {
   sbdi_pio_t *pio;
   void *ctx;
   void *mt;
+  sbdi_hdr_id_t *hdr;
   sbdi_bc_t *cache;
   sbdi_bl_data_t write_store_dat[2];
   sbdi_block_t write_store[2];
