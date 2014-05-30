@@ -37,6 +37,21 @@ void sbdi_buffer_reset(sbdi_buffer_t *buf)
 }
 
 //----------------------------------------------------------------------
+uint8_t *sbdi_buffer_get_cptr(const sbdi_buffer_t *buf) {
+  assert(sbdi_buffer_is_valid(buf));
+  return &buf->buffer[buf->pos];
+}
+
+//----------------------------------------------------------------------
+void sbdi_buffer_add_pos(sbdi_buffer_t *buf, const uint32_t add) {
+  assert(sbdi_buffer_is_valid(buf));
+  // Overflow protection
+  assert(buf->pos <= (UINT32_MAX - add))
+  assert((buf->pos + add) < buf->length);
+  buf->pos += add;
+}
+
+//----------------------------------------------------------------------
 void sbdi_buffer_write_uint8_t(sbdi_buffer_t *buf, uint8_t value)
 {
   assert(sbdi_buffer_is_valid(buf));
