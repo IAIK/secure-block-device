@@ -25,6 +25,7 @@ extern "C" {
 
 #define SBDI_HDR_V1_PACKED_SIZE 76u
 #define SBDI_HDR_V1_KEY_SIZE    32u
+#define SBDI_HDR_V1_TAG_SIZE    SBDI_BLOCK_TAG_SIZE
 
 typedef uint8_t sbdi_hdr_magic_t[SBDI_HDR_MAGIC_LEN];
 typedef uint8_t sbdi_hdr_v1_sym_key_t[SBDI_HDR_V1_KEY_SIZE];
