@@ -10,6 +10,7 @@
 #include "secblock.h"
 #include "sbdi_block.h"
 #include "sbdi_buffer.h"
+#include "sbdi_hdr.h"
 
 #include <string.h>
 
@@ -23,9 +24,10 @@ void sbdi_derive_hdr_v1_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr, sbdi_hdr_v1_sym_key_t key)
+sbdi_error_t sbdi_create_hdr_v1(sbdi_hdr_v1_t **hdr,
+    const sbdi_hdr_v1_sym_key_t key)
 {
-  SBDI_CHK_PARAM(hdr);
+  SBDI_CHK_PARAM(hdr && key);
   sbdi_hdr_v1_t *h = calloc(1, sizeof(sbdi_hdr_v1_t));
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
@@ -49,6 +51,7 @@ void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr)
 {
 // This should remove traces of the key from memory
 // TODO do the same for the SBDI data structure
+  assert(hdr);
   memset(hdr, 0, sizeof(sbdi_hdr_v1_t));
   free(hdr);
 }
@@ -57,16 +60,20 @@ void sbdi_delete_hdr_v1(sbdi_hdr_v1_t *hdr)
 sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
     siv_ctx *master)
 {
-  SBDI_CHK_PARAM(sbdi && hdr);
-
+  SBDI_CHK_PARAM(sbdi && hdr && master);
   sbdi_hdr_v1_t *h = calloc(1, sizeof(sbdi_hdr_v1_t));
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
   }
-  sbdi_bl_read_hdr_block(sbdi, *sbdi->write_store[0].data,
-  SBDI_HDR_V1_PACKED_SIZE);
+  uint8_t *rd_buf = *sbdi->write_store[0].data;
+  sbdi_error_t r = sbdi_bl_read_hdr_block(sbdi, rd_buf,
+      SBDI_HDR_V1_PACKED_SIZE);
+  if (r != SBDI_SUCCESS) {
+    free(h);
+    return r;
+  }
   sbdi_buffer_t b;
-  sbdi_buffer_init(&b, *sbdi->write_store[0].data, SBDI_HDR_V1_PACKED_SIZE);
+  sbdi_buffer_init(&b, rd_buf, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_read_bytes(&b, h->id.magic, SBDI_HDR_MAGIC_LEN);
   if (!memcmp(h->id.magic, SBDI_HDR_MAGIC, SBDI_HDR_MAGIC_LEN)) {
     free(h);
@@ -78,7 +85,7 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
     return SBDI_ERR_UNSUPPORTED;
   }
 // TODO make sure all global counter values are packed in the same way!
-  sbdi_error_t r = sbdi_buffer_read_ctr_128b(&b, &h->ctr);
+  r = sbdi_buffer_read_ctr_128b(&b, &h->ctr);
   if (r != SBDI_SUCCESS) {
     free(h);
     return r;
@@ -86,15 +93,15 @@ sbdi_error_t sbdi_read_hdr_v1(sbdi_t *sbdi, sbdi_hdr_v1_t **hdr,
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_SIZE);
   sbdi_buffer_read_bytes(&b, h->tag, SBDI_HDR_V1_TAG_SIZE);
-//  int cr = siv_init(&ctx, sbdi_siv_master_key, SIV_256);
-//  if (cr == -1) {
-//    free(h);
-//    return SBDI_ERR_CRYPTO_FAIL;
-//  }
   int cr = siv_decrypt(master, kptr, h->key, SBDI_HDR_V1_KEY_SIZE, h->tag, 0);
   if (cr == -1) {
     free(h);
     return SBDI_ERR_TAG_MISMATCH;
+  }
+  r = sbdi_bl_verify_header(sbdi, rd_buf, SBDI_HDR_V1_PACKED_SIZE);
+  if (r != SBDI_SUCCESS) {
+    free(h);
+    return r;
   }
   *hdr = h;
   return SBDI_SUCCESS;
