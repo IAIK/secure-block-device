@@ -120,7 +120,6 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_SIZE);
   uint8_t *tptr = sbdi_buffer_get_cptr(&b);
-  sbdi_buffer_add_pos(&b, SBDI_HDR_V1_TAG_SIZE);
   siv_encrypt(master, hdr->key, kptr, SBDI_HDR_V1_KEY_SIZE, tptr, 0);
   return sbdi_bl_write_hdr_block(sbdi, sbdi->write_store);
 }
