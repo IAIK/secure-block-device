@@ -48,7 +48,11 @@ private:
   sbdi_error_t sbdi_bc_cache_blk_i(uint32_t idx, sbdi_block_t *blk)
   {
     blk->idx = idx;
-    return sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA);
+    sbdi_error_t r = sbdi_bc_cache_blk(cache, blk, SBDI_BC_BT_DATA);
+    if (r != SBDI_SUCCESS) {
+      std::cout << err_to_string(r) << std::endl;
+    }
+    return r;
   }
 
   sbdi_error_t sbdi_bc_find_blk_i(uint32_t idx, sbdi_block_t *blk)

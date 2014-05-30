@@ -8,7 +8,7 @@ CXXFLAGS += -Wall -ggdb -std=gnu++11
 CPPFLAGS += -std=gnu++11 -I../src/crypto/ -I../src/ -I../../merkle-tree/src
 
 TST_DEP_FILE = .depend
-TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cpp SbdiBlockLayerTest.cpp
+TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cpp SbdiBlockLayerTest.cpp SbdiTest.cpp
 TST_CXX_OBJS = $(TST_CXX_SRC:%.cpp=%.o)
 TST_SRC = $(TST_CXX_SRC)
 TST_OBJS = $(TST_CXX_OBJS)

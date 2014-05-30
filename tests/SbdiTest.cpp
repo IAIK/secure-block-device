@@ -30,8 +30,8 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 
-class SbdiBLockLayerTest: public CppUnit::TestFixture {
-CPPUNIT_TEST_SUITE( SbdiBLockLayerTest );
+class SbdiTest: public CppUnit::TestFixture {
+CPPUNIT_TEST_SUITE( SbdiTest );
   CPPUNIT_TEST(testIndexComp);
   CPPUNIT_TEST(testSimpleReadWrite);
   CPPUNIT_TEST(testSimpleIntegrityCheck);
@@ -52,20 +52,14 @@ private:
     CPPUNIT_ASSERT(fd != -1);
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
-    sbdi = sbdi_create(sbdi_pio_create(&fd, s.st_size));
-    CPPUNIT_ASSERT(siv_init((siv_ctx *)sbdi->ctx, SIV_KEYS, SIV_256) == 1);
-    CPPUNIT_ASSERT(sbdi != NULL);
-    CPPUNIT_ASSERT(
-        sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_open(&sbdi, sbdi_pio_create(&fd, s.st_size), SIV_KEYS, root) == SBDI_SUCCESS);
   }
 
   void closeStore()
   {
-    sbdi_bc_sync(sbdi->cache);
+    CPPUNIT_ASSERT(sbdi_close(sbdi, SIV_KEYS, root) == SBDI_SUCCESS);
     int fd = *(int *)sbdi->pio->iod;
     CPPUNIT_ASSERT(close(fd) != -1);
-    mt_get_root((mt_t*) sbdi->mt, root);
-    sbdi_delete(sbdi);
   }
 
   void deleteStore()
@@ -242,7 +236,7 @@ public:
 
 };
 
-unsigned char SbdiBLockLayerTest::SIV_KEYS[32] = {
+unsigned char SbdiTest::SIV_KEYS[32] = {
     // Part 1: fffefdfc fbfaf9f8 f7f6f5f4 f3f2f1f0
     0xff, 0xfe, 0xfd, 0xfc, 0xfb, 0xfa, 0xf9, 0xf8, 0xf7, 0xf6, 0xf5, 0xf4,
     0xf3, 0xf2, 0xf1, 0xf0,
@@ -250,4 +244,4 @@ unsigned char SbdiBLockLayerTest::SIV_KEYS[32] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb,
     0xfc, 0xfd, 0xfe, 0xff };
 
-CPPUNIT_TEST_SUITE_REGISTRATION(SbdiBLockLayerTest);
+CPPUNIT_TEST_SUITE_REGISTRATION(SbdiTest);
