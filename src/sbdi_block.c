@@ -542,6 +542,30 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 // * Write back new block access counter and tag to management block (also in cache)
 }
 
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
+    size_t len)
+{
+  sbdi_tag_t tag;
+  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
+  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
+  ssize_t r = pwrite(sbdi->fd, ptr, len, 0);
+  if (r == -1) {
+    return SBDI_ERR_IO;
+  }
+  if (r < len) {
+    // TODO really really bad!
+    return SBDI_ERR_MISSING_DATA;
+  }
+  if (mt_al_get_size(sbdi->mt) == 0) {
+    // TODO If the next line fails this is also really really bad!
+    return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+  } else {
+    // TODO If the next line fails this is also really really bad!
+    return bl_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+  }
+}
+
 static sbdi_error_t bl_encrypt_write_update_mngt(sbdi_t *sbdi,
     sbdi_block_t *mng)
 {
