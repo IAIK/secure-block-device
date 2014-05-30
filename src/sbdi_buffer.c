@@ -116,6 +116,7 @@ void sbdi_buffer_write_ctr_128b(sbdi_buffer_t *buf, const sbdi_ctr_128b_t *ctr) 
   sbdi_buffer_write_uint64_t(buf, ctr->lo);
 }
 
+//----------------------------------------------------------------------
 uint8_t sbdi_buffer_read_uint8_t(sbdi_buffer_t *buf)
 {
   assert(sbdi_buffer_is_valid(buf));
