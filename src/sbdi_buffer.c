@@ -40,6 +40,8 @@ void sbdi_buffer_reset(sbdi_buffer_t *buf)
 void sbdi_buffer_write_uint8_t(sbdi_buffer_t *buf, uint8_t value)
 {
   assert(sbdi_buffer_is_valid(buf));
+  // Overflow protection
+  assert(buf->pos != UINT32_MAX);
   buf->buffer[buf->pos] = value;
   buf->pos += 1;
 }
@@ -84,6 +86,8 @@ void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
     const size_t length)
 {
   assert(sbdi_buffer_is_valid(buf));
+  // Overflow protection
+  assert(buf->pos <= (UINT32_MAX - length))
   assert(buf->pos <= buf->length - length);
   for (int i = 0; i < length; ++i) {
     sbdi_buffer_write_uint8_t(buf, src[i]);
@@ -94,6 +98,8 @@ void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
 uint8_t sbdi_buffer_read_uint8_t(sbdi_buffer_t *buf)
 {
   assert(sbdi_buffer_is_valid(buf));
+  // Overflow protection
+  assert(buf->pos != UINT32_MAX);
   uint8_t value = buf->buffer[buf->pos];
   buf->pos += 1;
   return value;
@@ -145,6 +151,8 @@ void sbdi_buffer_read_bytes(sbdi_buffer_t *buf, uint8_t *dest,
     const size_t length)
 {
   assert(sbdi_buffer_is_valid(buf));
+  // Overflow protection
+  assert(buf->pos <= (UINT32_MAX - length));
   assert(buf->pos <= buf->length - length);
   for (int i = 0; i < length; ++i) {
     dest[i] = sbdi_buffer_read_uint8_t(buf);
