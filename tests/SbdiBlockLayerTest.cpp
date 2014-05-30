@@ -30,7 +30,6 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 
-#define SIV_KEY_LEN 256
 #define FILE_NAME "sbdi_tst_enc"
 
 /*!
@@ -93,8 +92,8 @@ private:
     CPPUNIT_ASSERT(fd != -1);
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
-    sbdi = sbdi_create(sbdi_pio_create(&fd));
-    CPPUNIT_ASSERT(siv_init((siv_ctx *)sbdi->ctx, SIV_KEYS, SIV_KEY_LEN) == 1);
+    sbdi = sbdi_create(sbdi_pio_create(&fd, s.st_size));
+    CPPUNIT_ASSERT(siv_init((siv_ctx *)sbdi->ctx, SIV_KEYS, SIV_256) == 1);
     CPPUNIT_ASSERT(sbdi != NULL);
     CPPUNIT_ASSERT(
         sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);

@@ -73,7 +73,8 @@ void sbdi_delete(sbdi_t *sbdi)
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey)
+sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
+    mt_hash_t root)
 {
   SBDI_CHK_PARAM(s && pio && mkey);
   // variables that need explicit cleaning
@@ -95,8 +96,8 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey)
     // TODO find a better way to provide nonce material
     const char *n1 = "nonce1";
     const char *n2 = "nonce2";
-    sbdi_hdr_v1_derive_key(&mctx, key, (uint8_t*) n1, strlen(n1),
-        (uint8_t*) n2, strlen(n2));
+    sbdi_hdr_v1_derive_key(&mctx, key, (uint8_t*) n1, strlen(n1), (uint8_t*) n2,
+        strlen(n2));
     cr = siv_init(sbdi->ctx, key, SIV_256);
     if (cr == -1) {
       r = SBDI_ERR_CRYPTO_FAIL;
@@ -114,11 +115,18 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey)
     *s = sbdi;
     return SBDI_SUCCESS;
   } else if (r != SBDI_SUCCESS) {
-    sbdi_close(sbdi);
-    return r;
+    goto FAIL;
   }
+  // Header read init sbdi key context
+  cr = siv_init(sbdi->ctx, sbdi->hdr->key, SIV_256);
+  if (cr == -1) {
+    r = SBDI_ERR_CRYPTO_FAIL;
+    goto FAIL;
+  }
+  sbdi_bl_verify_block_layer(sbdi, root, pio->size_at_open / SBDI_BLOCK_SIZE);
   *s = sbdi;
   return SBDI_SUCCESS;
+
   FAIL: memset(&mctx, 0, sizeof(siv_ctx));
   memset(key, 0, sizeof(sbdi_hdr_v1_sym_key_t));
   sbdi_delete(sbdi);
@@ -126,7 +134,35 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey)
 }
 
 //----------------------------------------------------------------------
-void sbdi_close(sbdi_t *sbdi)
+sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
 {
+  SBDI_CHK_PARAM(sbdi && mkey && root);
+  siv_ctx mctx;
+  memset(&mctx, 0, sizeof(siv_ctx));
+  sbdi_error_t r = SBDI_ERR_UNSPECIFIED;
+  int cr = siv_init(&mctx, mkey, SIV_256);
+  if (cr == -1) {
+    r = SBDI_ERR_CRYPTO_FAIL;
+    goto FAIL;
+  }
+  r = sbdi_hdr_v1_write(sbdi, &mctx);
+  if (r != SBDI_SUCCESS) {
+    // TODO very bad, potentially partially written header!
+    goto FAIL;
+  }
+  r = sbdi_bc_sync(sbdi->cache);
+  if (r != SBDI_SUCCESS) {
+    // TODO very bad, potentially inconsistent state!
+    goto FAIL;
+  }
+  // TODO convert error and return
+  r = sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, root));
+  if (r != SBDI_SUCCESS) {
+    // this should not happen, because it should have failed earlier
+    goto FAIL;
+  }
   sbdi_delete(sbdi);
+
+  FAIL: memset(&mctx, 0, sizeof(siv_ctx));
+  return r;
 }

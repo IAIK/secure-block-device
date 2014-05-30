@@ -62,15 +62,16 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
   }
-  uint8_t *rd_buf = *sbdi->write_store[0].data;
-  sbdi_error_t r = sbdi_bl_read_hdr_block(sbdi, rd_buf,
-  SBDI_HDR_V1_PACKED_SIZE);
+  sbdi->write_store[0].idx = 0;
+  uint32_t rd;
+  sbdi_block_t *rd_buf = sbdi->write_store;
+  sbdi_error_t r = sbdi_bl_read_block(sbdi, rd_buf, SBDI_BLOCK_SIZE, &rd);
   if (r != SBDI_SUCCESS) {
     free(h);
     return r;
   }
   sbdi_buffer_t b;
-  sbdi_buffer_init(&b, rd_buf, SBDI_HDR_V1_PACKED_SIZE);
+  sbdi_buffer_init(&b, *sbdi->write_store[0].data, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_read_bytes(&b, h->id.magic, SBDI_HDR_MAGIC_LEN);
   if (!memcmp(h->id.magic, SBDI_HDR_MAGIC, SBDI_HDR_MAGIC_LEN)) {
     free(h);
@@ -95,7 +96,7 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     free(h);
     return SBDI_ERR_TAG_MISMATCH;
   }
-  r = sbdi_bl_verify_header(sbdi, rd_buf, SBDI_HDR_V1_PACKED_SIZE);
+  r = sbdi_bl_verify_header(sbdi, rd_buf);
   if (r != SBDI_SUCCESS) {
     free(h);
     return r;
@@ -111,6 +112,7 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   sbdi_hdr_v1_t *hdr = sbdi->hdr;
   uint8_t *wrt_buf = *sbdi->write_store[0].data;
   sbdi_buffer_t b;
+  sbdi->write_store[0].idx = 0;
   sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_write_bytes(&b, hdr->id.magic, SBDI_HDR_MAGIC_LEN);
   sbdi_buffer_write_uint32_t(&b, hdr->id.version);
@@ -120,7 +122,6 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   uint8_t *tptr = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_add_pos(&b, SBDI_HDR_V1_TAG_SIZE);
   siv_encrypt(master, hdr->key, kptr, SBDI_HDR_V1_KEY_SIZE, tptr, 0);
-  sbdi_bl_write_hdr_block(sbdi, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
-  return SBDI_SUCCESS;
+  return sbdi_bl_write_hdr_block(sbdi, sbdi->write_store);
 }
 

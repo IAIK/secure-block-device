@@ -53,33 +53,6 @@ static inline void bl_pair_init(sbdi_block_pair_t *pair, uint32_t mng_idx,
 }
 
 /*!
- * \brief converts a Merkle tree error into a secure block device interface
- * error
- *
- * @param mr the Merkle tree error code
- * @return the corresponding secure block device interface error code
- */
-static inline sbdi_error_t bl_mt_sbdi_err_conv(mt_error_t mr)
-{
-  switch (mr) {
-  case MT_SUCCESS:
-    return SBDI_SUCCESS;
-  case MT_ERR_OUT_Of_MEMORY:
-    return SBDI_ERR_OUT_Of_MEMORY;
-  case MT_ERR_ILLEGAL_PARAM:
-    return SBDI_ERR_ILLEGAL_PARAM;
-  case MT_ERR_ILLEGAL_STATE:
-    return SBDI_ERR_ILLEGAL_STATE;
-  case MT_ERR_ROOT_MISMATCH:
-    return SBDI_ERR_TAG_MISMATCH;
-  case MT_ERR_UNSPECIFIED:
-    return SBDI_ERR_UNSPECIFIED;
-  default:
-    return SBDI_ERR_UNSUPPORTED;
-  }
-}
-
-/*!
  * \brief Computes the memory address of a block tag with the specified index
  * relative to the given management block base address.
  * @param mng[in] the management block that contains the memory base address
@@ -198,7 +171,7 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
   // Management block should always be fully readable.
   SBDI_ERR_CHK(sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read));
   bl_aes_cmac(sbdi, mng, tag);
-  return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+  return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
 }
 
 //----------------------------------------------------------------------
@@ -235,7 +208,7 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
   }
   mt_hash_t check_root;
   memset(check_root, 0, sizeof(mt_hash_t));
-  SBDI_ERR_CHK(bl_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
+  SBDI_ERR_CHK(sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
   if (memcmp(root, check_root, sizeof(mt_hash_t))) {
     return SBDI_ERR_TAG_MISMATCH;
   }
@@ -302,7 +275,7 @@ static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng)
     return r;
   }
   bl_aes_cmac(sbdi, mng, tag);
-  r = bl_mt_sbdi_err_conv(
+  r = sbdi_mt_sbdi_err_conv(
       mt_verify(sbdi->mt, tag, sizeof(sbdi_tag_t), mng_blk_nbr));
   if (r == SBDI_ERR_TAG_MISMATCH) {
     sbdi_bc_evict_blk(sbdi->cache, mng->idx);
@@ -347,27 +320,18 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   return SBDI_SUCCESS;
 }
 
-//----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
-    size_t len)
+sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, sbdi_block_t *hdr)
 {
-  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
-  ssize_t r = sbdi->pio->pread(sbdi->pio->iod, ptr, len, 0);
-  SBDI_BL_ERR_IO_CHK(r, len);
-  return SBDI_SUCCESS;
-}
-
-sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, unsigned char *ptr, size_t len)
-{
-  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
+  SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
   sbdi_tag_t tag;
-  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
+  memset(tag, 0, sizeof(sbdi_tag_t));
+  bl_aes_cmac(sbdi, hdr, tag);
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
-    return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+    return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
     // TODO If the next line fails this is also really really bad!
-    return bl_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+    return sbdi_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
 }
 
@@ -464,7 +428,7 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
     sbdi_ctr_128b_inc(&sbdi->g_ctr);
     SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, &sbdi->write_store[0], mng_tag));
     SBDI_ERR_CHK(
-        bl_mt_sbdi_err_conv(mt_add(sbdi->mt, mng_tag, sizeof(sbdi_tag_t))));
+        sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, mng_tag, sizeof(sbdi_tag_t))));
     s += 1;
   }
   return SBDI_SUCCESS;
@@ -503,21 +467,19 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
-    size_t len)
+sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, sbdi_block_t *hdr)
 {
   sbdi_tag_t tag;
-  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
-  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
-  ssize_t r = sbdi->pio->pwrite(sbdi->pio->iod, ptr, len, 0);
-  // TODO r < len is really really bad => incompletely written header!
-  SBDI_BL_ERR_IO_CHK(r, len);
+  SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
+  bl_aes_cmac(sbdi, hdr, tag);
+  sbdi_bl_write_block(sbdi, hdr, SBDI_BLOCK_SIZE);
+  // TODO r < BLOCK_SIZE is really really bad => incompletely written header!
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
-    return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+    return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
     // TODO If the next line fails this is also really really bad!
-    return bl_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+    return sbdi_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
 }
 
@@ -527,7 +489,7 @@ static sbdi_error_t bl_encrypt_write_update_mngt(sbdi_t *sbdi,
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
   SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, mng, mng_tag));
-  return bl_mt_sbdi_err_conv(
+  return sbdi_mt_sbdi_err_conv(
       mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), mng->idx));
 }
 

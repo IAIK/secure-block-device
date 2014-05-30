@@ -43,9 +43,10 @@ typedef ssize_t (bl_pwrite)(void *iod, const void * buf, size_t nbyte,
  * \brief wrapper data type to hide pread and pwrite implementation
  */
 typedef struct sbdi_pio {
-  void *iod;         //!< I/O descriptor pointer, e.g. file decriptor pointer
-  bl_pread *pread;   //!< pread like function pointer
-  bl_pwrite *pwrite; //!< pwrite like function pointer
+  void *iod;          //!< I/O descriptor pointer, e.g. file decriptor pointer
+  off_t size_at_open; //!< the size of the block device store at time of opening
+  bl_pread *pread;    //!< pread like function pointer
+  bl_pwrite *pwrite;  //!< pwrite like function pointer
 } sbdi_pio_t;
 
 /*!
@@ -59,7 +60,7 @@ typedef struct sbdi_pio {
  * underlying pread and pwrite
  * @return a pointer to a pio type if successful; NULL otherwise
  */
-sbdi_pio_t *sbdi_pio_create(void *iod);
+sbdi_pio_t *sbdi_pio_create(void *iod, off_t size_at_open);
 
 /*!
  * \brief frees the memory allocated for the given pio type

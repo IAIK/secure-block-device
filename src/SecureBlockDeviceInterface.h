@@ -22,6 +22,33 @@ extern "C" {
 #include <sys/types.h>
 #include <stdint.h>
 
+/*!
+ * \brief converts a Merkle tree error into a secure block device interface
+ * error
+ *
+ * @param mr the Merkle tree error code
+ * @return the corresponding secure block device interface error code
+ */
+static inline sbdi_error_t sbdi_mt_sbdi_err_conv(mt_error_t mr)
+{
+  switch (mr) {
+  case MT_SUCCESS:
+    return SBDI_SUCCESS;
+  case MT_ERR_OUT_Of_MEMORY:
+    return SBDI_ERR_OUT_Of_MEMORY;
+  case MT_ERR_ILLEGAL_PARAM:
+    return SBDI_ERR_ILLEGAL_PARAM;
+  case MT_ERR_ILLEGAL_STATE:
+    return SBDI_ERR_ILLEGAL_STATE;
+  case MT_ERR_ROOT_MISMATCH:
+    return SBDI_ERR_TAG_MISMATCH;
+  case MT_ERR_UNSPECIFIED:
+    return SBDI_ERR_UNSPECIFIED;
+  default:
+    return SBDI_ERR_UNSUPPORTED;
+  }
+}
+
 typedef uint8_t sbdi_sym_mst_key_t[32];
 
 static const sbdi_sym_mst_key_t sbdi_siv_master_key = {
@@ -46,10 +73,11 @@ struct secure_block_device_interface {
 sbdi_t *sbdi_create(sbdi_pio_t *pio);
 void sbdi_delete(sbdi_t *sbdi);
 
-sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey);
+sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
+    mt_hash_t root);
 ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset);
 ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset);
-void sbdi_close(sbdi_t *sbdi);
+sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
 
 #endif /* SECURE_BLOCK_DEVICE_INTERFACE_H_ */
 

@@ -25,13 +25,14 @@ static ssize_t bl_pwrite_i(void *iod, const void * buf, size_t nbyte, off_t offs
 }
 
 //----------------------------------------------------------------------
-sbdi_pio_t *sbdi_pio_create(void *iod)
+sbdi_pio_t *sbdi_pio_create(void *iod, off_t size_at_open)
 {
   sbdi_pio_t *io = calloc(1, sizeof(sbdi_pio_t));
   if (!io) {
     return NULL;
   }
   io->iod = iod;
+  io->size_at_open = size_at_open;
   io->pread = &bl_pread_i;
   io->pwrite = &bl_pwrite_i;
   return io;
