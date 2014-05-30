@@ -545,8 +545,8 @@ sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
     size_t len)
 {
   sbdi_tag_t tag;
-  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
+  sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
   ssize_t r = pwrite(sbdi->fd, ptr, len, 0);
   // TODO r < len is really really bad => incompletely written header!
   SBDI_BL_ERR_IO_CHK(r, len);
