@@ -405,9 +405,21 @@ sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
   ssize_t r = pread(sbdi->fd, ptr, len, 0);
   SBDI_BL_ERR_IO_CHK(r, len);
+  return SBDI_SUCCESS;
+}
+
+sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, unsigned char *ptr, size_t len)
+{
+  SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
   sbdi_tag_t tag;
   sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
-  return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+  if (mt_al_get_size(sbdi->mt) == 0) {
+    // TODO If the next line fails this is also really really bad!
+    return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+  } else {
+    // TODO If the next line fails this is also really really bad!
+    return bl_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+  }
 }
 
 /*!
