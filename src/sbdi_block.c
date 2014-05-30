@@ -15,6 +15,15 @@
 #include <string.h>
 #include <stdarg.h>
 
+#define SBDI_BL_ERR_IO_CHK(r, l) do { \
+  if ((r) == -1) {                    \
+    return SBDI_ERR_IO;               \
+  } else if ((r) == 0) {              \
+    return SBDI_ERR_IO_MISSING_BLOCK; \
+  } else if ((r) < (l)) {             \
+    return SBDI_ERR_IO_MISSING_DATA;  \
+  }} while (0)
+
 typedef struct sbdi_block_pair {
   sbdi_block_t blk_dat;
   sbdi_block_t mng_dat;
@@ -181,17 +190,11 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   // Paranoia assertion
   assert(bl_is_valid_read_dest(sbdi, *blk->data, len));
   ssize_t r = pread(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
-  if (r == -1) {
-    return SBDI_ERR_IO;
+  if (r != -1) {
+    *read = r;
   }
-  *read = r;
-  if (r == 0) {
-    return SBDI_ERR_IO_MISSING_BLOCK;
-  } else if (r < len) {
-    return SBDI_ERR_IO_MISSING_DATA;
-  } else {
-    return SBDI_SUCCESS;
-  }
+  SBDI_BL_ERR_IO_CHK(r, len);
+  return SBDI_SUCCESS;
 }
 
 /*!
@@ -401,13 +404,7 @@ sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
 {
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
   ssize_t r = pread(sbdi->fd, ptr, len, 0);
-  if (r == -1) {
-    return SBDI_ERR_IO;
-  } else if (r == 0) {
-    return SBDI_ERR_IO_MISSING_BLOCK;
-  } else if (r < len) {
-    return SBDI_ERR_IO_MISSING_DATA;
-  }
+  SBDI_BL_ERR_IO_CHK(r, len);
   sbdi_tag_t tag;
   sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
   return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
@@ -448,15 +445,9 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   }
   assert(bl_is_valid_write_source(sbdi, *blk->data, SBDI_BLOCK_SIZE));
   ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
-  if (r == -1) {
-    return SBDI_ERR_IO;
-  } else if (r == 0) {
-    return SBDI_ERR_IO_MISSING_BLOCK;
-  } else if (r < len) {
-    return SBDI_ERR_IO_MISSING_DATA;
-  } else {
-    return SBDI_SUCCESS;
-  }
+  SBDI_BL_ERR_IO_CHK(r, len);
+  return SBDI_SUCCESS;
+
 }
 
 /*!
@@ -557,14 +548,8 @@ sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
   sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
   SBDI_CHK_PARAM(sbdi && ptr && len < SBDI_BLOCK_SIZE);
   ssize_t r = pwrite(sbdi->fd, ptr, len, 0);
-  if (r == -1) {
-    return SBDI_ERR_IO;
-  } else if (r == 0) {
-    return SBDI_ERR_IO_MISSING_BLOCK;
-  } else if (r < len) {
-    // TODO really really bad!
-    return SBDI_ERR_IO_MISSING_DATA;
-  }
+  // TODO r < len is really really bad => incompletely written header!
+  SBDI_BL_ERR_IO_CHK(r, len);
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
     return bl_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
