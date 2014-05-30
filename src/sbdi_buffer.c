@@ -15,7 +15,7 @@
  * @param buf[in] a pointer to the SBDI buffer to validate
  * @return true if the buffer is valid; false otherwise
  */
-static int sbdi_buffer_is_valid(sbdi_buffer_t *buf)
+static int sbdi_buffer_is_valid(const sbdi_buffer_t *buf)
 {
   return (buf && buf->buffer && buf->pos < buf->length);
 }
@@ -46,7 +46,7 @@ uint8_t *sbdi_buffer_get_cptr(const sbdi_buffer_t *buf) {
 void sbdi_buffer_add_pos(sbdi_buffer_t *buf, const uint32_t add) {
   assert(sbdi_buffer_is_valid(buf));
   // Overflow protection
-  assert(buf->pos <= (UINT32_MAX - add))
+  assert(buf->pos <= (UINT32_MAX - add));
   assert((buf->pos + add) < buf->length);
   buf->pos += add;
 }
@@ -102,7 +102,7 @@ void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
 {
   assert(sbdi_buffer_is_valid(buf));
   // Overflow protection
-  assert(buf->pos <= (UINT32_MAX - length))
+  assert(buf->pos <= (UINT32_MAX - length));
   assert(buf->pos <= buf->length - length);
   for (int i = 0; i < length; ++i) {
     sbdi_buffer_write_uint8_t(buf, src[i]);
