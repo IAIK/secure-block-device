@@ -5,7 +5,7 @@
  *      Author: dhein
  */
 
-#include "secblock.h"
+#include "SecureBlockDeviceInterface.h"
 
 int main() {
 	return 0;
