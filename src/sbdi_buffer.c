@@ -95,6 +95,12 @@ void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
 }
 
 //----------------------------------------------------------------------
+void sbdi_buffer_write_ctr_128b(sbdi_buffer_t *buf, const sbdi_ctr_128b_t *ctr) {
+  assert(sbdi_buffer_is_valid(buf));
+  sbdi_buffer_write_uint64_t(buf, ctr->hi);
+  sbdi_buffer_write_uint64_t(buf, ctr->lo);
+}
+
 uint8_t sbdi_buffer_read_uint8_t(sbdi_buffer_t *buf)
 {
   assert(sbdi_buffer_is_valid(buf));
@@ -157,4 +163,11 @@ void sbdi_buffer_read_bytes(sbdi_buffer_t *buf, uint8_t *dest,
   for (int i = 0; i < length; ++i) {
     dest[i] = sbdi_buffer_read_uint8_t(buf);
   }
+}
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_buffer_read_ctr_128b(sbdi_buffer_t *buf, sbdi_ctr_128b_t *ctr)
+{
+  assert(sbdi_buffer_is_valid(buf));
+  return sbdi_ctr_128b_init(ctr, sbdi_buffer_read_uint64_t(buf),
+      sbdi_buffer_read_uint64_t(buf));
 }
