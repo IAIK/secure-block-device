@@ -1,5 +1,5 @@
 /*
- * secblock.h
+ * SecureBlockDeviceInterface.h
  *
  *  Created on: May 12, 2014
  *      Author: dhein
@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-#ifndef SECBLOCK_H_
-#define SECBLOCK_H_
+#ifndef SECURE_BLOCK_DEVICE_INTERFACE_H_
+#define SECURE_BLOCK_DEVICE_INTERFACE_H_
 
 #include "sbdi_block.h"
 
@@ -30,7 +30,7 @@ ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset);
 ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset);
 void sbdi_close(sbdi_t *sbdi);
 
-#endif /* SECBLOCK_H_ */
+#endif /* SECURE_BLOCK_DEVICE_INTERFACE_H_ */
 
 #ifdef __cplusplus
 }
