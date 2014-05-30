@@ -45,6 +45,7 @@ private:
   unsigned char b[SBDI_BLOCK_SIZE];
   mt_hash_t root;
   int fd;
+  sbdi_pio_t *pio;
 
   void loadStore()
   {
@@ -52,14 +53,16 @@ private:
     CPPUNIT_ASSERT(fd != -1);
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
-    CPPUNIT_ASSERT(sbdi_open(&sbdi, sbdi_pio_create(&fd, s.st_size), SIV_KEYS, root) == SBDI_SUCCESS);
+    pio = sbdi_pio_create(&fd, s.st_size);
+    CPPUNIT_ASSERT(sbdi_open(&sbdi, pio, SIV_KEYS, root) == SBDI_SUCCESS);
   }
 
   void closeStore()
   {
     CPPUNIT_ASSERT(sbdi_close(sbdi, SIV_KEYS, root) == SBDI_SUCCESS);
-    int fd = *(int *)sbdi->pio->iod;
+    int fd = *(int *)pio->iod;
     CPPUNIT_ASSERT(close(fd) != -1);
+    sbdi_pio_delete(pio);
   }
 
   void deleteStore()
