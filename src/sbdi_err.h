@@ -13,16 +13,17 @@
  * interface operation fails.
  */
 typedef enum sbdi_error {
-  SBDI_SUCCESS           =    0, /*!< Operation terminated successfully */
-  SBDI_ERR_OUT_Of_MEMORY =   -1, /*!< There was not enough memory to complete the operation */
-  SBDI_ERR_ILLEGAL_PARAM =   -2, /*!< At least one of the specified parameters was illegal */
-  SBDI_ERR_ILLEGAL_STATE =   -3, /*!< The operation reached an illegal state */
-  SBDI_ERR_IO            =   -4, /*!< An I/O error occurred */
-  SBDI_ERR_MISSING_DATA  =   -5, /*!< File not found */
-  SBDI_ERR_UNSUPPORTED   =   -6, /*!< This operation or data format is not supported */
-  SBDI_ERR_TAG_MISMATCH  =   -7, /*!< Cryptographic tag validation failed */
-  SBDI_ERR_CRYPTO_FAIL   =   -8, /*!< The cryptographic layer fails to perform an operation such as an encryption */
-  SBDI_ERR_UNSPECIFIED   = -255  /*!< A general error occurred */
+  SBDI_SUCCESS              =    0, /*!< Operation terminated successfully */
+  SBDI_ERR_OUT_Of_MEMORY    =   -1, /*!< There was not enough memory to complete the operation */
+  SBDI_ERR_ILLEGAL_PARAM    =   -2, /*!< At least one of the specified parameters was illegal */
+  SBDI_ERR_ILLEGAL_STATE    =   -3, /*!< The operation reached an illegal state */
+  SBDI_ERR_IO               =   -4, /*!< An I/O error occurred */
+  SBDI_ERR_IO_MISSING_BLOCK =   -5, //!< Missing block
+  SBDI_ERR_IO_MISSING_DATA  =   -6, /*!< Incomplete block */
+  SBDI_ERR_UNSUPPORTED      =   -7, /*!< This operation or data format is not supported */
+  SBDI_ERR_TAG_MISMATCH     =   -8, /*!< Cryptographic tag validation failed */
+  SBDI_ERR_CRYPTO_FAIL      =   -9, /*!< The cryptographic layer fails to perform an operation such as an encryption */
+  SBDI_ERR_UNSPECIFIED      = -255  /*!< A general error occurred */
 } sbdi_error_t;
 
 /*!

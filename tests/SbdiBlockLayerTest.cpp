@@ -53,7 +53,9 @@ const char *err_to_string(sbdi_error_t r)
       return "illegal state";
     case SBDI_ERR_IO:
       return "IO error";
-    case SBDI_ERR_MISSING_DATA:
+    case SBDI_ERR_IO_MISSING_BLOCK:
+          return "missing block";
+    case SBDI_ERR_IO_MISSING_DATA:
       return "missing data";
     case SBDI_ERR_UNSUPPORTED:
       return "operation unsupported";

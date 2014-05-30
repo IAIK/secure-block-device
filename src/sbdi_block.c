@@ -185,10 +185,13 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     return SBDI_ERR_IO;
   }
   *read = r;
-  if (r < len) {
-    return SBDI_ERR_MISSING_DATA;
+  if (r == 0) {
+    return SBDI_ERR_IO_MISSING_BLOCK;
+  } else if (r < len) {
+    return SBDI_ERR_IO_MISSING_DATA;
+  } else {
+    return SBDI_SUCCESS;
   }
-  return SBDI_SUCCESS;
 }
 
 /*!
@@ -267,7 +270,7 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
   uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
   uint32_t read = 0;
   sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);
-  if (r == SBDI_ERR_MISSING_DATA && read == 0) {
+  if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {
     // The first management block does not yet exist ==> no tree building
     // necessary
     return SBDI_SUCCESS;
@@ -314,7 +317,7 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
   assert(blk->data);
   uint32_t read = 0;
   sbdi_error_t r = sbdi_bl_read_block(sbdi, blk, SBDI_BLOCK_SIZE, &read);
-  if (r == SBDI_ERR_MISSING_DATA && read == 0) {
+  if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {
     // Note: Block does not yet exist, create empty block.
     memset(*blk->data, 0, SBDI_BLOCK_SIZE);
     return SBDI_SUCCESS;
@@ -400,9 +403,10 @@ sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
   ssize_t r = pread(sbdi->fd, ptr, len, 0);
   if (r == -1) {
     return SBDI_ERR_IO;
-  }
-  if (r < len) {
-    return SBDI_ERR_MISSING_DATA;
+  } else if (r == 0) {
+    return SBDI_ERR_IO_MISSING_BLOCK;
+  } else if (r < len) {
+    return SBDI_ERR_IO_MISSING_DATA;
   }
   sbdi_tag_t tag;
   sbdi_bl_aes_cmac(sbdi->ctx, NULL, 0, ptr, len, tag);
@@ -446,10 +450,13 @@ sbdi_error_t sbdi_bl_write_block(const sbdi_t *sbdi, sbdi_block_t *blk,
   ssize_t r = pwrite(sbdi->fd, blk->data, len, blk->idx * SBDI_BLOCK_SIZE);
   if (r == -1) {
     return SBDI_ERR_IO;
+  } else if (r == 0) {
+    return SBDI_ERR_IO_MISSING_BLOCK;
   } else if (r < len) {
-    return SBDI_ERR_MISSING_DATA;
+    return SBDI_ERR_IO_MISSING_DATA;
+  } else {
+    return SBDI_SUCCESS;
   }
-  return SBDI_SUCCESS;
 }
 
 /*!
@@ -552,10 +559,11 @@ sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
   ssize_t r = pwrite(sbdi->fd, ptr, len, 0);
   if (r == -1) {
     return SBDI_ERR_IO;
-  }
-  if (r < len) {
+  } else if (r == 0) {
+    return SBDI_ERR_IO_MISSING_BLOCK;
+  } else if (r < len) {
     // TODO really really bad!
-    return SBDI_ERR_MISSING_DATA;
+    return SBDI_ERR_IO_MISSING_DATA;
   }
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
