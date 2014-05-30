@@ -2,7 +2,7 @@ Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 	
 DEPENDFILE = .depend
-LIB_SRC = secblock.c sbdi_block.c sbdi_ctr_128b.c sbdi_cache.c sbdi_buffer.c
+LIB_SRC = secblock.c sbdi_hdr.c sbdi_block.c sbdi_ctr_128b.c sbdi_cache.c sbdi_buffer.c
 PRG_SRC = sbdi_test.c
 SRC = $(LIB_SRC) $(PRG_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
