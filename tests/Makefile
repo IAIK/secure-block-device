@@ -5,7 +5,7 @@ VGPROF = valgrind --tool=callgrind --dump-instr=yes --cacheuse=yes
 LDFLAGS += -lcppunit -ggdb
 CFLAGS  += -Wall -ggdb -std=gnu++11
 CXXFLAGS += -Wall -ggdb -std=gnu++11
-CPPFLAGS += -std=gnu++11 -I../src/ -I..src/crypto/ -I../../merkle-tree/src
+CPPFLAGS += -std=gnu++11 -I../src/crypto/ -I../src/ -I../../merkle-tree/src
 
 TST_DEP_FILE = .depend
 TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cpp SbdiBlockLayerTest.cpp

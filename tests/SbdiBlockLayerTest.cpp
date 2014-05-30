@@ -93,7 +93,8 @@ private:
     CPPUNIT_ASSERT(fd != -1);
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
-    sbdi = sbdi_create(sbdi_pio_create(&fd), SIV_KEYS, SIV_KEY_LEN);
+    sbdi = sbdi_create(sbdi_pio_create(&fd));
+    CPPUNIT_ASSERT(siv_init((siv_ctx *)sbdi->ctx, SIV_KEYS, SIV_KEY_LEN) == 1);
     CPPUNIT_ASSERT(sbdi != NULL);
     CPPUNIT_ASSERT(
         sbdi_bl_verify_block_layer(sbdi, root, (s.st_size / SBDI_BLOCK_SIZE)) == SBDI_SUCCESS);

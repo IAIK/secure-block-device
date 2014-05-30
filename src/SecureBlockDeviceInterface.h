@@ -35,7 +35,7 @@ struct secure_block_device_interface {
   sbdi_pio_t *pio;
   void *ctx;
   void *mt;
-  sbdi_hdr_id_t *hdr;
+  sbdi_hdr_v1_t *hdr;
   sbdi_bc_t *cache;
   sbdi_bl_data_t write_store_dat[2];
   sbdi_block_t write_store[2];
@@ -43,10 +43,10 @@ struct secure_block_device_interface {
 };
 
 // TODO remove later
-sbdi_t *sbdi_create(sbdi_pio_t *pio, uint8_t *key, size_t key_len);
+sbdi_t *sbdi_create(sbdi_pio_t *pio);
 void sbdi_delete(sbdi_t *sbdi);
 
-sbdi_t *sbdi_open(sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey);
+sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey);
 ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset);
 ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset);
 void sbdi_close(sbdi_t *sbdi);

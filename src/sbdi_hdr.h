@@ -12,11 +12,11 @@ extern "C" {
 #ifndef SBDI_HDR_H_
 #define SBDI_HDR_H_
 
+#include "siv.h"
+
 #include "sbdi_config.h"
 #include "sbdi_ctr_128b.h"
 #include "sbdi_block.h"
-
-#include "siv.h"
 
 #include <stdint.h>
 
