@@ -48,6 +48,9 @@ sbdi_error_t sbdi_bl_get_mt_root(sbdi_t *sbdi);
 sbdi_error_t sbdi_bl_read_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
     size_t len);
 
+sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, unsigned char *ptr,
+    size_t len);
+
 #endif /* SBDI_BLOCK_H_ */
 
 #ifdef __cplusplus
