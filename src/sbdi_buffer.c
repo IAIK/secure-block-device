@@ -180,6 +180,7 @@ void sbdi_buffer_read_bytes(sbdi_buffer_t *buf, uint8_t *dest,
     dest[i] = sbdi_buffer_read_uint8_t(buf);
   }
 }
+
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_buffer_read_ctr_128b(sbdi_buffer_t *buf, sbdi_ctr_128b_t *ctr)
 {
