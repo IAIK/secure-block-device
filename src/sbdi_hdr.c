@@ -73,7 +73,7 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
   sbdi_buffer_t b;
   sbdi_buffer_init(&b, *sbdi->write_store[0].data, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_read_bytes(&b, h->id.magic, SBDI_HDR_MAGIC_LEN);
-  if (!memcmp(h->id.magic, SBDI_HDR_MAGIC, SBDI_HDR_MAGIC_LEN)) {
+  if (memcmp(h->id.magic, SBDI_HDR_MAGIC, SBDI_HDR_MAGIC_LEN)) {
     free(h);
     return SBDI_ERR_ILLEGAL_STATE;
   }
@@ -83,6 +83,7 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     return SBDI_ERR_UNSUPPORTED;
   }
 // TODO make sure all global counter values are packed in the same way!
+  // TODO global counter not updated?
   r = sbdi_buffer_read_ctr_128b(&b, &h->ctr);
   if (r != SBDI_SUCCESS) {
     free(h);
@@ -95,6 +96,13 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
   if (cr == -1) {
     free(h);
     return SBDI_ERR_TAG_MISMATCH;
+  }
+  // Header read init sbdi key context
+  cr = siv_init(sbdi->ctx, h->key, SIV_256);
+  if (cr == -1) {
+    // Cleanup of secret information must be handled by next layer up
+    free(h);
+    return SBDI_ERR_CRYPTO_FAIL;
   }
   r = sbdi_bl_verify_header(sbdi, rd_buf);
   if (r != SBDI_SUCCESS) {

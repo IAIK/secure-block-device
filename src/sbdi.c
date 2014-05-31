@@ -118,12 +118,6 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
   } else if (r != SBDI_SUCCESS) {
     goto FAIL;
   }
-  // Header read init sbdi key context
-  cr = siv_init(sbdi->ctx, sbdi->hdr->key, SIV_256);
-  if (cr == -1) {
-    r = SBDI_ERR_CRYPTO_FAIL;
-    goto FAIL;
-  }
   sbdi_bl_verify_block_layer(sbdi, root, pio->size_at_open / SBDI_BLOCK_SIZE);
   *s = sbdi;
   return SBDI_SUCCESS;
@@ -156,7 +150,6 @@ sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
     // TODO very bad, potentially inconsistent state!
     goto FAIL;
   }
-  // TODO convert error and return
   r = sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, root));
   if (r != SBDI_SUCCESS) {
     // this should not happen, because it should have failed earlier
