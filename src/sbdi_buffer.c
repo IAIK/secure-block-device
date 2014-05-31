@@ -32,7 +32,7 @@ void sbdi_buffer_init(sbdi_buffer_t *buf, uint8_t *buffer, const size_t length)
 //----------------------------------------------------------------------
 void sbdi_buffer_reset(sbdi_buffer_t *buf)
 {
-  assert(sbdi_buffer_is_valid(buf));
+  assert(buf && buf->buffer && buf->pos <= buf->length);
   buf->pos = 0;
 }
 

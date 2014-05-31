@@ -161,3 +161,53 @@ sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
   FAIL: memset(&mctx, 0, sizeof(siv_ctx));
   return r;
 }
+
+//----------------------------------------------------------------------
+ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset)
+{
+  assert(sbdi && buf);
+  if (nbyte == 0) {
+    return 0;
+  }
+  uint8_t *ptr = buf;
+  size_t rlen = nbyte;
+  // determine number of first block
+  // TODO make sure that no overflow happens here!
+  uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  while (rlen) {
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, ptr, idx,
+        ((rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen));
+    if (r != SBDI_SUCCESS) {
+      // TODO discuss with Johannes how to best indicate error
+      return nbyte - rlen;
+    }
+    rlen -= (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
+    ptr += rlen;
+  }
+  return nbyte;
+}
+
+//----------------------------------------------------------------------
+ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset)
+{
+  assert(sbdi && buf);
+  if (nbyte == 0) {
+    return 0;
+  }
+  uint8_t *ptr = buf;
+  size_t rlen = nbyte;
+  // determine number of first block
+  // TODO make sure that no overflow happens here!
+  uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  while (rlen) {
+    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, ptr, idx,
+        ((rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen));
+    if (r != SBDI_SUCCESS) {
+      // TODO discuss with Johannes how to best indicate error
+      return nbyte - rlen;
+    }
+    rlen -= (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
+    ptr += rlen;
+  }
+  return nbyte;
+}

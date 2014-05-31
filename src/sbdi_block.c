@@ -429,9 +429,9 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
     // TODO do I need a good Nonce?
     // TODO do I use the CMAC correctly?
     sbdi->write_store[0].idx = sbdi_blic_mng_blk_nbr_to_mng_phy(s);
-    vprf(sbdi->ctx, *sbdi->write_store[1].data, 1, &sbdi->g_ctr,
-        sizeof(sbdi_ctr_128b_t));
-    sbdi_ctr_128b_inc(&sbdi->g_ctr);
+    vprf(sbdi->ctx, *sbdi->write_store[1].data, 1, sbdi_hdr_v1_pack_ctr(sbdi),
+    SBDI_CTR_128B_SIZE);
+    sbdi_ctr_128b_inc(&sbdi->hdr->ctr);
     SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, &sbdi->write_store[0], mng_tag));
     SBDI_ERR_CHK(
         sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, mng_tag, sizeof(sbdi_tag_t))));
@@ -510,8 +510,8 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   memset(data_tag, 0, sizeof(sbdi_tag_t));
   sbdi->write_store[0].idx = blk->idx;
   siv_encrypt(sbdi->ctx, *blk->data, *sbdi->write_store[0].data,
-  SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), &sbdi->g_ctr,
-      sizeof(sbdi_ctr_128b_t));
+  SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t),
+      sbdi_hdr_v1_pack_ctr(sbdi), SBDI_CTR_128B_SIZE);
   // Update tag and counter in management block
   mng.idx = sbdi_blic_phy_dat_to_phy_mng_blk(blk->idx);
   sbdi->write_store[1].idx = mng.idx;
@@ -524,8 +524,9 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   uint32_t tag_idx = sbdi_blic_phy_dat_to_log(
       blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
   memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
-  memcpy(bl_get_ctr_address(&mng, tag_idx), &sbdi->g_ctr, SBDI_BLOCK_CTR_SIZE);
-  sbdi_ctr_128b_inc(&sbdi->g_ctr);
+  memcpy(bl_get_ctr_address(&mng, tag_idx), sbdi_hdr_v1_pack_ctr(sbdi),
+      SBDI_BLOCK_CTR_SIZE);
+  sbdi_ctr_128b_inc(&sbdi->hdr->ctr);
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
   // Management block updated now encrypt it

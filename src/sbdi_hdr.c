@@ -38,9 +38,10 @@ sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
     return r;
   }
   // Tag will be created once the header is written
-  memset(h->tag, 0, sizeof(sbdi_tag_t));
   // Copy previously created key into header
   memcpy(h->key, key, sizeof(sbdi_hdr_v1_sym_key_t));
+  // counter scratch area init.
+  sbdi_buffer_init(&h->ctr_buf, h->ctr_pkd, SBDI_CTR_128B_SIZE);
   *hdr = h;
   return SBDI_SUCCESS;
 }
@@ -109,6 +110,8 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     free(h);
     return r;
   }
+  // counter scratch area init.
+  sbdi_buffer_init(&h->ctr_buf, h->ctr_pkd, SBDI_CTR_128B_SIZE);
   sbdi->hdr = h;
   return SBDI_SUCCESS;
 }
@@ -125,6 +128,8 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_write_bytes(&b, hdr->id.magic, SBDI_HDR_MAGIC_LEN);
   sbdi_buffer_write_uint32_t(&b, hdr->id.version);
+  // TODO very strange buffer behavior the byte order is very much different
+  // in the header than in the rest of the file ===> find out why!
   sbdi_buffer_write_ctr_128b(&b, &hdr->ctr);
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_SIZE);
@@ -133,3 +138,9 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   return sbdi_bl_write_hdr_block(sbdi, sbdi->write_store);
 }
 
+uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi)
+{
+  sbdi_buffer_reset(&sbdi->hdr->ctr_buf);
+  sbdi_buffer_write_ctr_128b(&sbdi->hdr->ctr_buf, &sbdi->hdr->ctr);
+  return sbdi->hdr->ctr_pkd;
+}

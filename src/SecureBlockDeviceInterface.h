@@ -66,7 +66,6 @@ struct secure_block_device_interface {
   sbdi_bc_t *cache;
   sbdi_bl_data_t write_store_dat[2];
   sbdi_block_t write_store[2];
-  sbdi_ctr_128b_t g_ctr;
 };
 
 // TODO remove later

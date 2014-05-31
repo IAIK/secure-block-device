@@ -15,6 +15,7 @@ extern "C" {
 #include "siv.h"
 
 #include "sbdi_config.h"
+#include "sbdi_buffer.h"
 #include "sbdi_ctr_128b.h"
 #include "sbdi_block.h"
 
@@ -53,6 +54,9 @@ typedef struct secure_block_device_interface_header_v1 {
   sbdi_ctr_128b_t ctr; //!< access counter protecting the header against replay attacks
   sbdi_hdr_v1_sym_key_t key; //!< the plaintext secure block device key
   sbdi_tag_t tag; //!< the tag protecting the integrity of the key
+  // TODO rewrite counter that it has a well defined, platform independent internal rep.
+  uint8_t ctr_pkd[SBDI_CTR_128B_SIZE]; //!< scratch area to pack the counter for canonical writing
+  sbdi_buffer_t ctr_buf; //!< buffer to quickly convert counter into canonical representation
 } sbdi_hdr_v1_t;
 
 
@@ -131,6 +135,18 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master);
  *         SBDI_ERR_TAG_MISMATCH if the key in the header has been modified.
  */
 sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master);
+
+/*!
+ * \brief Converts the current global counter value into a canonical
+ * representation for use in the block layer
+ *
+ * This is a very ugly hack! I need to get rid of this ASAP.
+ *
+ * @param @param sbdi[in] a pointer to the secure block device interface to
+ * pack the header of
+ * @return a pointer to the packed header area
+ */
+uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi);
 
 #endif /* SBDI_HDR_H_ */
 

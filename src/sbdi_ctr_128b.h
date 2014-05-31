@@ -15,6 +15,8 @@ extern "C" {
 #include "sbdi_err.h"
 #include <stdint.h>
 
+#define SBDI_CTR_128B_SIZE 16
+
 typedef struct sbdi_counter_128bit {
   uint64_t hi;
   uint64_t lo;
