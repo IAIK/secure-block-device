@@ -194,7 +194,7 @@ ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset)
   if (nbyte == 0) {
     return 0;
   }
-  uint8_t *ptr = buf;
+  uint8_t *ptr = (uint8_t *)buf;
   size_t rlen = nbyte;
   // determine number of first block
   // TODO make sure that no overflow happens here!

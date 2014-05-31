@@ -235,8 +235,7 @@ public:
     std::cout << std::endl;
     sbdi_bc_print_stats(sbdi->cache);
     closeStore();
-    //deleteStore();
-    assert(0);
+    deleteStore();
   }
 
 };
