@@ -136,6 +136,9 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
   unsigned char *C = tag;
 
   assert(sizeof(sbdi_ctr_128b_t) == AES_BLOCK_SIZE);
+  // I adapted the aes_cmac to add the block counter first. For this to work
+  // I needed to pad the block index counter to a 16 byte block. Using the
+  // 128 bit counter was the easiest way I could think of.
   sbdi_ctr_128b_init(&ctr, 0, blk->idx);
 
   sbdi_bl_aes_cmac(ctx, (unsigned char *) &ctr, sizeof(sbdi_ctr_128b_t), msg,
@@ -276,7 +279,7 @@ static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng)
   }
   bl_aes_cmac(sbdi, mng, tag);
   r = sbdi_mt_sbdi_err_conv(
-      mt_verify(sbdi->mt, tag, sizeof(sbdi_tag_t), mng_blk_nbr));
+      mt_verify(sbdi->mt, tag, sizeof(sbdi_tag_t), (mng_blk_nbr + 1)));
   if (r == SBDI_ERR_TAG_MISMATCH) {
     sbdi_bc_evict_blk(sbdi->cache, mng->idx);
   }
@@ -331,7 +334,8 @@ sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, sbdi_block_t *hdr)
     return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
     // TODO If the next line fails this is also really really bad!
-    return sbdi_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+    return sbdi_mt_sbdi_err_conv(
+        mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
 }
 
@@ -418,6 +422,8 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
   uint32_t mng_blk_nbr = sbdi_blic_log_to_mng_blk_nbr(log) + 1;
   uint32_t s = mt_get_size(sbdi->mt);
+  assert(s > 0); // There must always be the header block present!
+  s -= 1; // Deduct header block
   while (s < mng_blk_nbr) {
     // TODO can I use the same key for generating the random mngt blocks?
     // TODO do I need a good Nonce?
@@ -442,7 +448,7 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
       || !sbdi_block_is_valid_log(idx) || len == 0|| len > SBDI_BLOCK_SIZE) {
     return SBDI_ERR_ILLEGAL_PARAM;
   }
-  bl_ensure_mngt_blocks_exist(sbdi, idx);
+  SBDI_ERR_CHK(bl_ensure_mngt_blocks_exist(sbdi, idx));
   // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
@@ -470,16 +476,18 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, sbdi_block_t *hdr)
 {
   sbdi_tag_t tag;
+  // TODO memset tag!
   SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
   bl_aes_cmac(sbdi, hdr, tag);
-  sbdi_bl_write_block(sbdi, hdr, SBDI_BLOCK_SIZE);
+  SBDI_ERR_CHK(sbdi_bl_write_block(sbdi, hdr, SBDI_BLOCK_SIZE));
   // TODO r < BLOCK_SIZE is really really bad => incompletely written header!
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
     // TODO If the next line fails this is also really really bad!
-    return sbdi_mt_sbdi_err_conv(mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
+    return sbdi_mt_sbdi_err_conv(
+        mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
 }
 
@@ -488,9 +496,11 @@ static sbdi_error_t bl_encrypt_write_update_mngt(sbdi_t *sbdi,
 {
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
+  // TODO I need a test vector that actually triggers this path
   SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, mng, mng_tag));
   return sbdi_mt_sbdi_err_conv(
-      mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t), mng->idx));
+      mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t),
+          (sbdi_blic_phy_mng_to_mng_blk_nbr(mng->idx) + 1)));
 }
 
 static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
@@ -535,7 +545,7 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   }
   // Management Index for Merkle tree needs to be logical index
   r = mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t),
-      sbdi_blic_phy_mng_to_mng_blk_nbr(mng.idx));
+      (sbdi_blic_phy_mng_to_mng_blk_nbr(mng.idx) + 1));
   if (r != SBDI_SUCCESS) {
     // TODO additional error handling required!
     return r;

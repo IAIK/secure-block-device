@@ -111,6 +111,7 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   SBDI_CHK_PARAM(sbdi);
   sbdi_hdr_v1_t *hdr = sbdi->hdr;
   uint8_t *wrt_buf = *sbdi->write_store[0].data;
+  memset(wrt_buf, 0, SBDI_BLOCK_SIZE);
   sbdi_buffer_t b;
   sbdi->write_store[0].idx = 0;
   sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);

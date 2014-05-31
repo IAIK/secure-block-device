@@ -76,6 +76,7 @@ void sbdi_delete(sbdi_t *sbdi)
 sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
     mt_hash_t root)
 {
+  // TODO what about root? Can be null, but only ...
   SBDI_CHK_PARAM(s && pio && mkey);
   // variables that need explicit cleaning
   siv_ctx mctx;
@@ -162,6 +163,7 @@ sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
     goto FAIL;
   }
   sbdi_delete(sbdi);
+  return SBDI_SUCCESS;
 
   FAIL: memset(&mctx, 0, sizeof(siv_ctx));
   return r;
