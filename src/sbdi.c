@@ -27,17 +27,15 @@ static inline void sbdi_init(sbdi_t *sbdi, sbdi_pio_t *pio, siv_ctx *ctx,
 //----------------------------------------------------------------------
 sbdi_t *sbdi_create(sbdi_pio_t *pio)
 {
-  sbdi_t *sbdi = malloc(sizeof(sbdi_t));
+  sbdi_t *sbdi = calloc(1, sizeof(sbdi_t));
   if (!sbdi) {
     return NULL;
   }
-  memset(sbdi, 0, sizeof(sbdi_t));
-  siv_ctx *ctx = malloc(sizeof(siv_ctx));
+  siv_ctx *ctx = calloc(1, sizeof(siv_ctx));
   if (!ctx) {
     free(sbdi);
     return NULL;
   }
-  memset(ctx, 0, sizeof(siv_ctx));
   mt_t *mt = mt_create();
   if (!mt) {
     free(ctx);
@@ -162,27 +160,112 @@ sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
   return r;
 }
 
+#define SBDI_MIN(A, B) ((A) > (B))?(B):(A)
+
+/*!
+ * \brief computes the minimum of the two given off_t values
+ *
+ * @param a the first input off_t value
+ * @param b the second input off_t value
+ * @return the minimum of a and b
+ */
+static inline off_t off_min(off_t a, off_t b)
+{
+  return SBDI_MIN(a, b);
+}
+
+/*!
+ * \brief computes the minimum of the two given size_t values
+ *
+ * @param a the first input size_t value
+ * @param b the second input size_t value
+ * @return the minimum of a and b
+ */
+static inline size_t size_min(size_t a, size_t b)
+{
+  return SBDI_MIN(a, b);
+}
+
+/*!
+ * \brief Checks if an addition of the two off_t parameters is overflow safe
+ *
+ * @param a the first off_t parameter to check
+ * @param b the second off_t parameter to check
+ * @return true if the addition is safe; false otherwise
+ */
+static inline int os_add_off(off_t a, off_t b)
+{
+  // TODO this is actually a signed type. Fix!
+  // TODO Also size_t+off_t additions ==> Look up type promotion rules and
+  // fix check accordingly
+  return (a + b) >= off_min(a, b);
+}
+
+/*!
+ * \brief Checks if an addition of the two size_t parameters is overflow safe
+ *
+ * @param a the first size_t parameter to check
+ * @param b the second size_t parameter to check
+ * @return true if the addition is safe; false otherwise
+ */
+static inline int os_add_size(size_t a, size_t b)
+{
+  return (a + b) >= size_min(a, b);
+}
+
+/*!
+ * \brief Checks if an addition of the two uint32_t parameters is overflow
+ * safe
+ *
+ * @param a the first uint32_t parameter to check
+ * @param b the second uint32_t parameter to check
+ * @return true if the addition is safe; false otherwise
+ */
+static inline int os_add_uint32(uint32_t a, uint32_t b)
+{
+  return (a + b) >= SBDI_MIN(a, b);
+}
+
 //----------------------------------------------------------------------
 ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset)
 {
+  // TODO for now I use assertions, for later I should think of how to better
+  // communicate errors
   assert(sbdi && buf);
   if (nbyte == 0) {
     return 0;
   }
   uint8_t *ptr = buf;
   size_t rlen = nbyte;
+  size_t sbdi_size = sbdi_hdr_v1_get_size(sbdi);
+
+  // Check if this will read beyond the secure block device
+  if (offset >= sbdi_size) {
+    return 0;
+  }
+  assert(os_add_size(offset, nbyte));
+  if (offset + nbyte >= sbdi_size) {
+    // Reduce the amount of bytes read to the amount that is currently there
+    // In in multi-threading environment this will lead to race conditions if
+    // sbdi_pread, sbdi_read, sbdi_pwrite, sbdi_write are not properly
+    // synchronized! TODO (ensure this!)
+    rlen -= ((offset + nbyte) - sbdi_size);
+  }
   // determine number of first block
-  // TODO make sure that no overflow happens here!
   uint32_t idx = offset / SBDI_BLOCK_SIZE;
   while (rlen) {
-    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, ptr, idx,
-        ((rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen));
+    size_t to_read = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
+    size_t read = nbyte - rlen;
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, ptr, idx, to_read);
     if (r != SBDI_SUCCESS) {
       // TODO discuss with Johannes how to best indicate error
-      return nbyte - rlen;
+      return read;
     }
-    rlen -= (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
+    // TODO Do I need to update file offset after each partial read?
+    rlen -= to_read;
     ptr += rlen;
+    assert(os_add_uint32(idx, 1));
+    idx += 1;
   }
   return nbyte;
 }
@@ -194,7 +277,7 @@ ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset)
   if (nbyte == 0) {
     return 0;
   }
-  uint8_t *ptr = (uint8_t *)buf;
+  uint8_t *ptr = (uint8_t *) buf;
   size_t rlen = nbyte;
   // determine number of first block
   // TODO make sure that no overflow happens here!
@@ -208,6 +291,38 @@ ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset)
     }
     rlen -= (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
     ptr += rlen;
+    assert(os_add_uint32(idx, 1));
+    idx += 1;
   }
   return nbyte;
+}
+
+off_t sbdi_lseek(sbdi_t *sbdi, off_t offset, sbdi_whence_t whence)
+{
+  assert(sbdi);
+  size_t sbdi_size = sbdi_hdr_v1_get_size(sbdi);
+  switch (whence) {
+  case SBDI_SEEK_SET:
+    sbdi->offset = offset;
+    return sbdi->offset;
+  case SBDI_SEEK_CUR:
+    // TODO write test case to test overflow protection
+    // TODO off_t is signed! Update overflow checks accordingly
+    assert(os_add_off(sbdi->offset, offset));
+    sbdi->offset += offset;
+    return sbdi->offset;
+  case SBDI_SEEK_END:
+    // TODO fix overflow check (signed/unsigned addition)
+    assert(os_add_off(sbdi_size, offset));
+    sbdi->offset = sbdi_size + offset;
+    return sbdi->offset;
+  default:
+    return -1;
+  }
+}
+
+ssize_t read(sbdi_t *sbdi, void *buf, size_t nbytes)
+{
+  // TODO implement
+  return 0;
 }

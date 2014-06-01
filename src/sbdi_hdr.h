@@ -52,6 +52,7 @@ typedef struct secure_block_device_interface_header_id {
 typedef struct secure_block_device_interface_header_v1 {
   sbdi_hdr_id_t id; //!< the secure block device interface identification information
   sbdi_ctr_128b_t ctr; //!< access counter protecting the header against replay attacks
+  uint64_t size; //!< the current size of the secure block device in bytes
   sbdi_hdr_v1_sym_key_t key; //!< the plaintext secure block device key
   sbdi_tag_t tag; //!< the tag protecting the integrity of the key
   // TODO rewrite counter that it has a well defined, platform independent internal rep.
@@ -147,6 +148,49 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master);
  * @return a pointer to the packed header area
  */
 uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi);
+
+/*!
+ * \brief Updates the current size of the secure block device in the header
+ *
+ * TODO For now I track the size of the file in the header. This, as well as
+ * tracking the global counter in the header is susceptible to attacks, as an
+ * attacker can prevent updating the header. Both the global counter, as well
+ * as the actual size of secure block device can be recovered from the secure
+ * block device, if only a suitable mechanism of detecting an out of date
+ * header is in place.
+ * One such mechanism might be as setting the header to corrupt as soon as
+ * the secure block device is opened and updating this state in the Merkle
+ * tree. On close, when the header is written, the flag is cleared and the
+ * Merkle tree updated appropriately. This way a corrupt header should be
+ * detected. The global counter value can then be determined by reading all
+ * management blocks and taking the max global counter found + 1. Determining
+ * the logical file size requires the use of an appropriate padding
+ * mechanism. This has yet to be added.
+ *
+ * The logical size of the file is stored as an unsigned 64 bit data type.
+ * This might not match the platform specific size_t type. The caller has to
+ * make sure to take care of this fact.
+ *
+ * @param sbdi[in] a pointer to the secure block device interface to update
+ * the size of
+ * @param size the new size of the secure block device
+ */
+void sbdi_hdr_v1_update_size(sbdi_t *sbdi, const size_t size);
+
+/*!
+ * \brief Retrieves the current logical file size from the header
+ *
+ * TODO: This is currently unsafe (see update_size). Fix.
+ *
+ * The logical size of the file is stored as an unsigned 64 bit data type.
+ * This might not match the platform specific size_t type. The caller has to
+ * make sure to take care of this fact.
+ *
+ * @param sbdi[in] a pointer to the secure block device interface to get the
+ * logical secure block device size from
+ * @return the secure block device size
+ */
+uint64_t sbdi_hdr_v1_get_size(sbdi_t *sbdi);
 
 #endif /* SBDI_HDR_H_ */
 

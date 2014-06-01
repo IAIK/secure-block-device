@@ -58,6 +58,16 @@ static const sbdi_sym_mst_key_t sbdi_siv_master_key = {
     0x29, 0x87, 0x6e, 0x34, 0x4c, 0x0b, 0x9b, 0x5a
 };
 
+/*!
+ * \brief enumeration type for defining the values of
+ * TODO: Do I need this?
+ */
+typedef enum sbdi_whence {
+  SBDI_SEEK_SET = 1,//!< SBDI_SEEK_SET
+  SBDI_SEEK_CUR = 2,//!< SBDI_SEEK_CUR
+  SBDI_SEEK_END = 3 //!< SBDI_SEEK_END
+} sbdi_whence_t;
+
 struct secure_block_device_interface {
   sbdi_pio_t *pio;
   void *ctx;
@@ -66,6 +76,7 @@ struct secure_block_device_interface {
   sbdi_bc_t *cache;
   sbdi_bl_data_t write_store_dat[2];
   sbdi_block_t write_store[2];
+  off_t offset;
 };
 
 // TODO remove later
@@ -74,9 +85,14 @@ void sbdi_delete(sbdi_t *sbdi);
 
 sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
     mt_hash_t root);
+sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
+
 ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset);
 ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset);
-sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
+
+off_t sbdi_lseek(sbdi_t *sbdi, off_t offset, sbdi_whence_t whence);
+
+
 
 #endif /* SECURE_BLOCK_DEVICE_INTERFACE_H_ */
 

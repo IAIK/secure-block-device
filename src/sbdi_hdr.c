@@ -138,9 +138,20 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   return sbdi_bl_write_hdr_block(sbdi, sbdi->write_store);
 }
 
+//----------------------------------------------------------------------
 uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi)
 {
   sbdi_buffer_reset(&sbdi->hdr->ctr_buf);
   sbdi_buffer_write_ctr_128b(&sbdi->hdr->ctr_buf, &sbdi->hdr->ctr);
   return sbdi->hdr->ctr_pkd;
+}
+
+//----------------------------------------------------------------------
+void sbdi_hdr_v1_update_size(sbdi_t *sbdi, const size_t size) {
+  sbdi->hdr->size = size;
+}
+
+//----------------------------------------------------------------------
+uint64_t sbdi_hdr_v1_get_size(sbdi_t *sbdi) {
+  return (size_t)sbdi->hdr->size;
 }
