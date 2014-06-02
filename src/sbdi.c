@@ -163,18 +163,6 @@ sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
 #define SBDI_MIN(A, B) ((A) > (B))?(B):(A)
 
 /*!
- * \brief computes the minimum of the two given off_t values
- *
- * @param a the first input off_t value
- * @param b the second input off_t value
- * @return the minimum of a and b
- */
-static inline off_t off_min(off_t a, off_t b)
-{
-  return SBDI_MIN(a, b);
-}
-
-/*!
  * \brief computes the minimum of the two given size_t values
  *
  * @param a the first input size_t value
@@ -187,28 +175,13 @@ static inline size_t size_min(size_t a, size_t b)
 }
 
 /*!
- * \brief Checks if an addition of the two off_t parameters is overflow safe
- *
- * @param a the first off_t parameter to check
- * @param b the second off_t parameter to check
- * @return true if the addition is safe; false otherwise
- */
-static inline int os_add_off(off_t a, off_t b)
-{
-  // TODO this is actually a signed type. Fix!
-  // TODO Also size_t+off_t additions ==> Look up type promotion rules and
-  // fix check accordingly
-  return (a + b) >= off_min(a, b);
-}
-
-/*!
  * \brief Checks if an addition of the two size_t parameters is overflow safe
  *
- * @param a the first size_t parameter to check
- * @param b the second size_t parameter to check
- * @return true if the addition is safe; false otherwise
+ * @param a[in] the first size_t parameter to check
+ * @param b[in] the second size_t parameter to check
+ * @return true if the addition is overflow safe; false otherwise
  */
-static inline int os_add_size(size_t a, size_t b)
+static inline int os_add_size(const size_t a, const size_t b)
 {
   return (a + b) >= size_min(a, b);
 }
@@ -217,112 +190,203 @@ static inline int os_add_size(size_t a, size_t b)
  * \brief Checks if an addition of the two uint32_t parameters is overflow
  * safe
  *
- * @param a the first uint32_t parameter to check
- * @param b the second uint32_t parameter to check
- * @return true if the addition is safe; false otherwise
+ * @param a[in] the first uint32_t parameter to check
+ * @param b[in] the second uint32_t parameter to check
+ * @return true if the addition is overflow safe; false otherwise
  */
-static inline int os_add_uint32(uint32_t a, uint32_t b)
+static inline int os_add_uint32(const uint32_t a, const uint32_t b)
 {
   return (a + b) >= SBDI_MIN(a, b);
 }
 
-//----------------------------------------------------------------------
-ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset)
+/*
+ * The following macros are taken from:
+ * Catching Integer Overflows in C
+ * http://www.fefe.de/intof.html
+ */
+#define __HALF_MAX_SIGNED(type) ((type)1 << (sizeof(type)*8-2))
+#define __MAX_SIGNED(type) (__HALF_MAX_SIGNED(type) - 1 + __HALF_MAX_SIGNED(type))
+#define __MIN_SIGNED(type) (-1 - __MAX_SIGNED(type))
+
+#define __MIN(type) ((type)-1 < 1?__MIN_SIGNED(type):(type)0)
+#define __MAX(type) ((type)~__MIN(type))
+
+/*!
+ * \brief Tests if the given off_t can be safely added to the given size_t
+ *
+ * This function checks if it is safe to add the given off_t b to the given
+ * size_t a. Safe here means that the addition will not lead to an integer
+ * overflow. If b is positive normal unsigned integer overflow checks apply.
+ * If b is negative the function ensures the a + (-b) >= 0. Finally, this
+ * function also checks if the result of the addition fits into an off_t
+ * type.
+ *
+ * @param a[in] the size_t value to add to b
+ * @param b[in] the off_t value to add to a
+ * @return SBDI_SUCCESS if the two values can be added safely;
+ *         SBDI_ERR_ILLEGAL_PARAM otherwise
+ */
+static inline sbdi_error_t os_add_off_size(const size_t a, const off_t b)
 {
-  // TODO for now I use assertions, for later I should think of how to better
-  // communicate errors
-  assert(sbdi && buf);
+  // TODO put this assertions and other of its kind into an initializer
+  assert(sizeof(size_t) == sizeof(off_t));
+  if (b < 0) {
+    // Integer overflow possible
+    size_t min_abs;
+    // (l)(l)abs(__MIN(off_t) is potentially not defined take care of this
+    if (b == __MIN(off_t)) {
+      min_abs = ((size_t) __MAX(off_t)) + 1;
+    } else {
+      min_abs = (-1 * b);
+    }
+    SBDI_CHK_PARAM(min_abs > a);
+  } else {
+    // Both are positive ==> treat as unsigned integer overflow problem
+    SBDI_CHK_PARAM(os_add_size(a, (size_t )b));
+  }
+  // Finally this checks if the result of the addition fits into an offset
+  // type. TODO: this should map to an EOVERFLOW error instead of EINVAL -
+  // use a different error code?
+  SBDI_CHK_PARAM(a + b <= __MAX(off_t));
+  return SBDI_SUCCESS;
+}
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
+    off_t offset)
+{
+  SBDI_CHK_PARAM(rd && sbdi && buf);
+  // Make sure offset is non-negative and less than or equal to the max sbd size
+  SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
+  // TODO: Put this and others of its kind into an initializer
+  assert(sizeof(size_t) == sizeof(off_t));
+//  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);
+  // nbyte > ssize_t ==> impl. defined
+  SBDI_CHK_PARAM(nbyte <= __MAX(off_t));
   if (nbyte == 0) {
-    return 0;
+    *rd = 0;
+    return SBDI_SUCCESS;
   }
   uint8_t *ptr = buf;
   size_t rlen = nbyte;
   size_t sbdi_size = sbdi_hdr_v1_get_size(sbdi);
-
-  // Check if this will read beyond the secure block device
+  // Check if this will start reading beyond the secure block device
   if (offset >= sbdi_size) {
-    return 0;
+    *rd = 0;
+    return SBDI_SUCCESS;
   }
-  assert(os_add_size(offset, nbyte));
-  if (offset + nbyte >= sbdi_size) {
+  // We already asserted that the offset is positive ==> check if it will
+  // overflow on addition using unsigned integer overflow check!
+  SBDI_CHK_PARAM(os_add_size((size_t )offset, nbyte));
+  if (offset + nbyte > sbdi_size) {
     // Reduce the amount of bytes read to the amount that is currently there
     // In in multi-threading environment this will lead to race conditions if
     // sbdi_pread, sbdi_read, sbdi_pwrite, sbdi_write are not properly
     // synchronized! TODO (ensure this!)
     rlen -= ((offset + nbyte) - sbdi_size);
   }
+  // TODO handle case where read would be beyond max SBD size
+  // This is indirectly already handled
   // determine number of first block
   uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  *rd = 0;
   while (rlen) {
     size_t to_read = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
-    size_t read = nbyte - rlen;
-    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, ptr, idx, to_read);
-    if (r != SBDI_SUCCESS) {
-      // TODO discuss with Johannes how to best indicate error
-      return read;
-    }
-    // TODO Do I need to update file offset after each partial read?
+    SBDI_ERR_CHK(sbdi_bl_read_data_block(sbdi, ptr, idx, to_read));
+    *rd += to_read;
     rlen -= to_read;
-    ptr += rlen;
+    ptr += to_read;
     assert(os_add_uint32(idx, 1));
     idx += 1;
   }
-  return nbyte;
+  return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------
-ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset)
+sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
+    size_t nbyte, off_t offset)
 {
-  assert(sbdi && buf);
+  SBDI_CHK_PARAM(wr && sbdi && buf);
+  // Make sure offset is non-negative and less than or equal to the max SBD size
+  SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
+  // TODO: Put this and others of its kind into an initializer
+  assert(sizeof(size_t) == sizeof(off_t));
+//  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);
+  // nbyte > ssize_t ==> impl. defined ==> fail
+  SBDI_CHK_PARAM(nbyte <= __MAX(off_t));
   if (nbyte == 0) {
-    return 0;
+    *wr = 0;
+    return SBDI_SUCCESS;
   }
   uint8_t *ptr = (uint8_t *) buf;
   size_t rlen = nbyte;
+  SBDI_CHK_PARAM(os_add_size((size_t )offset, nbyte));
+  if ((offset + nbyte) > SBDI_SIZE_MAX) {
+    // Function ensures offset less than SBDI_SIZE_MAX
+    rlen = SBDI_SIZE_MAX - offset;
+  }
   // determine number of first block
-  // TODO make sure that no overflow happens here!
   uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  *wr = 0;
   while (rlen) {
-    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, ptr, idx,
-        ((rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen));
-    if (r != SBDI_SUCCESS) {
-      // TODO discuss with Johannes how to best indicate error
-      return nbyte - rlen;
-    }
-    rlen -= (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
-    ptr += rlen;
+    size_t to_write = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
+    SBDI_ERR_CHK(sbdi_bl_write_data_block(sbdi, ptr, idx, to_write));
+    *wr += to_write;
+    rlen -= to_write;
+    ptr += to_write;
     assert(os_add_uint32(idx, 1));
     idx += 1;
   }
-  return nbyte;
+  return SBDI_SUCCESS;
 }
 
-off_t sbdi_lseek(sbdi_t *sbdi, off_t offset, sbdi_whence_t whence)
+sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
+    sbdi_whence_t whence)
 {
-  assert(sbdi);
+  SBDI_CHK_PARAM(new_off && sbdi && offset < SBDI_SIZE_MAX);
   size_t sbdi_size = sbdi_hdr_v1_get_size(sbdi);
   switch (whence) {
   case SBDI_SEEK_SET:
+    // Disallow setting the offset to a negative number
+    SBDI_CHK_PARAM(offset >= 0);
     sbdi->offset = offset;
-    return sbdi->offset;
+    *new_off = sbdi->offset;
+    return SBDI_SUCCESS;
   case SBDI_SEEK_CUR:
     // TODO write test case to test overflow protection
-    // TODO off_t is signed! Update overflow checks accordingly
-    assert(os_add_off(sbdi->offset, offset));
+    SBDI_ERR_CHK(os_add_off_size(sbdi->offset, offset));
     sbdi->offset += offset;
-    return sbdi->offset;
+    *new_off = sbdi->offset;
+    return SBDI_SUCCESS;
   case SBDI_SEEK_END:
-    // TODO fix overflow check (signed/unsigned addition)
-    assert(os_add_off(sbdi_size, offset));
+    // TODO write test case to test overflow protection
+    SBDI_ERR_CHK(os_add_off_size(sbdi_size, offset));
     sbdi->offset = sbdi_size + offset;
-    return sbdi->offset;
+    *new_off = sbdi->offset;
+    return SBDI_SUCCESS;
   default:
-    return -1;
+    return SBDI_ERR_ILLEGAL_PARAM;
   }
 }
 
-ssize_t read(sbdi_t *sbdi, void *buf, size_t nbytes)
+sbdi_error_t sbdi_read(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte)
 {
-  // TODO implement
-  return 0;
+  sbdi_error_t r = sbdi_pread(rd, sbdi, buf, nbyte, sbdi->offset);
+  if (r != SBDI_SUCCESS && *rd == 0) {
+    return r;
+  }
+  SBDI_ERR_CHK(os_add_off_size(sbdi->offset, *rd));
+  sbdi->offset += *rd;
+  return r;
+}
+
+sbdi_error_t sbdi_write(ssize_t *wr, sbdi_t *sbdi, const void *buf,
+    size_t nbyte) {
+  sbdi_error_t r = sbdi_pwrite(wr, sbdi, buf, nbyte, sbdi->offset);
+  if (r != SBDI_SUCCESS && *wr == 0) {
+    return r;
+  }
+  SBDI_ERR_CHK(os_add_off_size(sbdi->offset, *wr));
+  sbdi->offset += *wr;
+  return r;
 }

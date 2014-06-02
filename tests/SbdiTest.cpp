@@ -32,17 +32,12 @@
 
 class SbdiTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiTest );
-  CPPUNIT_TEST(testIndexComp);
-  CPPUNIT_TEST(testSimpleReadWrite);
-  CPPUNIT_TEST(testSimpleIntegrityCheck);
-  CPPUNIT_TEST(testExtendedReadWrite);
-  CPPUNIT_TEST(testLinearReadWrite);CPPUNIT_TEST_SUITE_END()
+  CPPUNIT_TEST(testSimpleReadWrite);CPPUNIT_TEST_SUITE_END()
   ;
 
 private:
   static unsigned char SIV_KEYS[32];
   sbdi_t *sbdi;
-  unsigned char b[SBDI_BLOCK_SIZE];
   mt_hash_t root;
   int fd;
   sbdi_pio_t *pio;
@@ -60,7 +55,7 @@ private:
   void closeStore()
   {
     CPPUNIT_ASSERT(sbdi_close(sbdi, SIV_KEYS, root) == SBDI_SUCCESS);
-    int fd = *(int *)pio->iod;
+    int fd = *(int *) pio->iod;
     CPPUNIT_ASSERT(close(fd) != -1);
     sbdi_pio_delete(pio);
   }
@@ -71,57 +66,64 @@ private:
     CPPUNIT_ASSERT(unlink(FILE_NAME) != -1);
   }
 
-  void read(uint32_t i)
+  void read(unsigned char *buf, size_t len, off_t off)
   {
-    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    off_t rd = 0;
+    sbdi_error_t r = sbdi_pread(&rd, sbdi, buf, len, off);
     if (r != SBDI_SUCCESS) {
-      std::cout << "Reading file @ block " << i << ". Error: "
+      std::cout << "Reading file @ offset " << off << ". Error: "
           << err_to_string(r) << std::endl;
     }
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
-  void write(uint32_t i)
+  void write(unsigned char *buf, size_t len, off_t off)
   {
-    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    off_t wr = 0;
+    sbdi_error_t r = sbdi_pwrite(&wr, sbdi, buf, len, off);
     if (r != SBDI_SUCCESS) {
-      std::cout << "Writing file @ block " << i << ". Error: "
+      std::cout << "Writing file @ offset " << off << ". Error: "
           << err_to_string(r) << std::endl;
-
     }
     CPPUNIT_ASSERT(r == SBDI_SUCCESS);
   }
 
-  void fill(uint32_t c)
+  void fill(uint32_t c, unsigned char *buf, size_t len)
   {
     CPPUNIT_ASSERT(c <= UINT8_MAX);
-    memset(b, c, SBDI_BLOCK_SIZE);
+    for (size_t i = 0; i < len; ++i, ++c) {
+      buf[i] = c % UINT8_MAX;
+    }
   }
 
-  void f_write(uint32_t i, uint32_t v)
-  {
-    fill(v);
-    write(i);
-  }
-
-  void cmp(uint32_t c)
+  void cmp(uint32_t c, unsigned char *buf, size_t len)
   {
     CPPUNIT_ASSERT(c <= UINT8_MAX);
-    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+    for (size_t i = 0; i < len; ++i, ++c) {
+      if (buf[i] != c % UINT8_MAX) {
+        std::cout << "Comparison @ offset " << i << " fails." << std::endl;
+      }
+      CPPUNIT_ASSERT(buf[i] == c % UINT8_MAX);
+    }
   }
 
-  void c_read(uint32_t i, uint32_t v)
+  void f_write(uint32_t v, unsigned char *buf, size_t len, off_t off)
   {
-    fill(0xFF);
-    read(i);
-    cmp(v);
+    fill(v, buf, len);
+    write(buf, len, off);
+  }
+
+  void c_read(uint32_t v, unsigned char *buf, size_t len, off_t off)
+  {
+    memset(buf, 0xFF, len);
+    read(buf, len, off);
+    cmp(v, buf, len);
   }
 
 public:
   void setUp()
   {
     unlink(FILE_NAME);
-    memset(b, 0, SBDI_BLOCK_SIZE);
     memset(root, 0, sizeof(mt_hash_t));
   }
 
@@ -130,110 +132,16 @@ public:
 
   }
 
-  void testIndexComp()
-  {
-    for (uint32_t log_idx = 0; log_idx < SBDI_BLK_MAX_LOG; ++log_idx) {
-      uint32_t phy_idx = sbdi_blic_log_to_phy_dat_blk(log_idx);
-      if (log_idx != sbdi_blic_phy_dat_to_log(phy_idx)) {
-        std::cout << "log: " << log_idx << " phy: " << phy_idx << " phy(log): "
-            << sbdi_blic_phy_dat_to_log(phy_idx) << std::endl;
-        CPPUNIT_ASSERT(0);
-      }
-      uint32_t mng_log_idx = sbdi_blic_log_to_phy_mng_blk(log_idx);
-      uint32_t mng_phy_idx = sbdi_blic_phy_dat_to_phy_mng_blk(phy_idx);
-      if (mng_log_idx != mng_phy_idx) {
-        std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng(log): "
-            << mng_log_idx << " mng(phy) " << mng_phy_idx << std::endl;
-        CPPUNIT_ASSERT(0);
-      }
-      uint32_t mng_log_blk_nbr = sbdi_blic_log_to_mng_blk_nbr(log_idx);
-      uint32_t mng_phy_blk_nbr = sbdi_blic_phy_to_mng_blk_nbr(mng_phy_idx);
-      if (mng_log_blk_nbr != mng_phy_blk_nbr) {
-        std::cout << "log: " << log_idx << " phy: " << phy_idx
-            << " mng_nbr(log): " << mng_log_blk_nbr << " mng_nbr(phy) "
-            << mng_phy_blk_nbr << std::endl;
-        CPPUNIT_ASSERT(0);
-      }
-      if (mng_log_idx != sbdi_blic_mng_blk_nbr_to_mng_phy(mng_log_blk_nbr)) {
-        std::cout << "log: " << log_idx << " phy: " << phy_idx << " mng_idx_1: "
-            << mng_log_idx << " mng_idx_2 "
-            << sbdi_blic_mng_blk_nbr_to_mng_phy(mng_log_blk_nbr) << std::endl;
-        CPPUNIT_ASSERT(0);
-      }
-      mng_phy_blk_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_idx);
-      if (mng_phy_blk_nbr != mng_log_blk_nbr) {
-        std::cout << "log: " << log_idx << " phy: " << phy_idx
-            << " mng_nbr_phy: " << mng_phy_blk_nbr << " mng_nbr_log "
-            << mng_log_blk_nbr << std::endl;
-        CPPUNIT_ASSERT(0);
-      }
-    }
-  }
-
   void testSimpleReadWrite()
   {
     loadStore();
-    f_write(0, 0x10);
-    c_read(0, 0x10);
-    f_write(1, 0x11);
-    c_read(1, 0x11);
+    unsigned char *b = (unsigned char *)malloc(sizeof(unsigned char) * 1024 * 1024);
+    f_write(17, b, 5 * 1024, 34);
+    c_read(17, b, 5 * 1024, 34);
     CPPUNIT_ASSERT(sbdi_bc_sync(sbdi->cache) == SBDI_SUCCESS);
     closeStore();
-    // TODO Management block 0 looks funny at this point! Why is that?
     loadStore();
-    c_read(1, 0x11);
-    c_read(0, 0x10);
-    closeStore();
-    deleteStore();
-  }
-
-  void testSimpleIntegrityCheck()
-  {
-    loadStore();
-    f_write(0, 0);
-    f_write(128, 128);
-    closeStore();
-    loadStore();
-    c_read(0, 0);
-    c_read(128, 128);
-    closeStore();
-    deleteStore();
-  }
-
-  void testExtendedReadWrite()
-  {
-    loadStore();
-    f_write(0x80, 0x80);
-    c_read(0x80, 0x80);
-    f_write(2049, 0xF0);
-    c_read(2049, 0xF0);
-    closeStore();
-    loadStore();
-    c_read(0x80, 0x80);
-    c_read(2049, 0xF0);
-    closeStore();
-    deleteStore();
-  }
-
-  void testLinearReadWrite()
-  {
-    loadStore();
-    const int linear_rw_test_size = 4122;
-    for (int i = 0; i < linear_rw_test_size; ++i) {
-      f_write(i, i % UINT8_MAX);
-    }
-    for (int i = 0; i < linear_rw_test_size; ++i) {
-      c_read(i, i % UINT8_MAX);
-    }
-    std::cout << std::endl;
-    sbdi_bc_print_stats(sbdi->cache);
-    closeStore();
-    loadStore();
-    for (int i = 0; i < linear_rw_test_size; ++i) {
-      c_read(i, i % UINT8_MAX);
-    }
-    std::cout << std::endl;
-    sbdi_bc_print_stats(sbdi->cache);
+    c_read(17, b, 5 * 1024, 34);
     closeStore();
     deleteStore();
   }

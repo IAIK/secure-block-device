@@ -51,20 +51,18 @@ static inline sbdi_error_t sbdi_mt_sbdi_err_conv(mt_error_t mr)
 
 typedef uint8_t sbdi_sym_mst_key_t[32];
 
-static const sbdi_sym_mst_key_t sbdi_siv_master_key = {
-    0xa7, 0xde, 0x2e, 0xb8, 0xf7, 0xc2, 0x85, 0xa6,
-    0x66, 0x27, 0x9c, 0xa4, 0x8e, 0x4c, 0xb5, 0xda,
-    0x98, 0xaf, 0x8c, 0x50, 0x5d, 0xe6, 0x4a, 0xf0,
-    0x29, 0x87, 0x6e, 0x34, 0x4c, 0x0b, 0x9b, 0x5a
-};
+static const sbdi_sym_mst_key_t sbdi_siv_master_key = { 0xa7, 0xde, 0x2e, 0xb8,
+    0xf7, 0xc2, 0x85, 0xa6, 0x66, 0x27, 0x9c, 0xa4, 0x8e, 0x4c, 0xb5, 0xda,
+    0x98, 0xaf, 0x8c, 0x50, 0x5d, 0xe6, 0x4a, 0xf0, 0x29, 0x87, 0x6e, 0x34,
+    0x4c, 0x0b, 0x9b, 0x5a };
 
 /*!
  * \brief enumeration type for defining the values of
  * TODO: Do I need this?
  */
 typedef enum sbdi_whence {
-  SBDI_SEEK_SET = 1,//!< SBDI_SEEK_SET
-  SBDI_SEEK_CUR = 2,//!< SBDI_SEEK_CUR
+  SBDI_SEEK_SET = 1, //!< SBDI_SEEK_SET
+  SBDI_SEEK_CUR = 2, //!< SBDI_SEEK_CUR
   SBDI_SEEK_END = 3 //!< SBDI_SEEK_END
 } sbdi_whence_t;
 
@@ -76,7 +74,7 @@ struct secure_block_device_interface {
   sbdi_bc_t *cache;
   sbdi_bl_data_t write_store_dat[2];
   sbdi_block_t write_store[2];
-  off_t offset;
+  size_t offset;
 };
 
 // TODO remove later
@@ -87,12 +85,17 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
     mt_hash_t root);
 sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
 
-ssize_t sbdi_pread(sbdi_t *sbdi, void *buf, size_t nbyte, off_t offset);
-ssize_t sbdi_pwrite(sbdi_t *sbdi, const void *buf, size_t nbyte, off_t offset);
+sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
+    off_t offset);
+sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
+    size_t nbyte, off_t offset);
 
-off_t sbdi_lseek(sbdi_t *sbdi, off_t offset, sbdi_whence_t whence);
+sbdi_error_t sbdi_read(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte);
+sbdi_error_t sbdi_write(ssize_t *wr, sbdi_t *sbdi, const void *buf,
+    size_t nbyte);
 
-
+sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
+    sbdi_whence_t whence);
 
 #endif /* SECURE_BLOCK_DEVICE_INTERFACE_H_ */
 
