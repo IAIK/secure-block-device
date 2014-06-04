@@ -26,7 +26,7 @@ extern "C" {
 
 #define SBDI_HDR_SUPPORTED_VERSION SBDI_HDR_VERSION_1
 
-#define SBDI_HDR_V1_PACKED_SIZE 76u
+#define SBDI_HDR_V1_PACKED_SIZE 84u
 #define SBDI_HDR_V1_KEY_SIZE    32u
 #define SBDI_HDR_V1_TAG_SIZE    SBDI_BLOCK_TAG_SIZE
 
@@ -51,8 +51,8 @@ typedef struct secure_block_device_interface_header_id {
  */
 typedef struct secure_block_device_interface_header_v1 {
   sbdi_hdr_id_t id; //!< the secure block device interface identification information
-  sbdi_ctr_128b_t ctr; //!< access counter protecting the header against replay attacks
   uint64_t size; //!< the current size of the secure block device in bytes
+  sbdi_ctr_128b_t ctr; //!< access counter protecting the header against replay attacks
   sbdi_hdr_v1_sym_key_t key; //!< the plaintext secure block device key
   sbdi_tag_t tag; //!< the tag protecting the integrity of the key
   // TODO rewrite counter that it has a well defined, platform independent internal rep.

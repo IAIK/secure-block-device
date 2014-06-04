@@ -32,6 +32,7 @@
 
 class SbdiTest: public CppUnit::TestFixture {
 CPPUNIT_TEST_SUITE( SbdiTest );
+  CPPUNIT_TEST(testParameterChecks);
   CPPUNIT_TEST(testSimpleReadWrite);CPPUNIT_TEST_SUITE_END()
   ;
 
@@ -132,20 +133,68 @@ public:
 
   }
 
+#define ASS_SUC(f) CPPUNIT_ASSERT((f) == SBDI_SUCCESS)
+#define ASS_ERR_ILL_PAR(f) CPPUNIT_ASSERT((f) == SBDI_ERR_ILLEGAL_PARAM)
+
+  void testParameterChecks()
+  {
+    loadStore();
+    ssize_t rd = 0;
+    off_t of = 0;
+    uint8_t d[2] = { 42, 23 };
+    ASS_ERR_ILL_PAR(sbdi_read(NULL, NULL, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_read(&rd, NULL, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_read(&rd, sbdi, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_read(&rd, sbdi, d, SBDI_SIZE_MAX + 1));
+    ASS_SUC(sbdi_read(&rd, sbdi, d, 1));
+    CPPUNIT_ASSERT(rd == 0 && d[0] == 42);
+    ASS_ERR_ILL_PAR(sbdi_write(NULL, NULL, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_write(&rd, NULL, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_write(&rd, sbdi, NULL, SBDI_SIZE_MAX + 1));
+    ASS_ERR_ILL_PAR(sbdi_write(&rd, sbdi, d, SBDI_SIZE_MAX + 1));
+    ASS_SUC(sbdi_write(&rd, sbdi, d, 1));
+    ASS_SUC(sbdi_lseek(&of, sbdi, 0, SBDI_SEEK_SET));
+    ASS_SUC(sbdi_read(&rd, sbdi, d, 1));
+    CPPUNIT_ASSERT(rd == 1 && d[0] == 42);
+    ASS_ERR_ILL_PAR(sbdi_lseek(NULL, NULL, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
+    ASS_ERR_ILL_PAR(sbdi_lseek(&of, NULL, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
+    ASS_ERR_ILL_PAR(sbdi_lseek(NULL, sbdi, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
+    ASS_ERR_ILL_PAR(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
+    ASS_SUC(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX-1, SBDI_SEEK_SET));
+    ASS_SUC(sbdi_write(&rd, sbdi, d, 1));
+    ASS_SUC(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX-1, SBDI_SEEK_SET));
+    ASS_SUC(sbdi_read(&rd, sbdi, d, 1));
+    CPPUNIT_ASSERT(rd == 1 && d[0] == 42);
+    ASS_SUC(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX-1, SBDI_SEEK_SET));
+    ASS_ERR_ILL_PAR(sbdi_lseek(&of, sbdi, 1, SBDI_SEEK_CUR));
+    ASS_SUC(sbdi_lseek(&of, sbdi, 0, SBDI_SEEK_CUR));
+    ASS_SUC(sbdi_write(&rd, sbdi, d, 2));
+    CPPUNIT_ASSERT(rd == 1);
+    ASS_ERR_ILL_PAR(sbdi_lseek(&of, sbdi, 1, SBDI_SEEK_END));
+    ASS_ERR_ILL_PAR(sbdi_lseek(&of, sbdi, 0, SBDI_SEEK_END));
+    closeStore();
+    deleteStore();
+  }
   void testSimpleReadWrite()
   {
     loadStore();
-    unsigned char *b = (unsigned char *)malloc(sizeof(unsigned char) * 1024 * 1024);
+    unsigned char *b = (unsigned char *) malloc(
+        sizeof(unsigned char) * 1024 * 1024);
     f_write(17, b, 5 * 1024, 34);
     c_read(17, b, 5 * 1024, 34);
-    CPPUNIT_ASSERT(sbdi_bc_sync(sbdi->cache) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_fsync(sbdi, SIV_KEYS) == SBDI_SUCCESS);
     closeStore();
     loadStore();
     c_read(17, b, 5 * 1024, 34);
     closeStore();
     deleteStore();
+    free(b);
   }
 
+  void testReadWriteUpdate()
+  {
+    loadStore();
+  }
 };
 
 unsigned char SbdiTest::SIV_KEYS[32] = {

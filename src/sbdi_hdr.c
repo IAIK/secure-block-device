@@ -83,8 +83,8 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     free(h);
     return SBDI_ERR_UNSUPPORTED;
   }
+  h->size = sbdi_buffer_read_uint64_t(&b);
 // TODO make sure all global counter values are packed in the same way!
-  // TODO global counter not updated?
   r = sbdi_buffer_read_ctr_128b(&b, &h->ctr);
   if (r != SBDI_SUCCESS) {
     free(h);
@@ -128,6 +128,7 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   sbdi_buffer_init(&b, wrt_buf, SBDI_HDR_V1_PACKED_SIZE);
   sbdi_buffer_write_bytes(&b, hdr->id.magic, SBDI_HDR_MAGIC_LEN);
   sbdi_buffer_write_uint32_t(&b, hdr->id.version);
+  sbdi_buffer_write_uint64_t(&b, hdr->size);
   // TODO very strange buffer behavior the byte order is very much different
   // in the header than in the rest of the file ===> find out why!
   sbdi_buffer_write_ctr_128b(&b, &hdr->ctr);

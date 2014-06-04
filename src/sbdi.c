@@ -260,6 +260,7 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
   // TODO: Put this and others of its kind into an initializer
   assert(sizeof(size_t) == sizeof(off_t));
+  SBDI_CHK_PARAM(nbyte < SBDI_SIZE_MAX);
 //  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);
   // nbyte > ssize_t ==> impl. defined
   SBDI_CHK_PARAM(nbyte <= __MAX(off_t));
@@ -288,7 +289,7 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   // TODO handle case where read would be beyond max SBD size
   // This is indirectly already handled
   // determine number of first block
-  uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
   *rd = 0;
   while (rlen) {
     size_t to_read = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
@@ -311,6 +312,7 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
   SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
   // TODO: Put this and others of its kind into an initializer
   assert(sizeof(size_t) == sizeof(off_t));
+  SBDI_CHK_PARAM(nbyte < SBDI_SIZE_MAX);
 //  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);
   // nbyte > ssize_t ==> impl. defined ==> fail
   SBDI_CHK_PARAM(nbyte <= __MAX(off_t));
@@ -326,12 +328,16 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
     rlen = SBDI_SIZE_MAX - offset;
   }
   // determine number of first block
-  uint32_t idx = offset / SBDI_BLOCK_SIZE;
+  uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
   *wr = 0;
   while (rlen) {
     size_t to_write = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
     SBDI_ERR_CHK(sbdi_bl_write_data_block(sbdi, ptr, idx, to_write));
     *wr += to_write;
+    // The following addition depends on a previous os_add_size((size_t )offset, nbyte) check!
+    if (offset + (*wr) > sbdi_hdr_v1_get_size(sbdi)) {
+      sbdi_hdr_v1_update_size(sbdi, offset + (*wr));
+    }
     rlen -= to_write;
     ptr += to_write;
     assert(os_add_uint32(idx, 1));
@@ -340,6 +346,7 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
   return SBDI_SUCCESS;
 }
 
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
     sbdi_whence_t whence)
 {
@@ -355,12 +362,14 @@ sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
   case SBDI_SEEK_CUR:
     // TODO write test case to test overflow protection
     SBDI_ERR_CHK(os_add_off_size(sbdi->offset, offset));
+    SBDI_CHK_PARAM(sbdi->offset + offset < SBDI_SIZE_MAX);
     sbdi->offset += offset;
     *new_off = sbdi->offset;
     return SBDI_SUCCESS;
   case SBDI_SEEK_END:
     // TODO write test case to test overflow protection
     SBDI_ERR_CHK(os_add_off_size(sbdi_size, offset));
+    SBDI_CHK_PARAM(sbdi->offset + offset < SBDI_SIZE_MAX);
     sbdi->offset = sbdi_size + offset;
     *new_off = sbdi->offset;
     return SBDI_SUCCESS;
@@ -369,8 +378,10 @@ sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
   }
 }
 
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_read(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte)
 {
+  SBDI_CHK_PARAM(sbdi);
   sbdi_error_t r = sbdi_pread(rd, sbdi, buf, nbyte, sbdi->offset);
   if (r != SBDI_SUCCESS && *rd == 0) {
     return r;
@@ -380,13 +391,34 @@ sbdi_error_t sbdi_read(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte)
   return r;
 }
 
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_write(ssize_t *wr, sbdi_t *sbdi, const void *buf,
-    size_t nbyte) {
+    size_t nbyte)
+{
+  SBDI_CHK_PARAM(sbdi);
   sbdi_error_t r = sbdi_pwrite(wr, sbdi, buf, nbyte, sbdi->offset);
   if (r != SBDI_SUCCESS && *wr == 0) {
     return r;
   }
   SBDI_ERR_CHK(os_add_off_size(sbdi->offset, *wr));
   sbdi->offset += *wr;
+  return r;
+}
+
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_fsync(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey)
+{
+  // TODO the cache and header sync must be atomic, do something about that
+  SBDI_ERR_CHK(sbdi_bc_sync(sbdi->cache));
+  siv_ctx mctx;
+  memset(&mctx, 0, sizeof(siv_ctx));
+  int cr = siv_init(&mctx, mkey, SIV_256);
+  if (cr == -1) {
+    sbdi_error_t r = SBDI_ERR_CRYPTO_FAIL;
+    memset(&mctx, 0, sizeof(siv_ctx));
+    return r;
+  }
+  sbdi_error_t r = sbdi_hdr_v1_write(sbdi, &mctx);
+  memset(&mctx, 0, sizeof(siv_ctx));
   return r;
 }

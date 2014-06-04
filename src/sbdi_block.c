@@ -420,16 +420,19 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
 {
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
+  // Clear write buffer
+  memset(sbdi->write_store[0].data, 0, SBDI_BLOCK_SIZE);
   uint32_t mng_blk_nbr = sbdi_blic_log_to_mng_blk_nbr(log) + 1;
   uint32_t s = mt_get_size(sbdi->mt);
   assert(s > 0); // There must always be the header block present!
   s -= 1; // Deduct header block
   while (s < mng_blk_nbr) {
+    // TODO add block number!
     // TODO can I use the same key for generating the random mngt blocks?
     // TODO do I need a good Nonce?
     // TODO do I use the CMAC correctly?
     sbdi->write_store[0].idx = sbdi_blic_mng_blk_nbr_to_mng_phy(s);
-    vprf(sbdi->ctx, *sbdi->write_store[1].data, 1, sbdi_hdr_v1_pack_ctr(sbdi),
+    vprf(sbdi->ctx, *sbdi->write_store[0].data, 1, sbdi_hdr_v1_pack_ctr(sbdi),
     SBDI_CTR_128B_SIZE);
     sbdi_ctr_128b_inc(&sbdi->hdr->ctr);
     SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, &sbdi->write_store[0], mng_tag));

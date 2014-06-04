@@ -185,6 +185,7 @@ void sbdi_buffer_read_bytes(sbdi_buffer_t *buf, uint8_t *dest,
 sbdi_error_t sbdi_buffer_read_ctr_128b(sbdi_buffer_t *buf, sbdi_ctr_128b_t *ctr)
 {
   assert(sbdi_buffer_is_valid(buf));
-  return sbdi_ctr_128b_init(ctr, sbdi_buffer_read_uint64_t(buf),
-      sbdi_buffer_read_uint64_t(buf));
+  uint64_t hi = sbdi_buffer_read_uint64_t(buf);
+  uint64_t lo = sbdi_buffer_read_uint64_t(buf);
+  return sbdi_ctr_128b_init(ctr, hi, lo);
 }
