@@ -78,6 +78,15 @@ sbdi_error_t sbdi_siv_decrypt(void *ctx, const void *nonce, const void *ct,
   }
 }
 
+sbdi_error_t sbdi_siv_cmac(void *ctx, const unsigned char *msg,
+    const int mlen, unsigned char *C, const unsigned char *ad, const int ad_len) {
+  SBDI_CHK_PARAM(ctx && msg && mlen > 0 && C && ad && ad_len > 0);
+  siv_ctx *s_ctx = (siv_ctx *)ctx;
+  sbdi_bl_aes_cmac(s_ctx, ad, ad_len, msg, mlen, C);
+  return SBDI_SUCCESS;
+}
+
+
 sbdi_error_t sbdi_siv_init(siv_ctx *ctx, sbdi_key_t key)
 {
   SBDI_CHK_PARAM(ctx && key);
@@ -115,6 +124,7 @@ sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key)
   c->ctx = ctx;
   c->enc = &sbdi_siv_encrypt;
   c->dec = &sbdi_siv_decrypt;
+  c->mac = &sbdi_siv_cmac;
   *crypto = c;
   return SBDI_SUCCESS;
 
