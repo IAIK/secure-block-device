@@ -5,6 +5,7 @@
  *      Author: dhein
  */
 
+#include "sbdi_siv.h"
 #include "sbdi_hdr.h"
 #include "sbdi_buffer.h"
 
@@ -23,9 +24,10 @@ void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
-    const sbdi_hdr_v1_sym_key_t key)
+    const sbdi_hdr_v1_key_type_t type, const sbdi_hdr_v1_sym_key_t key)
 {
-  SBDI_CHK_PARAM(hdr && key);
+  SBDI_CHK_PARAM(hdr && key &&
+      ((type == SBDI_HDR_V1_KEY_OCB) || (type == SBDI_HDR_V1_KEY_SIV)));
   sbdi_hdr_v1_t *h = calloc(1, sizeof(sbdi_hdr_v1_t));
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
@@ -37,11 +39,10 @@ sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
     free(h);
     return r;
   }
+  h->type = type;
   // Tag will be created once the header is written
   // Copy previously created key into header
   memcpy(h->key, key, sizeof(sbdi_hdr_v1_sym_key_t));
-  // counter scratch area init.
-  sbdi_buffer_init(&h->ctr_buf, h->ctr_pkd, SBDI_CTR_128B_SIZE);
   *hdr = h;
   return SBDI_SUCCESS;
 }
@@ -90,28 +91,41 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     free(h);
     return r;
   }
+  h->type = sbdi_buffer_read_uint32_t(&b);
+  if (h->type != SBDI_HDR_KEY_TYPE_SIV && h->type != SBDI_HDR_KEY_TYPE_OCB) {
+    free(h);
+    return SBDI_ERR_UNSUPPORTED;
+  }
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);
-  sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_SIZE);
+  sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_MAX_SIZE);
   sbdi_buffer_read_bytes(&b, h->tag, SBDI_HDR_V1_TAG_SIZE);
-  int cr = siv_decrypt(master, kptr, h->key, SBDI_HDR_V1_KEY_SIZE, h->tag, 0);
+  int cr = siv_decrypt(master, kptr, h->key, SBDI_HDR_V1_KEY_MAX_SIZE, h->tag,
+      0);
   if (cr == -1) {
     free(h);
     return SBDI_ERR_TAG_MISMATCH;
   }
-  // Header read init sbdi key context
-  cr = siv_init(sbdi->ctx, h->key, SIV_256);
-  if (cr == -1) {
-    // Cleanup of secret information must be handled by next layer up
+  switch (h->type) {
+  case SBDI_HDR_KEY_TYPE_SIV:
+    r = sbdi_siv_create(&sbdi->crypto, h->key);
+    if (r != SBDI_SUCCESS) {
+      // Cleanup of secret information must be handled by next layer up
+      free(h);
+      return r;
+    }
+    break;
+  case SBDI_HDR_KEY_TYPE_OCB:
     free(h);
-    return SBDI_ERR_CRYPTO_FAIL;
+    return SBDI_ERR_UNSUPPORTED;
+  default:
+    free(h);
+    return SBDI_ERR_UNSUPPORTED;
   }
   r = sbdi_bl_verify_header(sbdi, rd_buf);
   if (r != SBDI_SUCCESS) {
     free(h);
     return r;
   }
-  // counter scratch area init.
-  sbdi_buffer_init(&h->ctr_buf, h->ctr_pkd, SBDI_CTR_128B_SIZE);
   sbdi->hdr = h;
   return SBDI_SUCCESS;
 }
@@ -132,27 +146,22 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   // TODO very strange buffer behavior the byte order is very much different
   // in the header than in the rest of the file ===> find out why!
   sbdi_buffer_write_ctr_128b(&b, &hdr->ctr);
+  sbdi_buffer_write_uint32_t(&b, hdr->type);
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);
-  sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_SIZE);
+  sbdi_buffer_add_pos(&b, SBDI_HDR_V1_KEY_MAX_SIZE);
   uint8_t *tptr = sbdi_buffer_get_cptr(&b);
-  siv_encrypt(master, hdr->key, kptr, SBDI_HDR_V1_KEY_SIZE, tptr, 0);
+  siv_encrypt(master, hdr->key, kptr, SBDI_HDR_V1_KEY_MAX_SIZE, tptr, 0);
   return sbdi_bl_write_hdr_block(sbdi, sbdi->write_store);
 }
 
 //----------------------------------------------------------------------
-uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi)
+void sbdi_hdr_v1_update_size(sbdi_t *sbdi, const size_t size)
 {
-  sbdi_buffer_reset(&sbdi->hdr->ctr_buf);
-  sbdi_buffer_write_ctr_128b(&sbdi->hdr->ctr_buf, &sbdi->hdr->ctr);
-  return sbdi->hdr->ctr_pkd;
-}
-
-//----------------------------------------------------------------------
-void sbdi_hdr_v1_update_size(sbdi_t *sbdi, const size_t size) {
   sbdi->hdr->size = size;
 }
 
 //----------------------------------------------------------------------
-uint64_t sbdi_hdr_v1_get_size(sbdi_t *sbdi) {
-  return (size_t)sbdi->hdr->size;
+uint64_t sbdi_hdr_v1_get_size(sbdi_t *sbdi)
+{
+  return (size_t) sbdi->hdr->size;
 }

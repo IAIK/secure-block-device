@@ -45,13 +45,14 @@ void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c,
 sbdi_error_t sbdi_siv_encrypt(void *ctx, void *nonce, const void *pt,
     int pt_len, const void *ad, int ad_len, void *ct, void *tag)
 {
+  // SIV does not use a nonce, make sure it is null!
   SBDI_CHK_PARAM(
-      ctx && nonce && ct && ad && pt && tag && pt_len > 0 && ad_len > 0);
+      ctx && !nonce && ct && ad && pt && tag && pt_len > 0 && ad_len > 0);
   siv_ctx *s_ctx = (siv_ctx *) ctx;
   const unsigned char *p = (const unsigned char *) pt;
   unsigned char *c = (unsigned char *) ct;
   const int len = (const int) pt_len;
-  unsigned char *counter = (unsigned char *) nonce;
+  unsigned char *counter = (unsigned char *) tag;
   int r = siv_encrypt(s_ctx, p, c, len, counter, 1, ad, ad_len);
   if (r != 1) {
     return SBDI_ERR_CRYPTO_FAIL;
@@ -63,13 +64,14 @@ sbdi_error_t sbdi_siv_encrypt(void *ctx, void *nonce, const void *pt,
 sbdi_error_t sbdi_siv_decrypt(void *ctx, const void *nonce, const void *ct,
     int ct_len, const void *ad, int ad_len, void *pt, const void *tag)
 {
+  // SIV does not use a nonce, make sure it is null!
   SBDI_CHK_PARAM(
-      ctx && nonce && ct && ad && pt && tag && ct_len > 0 && ad_len > 0);
+      ctx && !nonce && ct && ad && pt && tag && ct_len > 0 && ad_len > 0);
   siv_ctx *s_ctx = (siv_ctx *) ctx;
   const unsigned char *c = (const unsigned char *) ct;
   unsigned char *p = (unsigned char *) pt;
   const int len = (const int) ct_len;
-  unsigned char *counter = (unsigned char *) nonce;
+  unsigned char *counter = (unsigned char *) tag;
   int r = siv_decrypt(s_ctx, c, p, len, counter, 1, ad, ad_len);
   if (r != 1) {
     return SBDI_ERR_TAG_MISMATCH;

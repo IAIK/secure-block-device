@@ -13,9 +13,9 @@ extern "C" {
 #ifndef SBDI_SIV_H_
 #define SBDI_SIV_H_
 
-#include "sbdi_crypto.h"
-
 #include "siv.h"
+
+#include "sbdi_crypto.h"
 
 /*!
  * \brief A version of siv_decrypt that omits the tag check. DEPRECATED!
