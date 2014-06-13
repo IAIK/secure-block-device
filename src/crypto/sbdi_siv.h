@@ -13,6 +13,8 @@ extern "C" {
 #ifndef SBDI_SIV_H_
 #define SBDI_SIV_H_
 
+#include "sbdi_crypto.h"
+
 #include "siv.h"
 
 /*!
@@ -30,7 +32,7 @@ extern "C" {
  * @param nad[in] the number of (unsigned char *, int) length tuples describing
  * additional header information for the mac.
  */
-void sbdi_siv_decrypt(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
+void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
     const int len, unsigned char *counter, const int nad, ...);
 
 /*!
@@ -49,6 +51,9 @@ void sbdi_siv_decrypt(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
 void sbdi_bl_aes_cmac(siv_ctx *ctx, const unsigned char *ad,
     const int ad_len, const unsigned char *msg, int mlen,
     unsigned char *C);
+
+sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key);
+void sbdi_siv_destroy(sbdi_crypto_t *crypto);
 
 #endif /* SBDI_SIV_H_ */
 
