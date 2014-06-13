@@ -3,7 +3,7 @@ CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 CPPFLAGS = -I../
 	
 DEPENDFILE = .depend
-LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c siv.c
+LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c siv.c sbdi_siv.c
 SRC = $(LIB_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS)

@@ -219,6 +219,7 @@ void sbdi_bl_aes_cmac(siv_ctx *ctx, const unsigned char *ad,
   return;
 }
 
+
 /*
  * s2v_final()
  *  input the last chunk into the s2v, output the digest
@@ -510,36 +511,6 @@ int siv_encrypt(siv_ctx *ctx, const unsigned char *p, unsigned char *c,
    */
   siv_restart(ctx);
   return 1;
-}
-
-void sbdi_siv_decrypt(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
-    const int len, unsigned char *counter, const int nad, ...)
-{
-  va_list ap;
-  unsigned char *ad;
-  int adlen, numad = nad;
-  unsigned char ctr[AES_BLOCK_SIZE];
-
-  memcpy(ctr, counter, AES_BLOCK_SIZE);
-  siv_aes_ctr(ctx, c, len, p, ctr);
-  if (numad) {
-    va_start(ap, nad);
-    while (numad) {
-      ad = (unsigned char *) va_arg(ap, char *);
-      adlen = va_arg(ap, int);
-      s2v_update(ctx, ad, adlen);
-      numad--;
-    }
-  }
-  s2v_final(ctx, p, len, ctr);
-
-  /*
-   * the only part of the context that is carried along with
-   * subsequent calls to siv_decrypt() are the keys, so reset
-   * everything else.
-   */
-  siv_restart(ctx);
-  memcpy(counter, ctr, AES_BLOCK_SIZE);
 }
 
 /*
