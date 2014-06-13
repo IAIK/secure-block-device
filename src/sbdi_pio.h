@@ -24,7 +24,7 @@ extern "C" {
  * @param offset[in] the offset of the data to read
  * @return the number of bytes read if successful; -1 otherwise
  */
-typedef ssize_t (bl_pread)(void *iod, void *buf, size_t nbyte, off_t offset);
+typedef ssize_t (*bl_pread)(void *iod, void *buf, size_t nbyte, off_t offset);
 
 /*!
  * \brief Defines a pwrite like function pointer
@@ -36,7 +36,7 @@ typedef ssize_t (bl_pread)(void *iod, void *buf, size_t nbyte, off_t offset);
  * @param offset the offset where to write the data
  * @return the number of bytes written if successful; -1 otherwise
  */
-typedef ssize_t (bl_pwrite)(void *iod, const void * buf, size_t nbyte,
+typedef ssize_t (*bl_pwrite)(void *iod, const void * buf, size_t nbyte,
     off_t offset);
 
 /*!
@@ -45,8 +45,8 @@ typedef ssize_t (bl_pwrite)(void *iod, const void * buf, size_t nbyte,
 typedef struct sbdi_pio {
   void *iod;          //!< I/O descriptor pointer, e.g. file decriptor pointer
   off_t size_at_open; //!< the size of the block device store at time of opening
-  bl_pread *pread;    //!< pread like function pointer
-  bl_pwrite *pwrite;  //!< pwrite like function pointer
+  bl_pread pread;    //!< pread like function pointer
+  bl_pwrite pwrite;  //!< pwrite like function pointer
 } sbdi_pio_t;
 
 /*!
