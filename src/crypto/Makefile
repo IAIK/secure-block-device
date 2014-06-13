@@ -1,53 +1,47 @@
 Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
+CPPFLAGS = -I../
 	
 DEPENDFILE = .depend
 LIB_SRC = rijndael-alg-fst.c aes.c aes_cmac_128.c siv.c
-PRG_SRC = crypto_test.c
-SRC = $(LIB_SRC) $(PRG_SRC)
+SRC = $(LIB_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
-PRG_OBJS = $(PRG_SRC:%.c=%.o)
-OBJS = $(LIB_OBJS) $(PRG_OBJS)
+OBJS = $(LIB_OBJS)
 LIB = libSbdiCrypto.a
-EXT_INC = 
 EXT_LIB = 
-BIN = sbdi-crypto-test
 
-CFLAGS  += $(EXT_INC)
+CFLAGS  += $(CPPFLAGS)
 LDFLAGS += $(EXT_LIB)
 
-all: silent
+all: debug
 
 debug: LDFLAGS +=-ggdb
 debug: CFLAGS +=-ggdb
-debug: dep $(BIN)
+debug: dep $(LIB)
 
 coverage: LDFLAGS +=-ggdb -coverage
 coverage: CFLAGS +=-ggdb -fprofile-arcs -ftest-coverage
-coverage: dep $(BIN)
+coverage: dep $(LIB)
 
 #silent: CFLAGS +=-ggdb -pg
 silent: CFLAGS +=-ggdb
-silent: clean dep $(BIN)
+silent: clean dep $(LIB)
 
 release: CFLAGS +=-O3 -fgnu89-inline
-release: clean dep $(BIN) FORCE
+release: clean dep $(LIB) FORCE
 	
 .PHONY: clean doc
 clean:
-	$(Q)rm -Rf $(BIN) $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
+	$(Q)rm -Rf $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
 
 doc:
 	$(Q)doxygen
-
-$(BIN) : $(PRG_OBJS) $(LIB)
-	$(Q)$(CC) $(CFLAGS) -o $(BIN) $(PRG_OBJS) $(LIB) $(LDFLAGS)
 
 $(LIB): $(LIB_OBJS)
 	$(Q)$(AR) crvs $(LIB) $(LIB_OBJS)
 
 dep: $(SRC)
-	$(Q)$(CC) $(EXT_INC) -MM $(SRC) > $(DEPENDFILE)
+	$(Q)$(CC) $(CPPFLAGS) -MM $(SRC) > $(DEPENDFILE)
 
 -include $(DEPENDFILE)
 
