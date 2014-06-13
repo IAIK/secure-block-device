@@ -165,7 +165,7 @@ void aes_cmac(siv_ctx *ctx, const unsigned char *msg, int mlen,
 }
 
 void sbdi_bl_aes_cmac(siv_ctx *ctx, const unsigned char *ad,
-    const int ad_len, const unsigned char *msg, int mlen,
+    const int ad_len, const unsigned char *msg, const int mlen,
     unsigned char *C)
 {
   int n, i, slop;

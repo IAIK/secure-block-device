@@ -96,6 +96,24 @@ int siv_encrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
 int siv_decrypt(siv_ctx *, const unsigned char *, unsigned char *, const int,
     unsigned char *, const int, ...);
 
+/*!
+ *
+ * \brief This is a slightly modified aes cmac implementation to simplify block
+ * index handling
+ *
+ * @param ctx[in] the siv context providing the key for the MAC operation
+ * @param ad[in] the additional data
+ * @param ad_len[in] the length of the additional data (must be
+ * AES_BLOCK_SIZE)
+ * @param msg[in] the message to compute the CMAC of
+ * @param mlen[in] the length of the message
+ * @param C[out] the resulting CMAC
+ */
+void sbdi_bl_aes_cmac(siv_ctx *ctx, const unsigned char *ad,
+    const int ad_len, const unsigned char *msg, const int mlen,
+    unsigned char *C);
+
+
 #ifdef __cplusplus
 }
 #endif
