@@ -125,8 +125,10 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
  * (provides the key)
  * @param blk the data the CMAC should be computed for
  * @param tag the CMAC result tag
+ * @return an error depending on the underlying mac implementation
  */
-void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
+sbdi_error_t bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk,
+    sbdi_tag_t tag)
 {
   const int mlen = sizeof(sbdi_bl_data_t);
   sbdi_crypto_t *crypto = sbdi->crypto;
@@ -140,8 +142,10 @@ void bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk, sbdi_tag_t tag)
   // I needed to pad the block index counter to a 16 byte block. Using the
   // 128 bit counter was the easiest way I could think of.
   sbdi_ctr_128b_init(&ctr, 0, blk->idx);
-  crypto->mac(crypto->ctx, (unsigned char *) &ctr, sizeof(sbdi_ctr_128b_t), msg,
-      mlen, C);
+  //sbdi_error_t (void *ctx, const unsigned char *msg,
+  //    const int mlen, unsigned char *C, const unsigned char *ad, const int ad_len);
+  return crypto->mac(crypto->ctx, msg, mlen, C, (unsigned char *) &ctr,
+      sizeof(sbdi_ctr_128b_t));
 }
 
 /*!
@@ -172,7 +176,7 @@ static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
   mng->idx = phy_mng_idx;
   // Management block should always be fully readable.
   SBDI_ERR_CHK(sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read));
-  bl_aes_cmac(sbdi, mng, tag);
+  SBDI_ERR_CHK(bl_aes_cmac(sbdi, mng, tag));
   return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
 }
 
@@ -261,7 +265,7 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
   sbdi_buffer_t b;
   sbdi_buffer_init(&b, ad, SBDI_BL_DEC_AD_SIZE);
   sbdi_buffer_write_uint32_t(&b, blk->idx);
-  sbdi_buffer_write_ctr_128b(&b, ctr);
+  sbdi_buffer_write_bytes(&b, ctr, SBDI_BLOCK_CTR_SIZE);
   r = sbdi->crypto->dec(sbdi->crypto->ctx, NULL, *blk->data, SBDI_BLOCK_SIZE,
       ad, SBDI_BL_DEC_AD_SIZE, *blk->data, tag);
   if (r != SBDI_SUCCESS) {
@@ -292,7 +296,10 @@ static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng)
     sbdi_bc_evict_blk(sbdi->cache, mng->idx);
     return r;
   }
-  bl_aes_cmac(sbdi, mng, tag);
+  r = bl_aes_cmac(sbdi, mng, tag);
+  if (r != SBDI_SUCCESS) {
+    sbdi_bc_evict_blk(sbdi->cache, mng->idx);
+  }
   r = sbdi_mt_sbdi_err_conv(
       mt_verify(sbdi->mt, tag, sizeof(sbdi_tag_t), (mng_blk_nbr + 1)));
   if (r == SBDI_ERR_TAG_MISMATCH) {
@@ -343,7 +350,7 @@ sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, sbdi_block_t *hdr)
   SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
   sbdi_tag_t tag;
   memset(tag, 0, sizeof(sbdi_tag_t));
-  bl_aes_cmac(sbdi, hdr, tag);
+  SBDI_ERR_CHK(bl_aes_cmac(sbdi, hdr, tag));
   if (mt_al_get_size(sbdi->mt) == 0) {
     // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
@@ -411,7 +418,7 @@ static sbdi_error_t bl_mac_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng,
 {
   assert(sbdi && mng);
   assert(sizeof(sbdi_ctr_128b_t) == SBDI_BLOCK_CTR_SIZE);
-  bl_aes_cmac(sbdi, mng, mng_tag);
+  SBDI_ERR_CHK(bl_aes_cmac(sbdi, mng, mng_tag));
   // TODO if this gets only partially written then there is a big problem!
   // TODO I do not need to write the whole block, just the updated part is
   // sufficient
@@ -494,7 +501,7 @@ sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, sbdi_block_t *hdr)
   sbdi_tag_t tag;
   // TODO memset tag!
   SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
-  bl_aes_cmac(sbdi, hdr, tag);
+  SBDI_ERR_CHK(bl_aes_cmac(sbdi, hdr, tag));
   SBDI_ERR_CHK(sbdi_bl_write_block(sbdi, hdr, SBDI_BLOCK_SIZE));
   // TODO r < BLOCK_SIZE is really really bad => incompletely written header!
   if (mt_al_get_size(sbdi->mt) == 0) {
@@ -531,9 +538,9 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   sbdi_buffer_t b;
   sbdi_buffer_init(&b, ad, SBDI_BL_DEC_AD_SIZE);
   sbdi_buffer_write_uint32_t(&b, blk->idx);
-  sbdi_buffer_write_ctr_128b(&b, sbdi->hdr->ctr);
+  sbdi_buffer_write_ctr_128b(&b, &sbdi->hdr->ctr);
   sbdi->crypto->enc(sbdi->crypto->ctx, NULL, *blk->data, SBDI_BLOCK_SIZE, ad,
-      SBDI_BL_DEC_AD_SIZE, sbdi->write_store[0].data, data_tag);
+  SBDI_BL_DEC_AD_SIZE, sbdi->write_store[0].data, data_tag);
 //  siv_encrypt(sbdi->ctx, *blk->data, *sbdi->write_store[0].data,
 //    SBDI_BLOCK_SIZE, data_tag, 2, &blk->idx, sizeof(uint32_t), sbdi_hdr_v1_pack_ctr(
 //    sbdi), SBDI_CTR_128B_SIZE);
@@ -548,16 +555,16 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   mng.data = sbdi_bc_get_db_for_cache_idx(sbdi->cache, mng_idx_pos);
   uint32_t tag_idx = sbdi_blic_phy_dat_to_log(
       blk->idx) % SBDI_MNGT_BLOCK_ENTRIES;
+  // TODO Use data buffer for this?
   memcpy(bl_get_tag_address(&mng, tag_idx), data_tag, SBDI_BLOCK_TAG_SIZE);
-  memcpy(bl_get_ctr_address(&mng, tag_idx), sbdi_hdr_v1_pack_ctr(sbdi),
-  SBDI_BLOCK_CTR_SIZE);
+  memcpy(bl_get_ctr_address(&mng, tag_idx), sbdi_buffer_get_cptr_off(&b, 4), SBDI_BLOCK_CTR_SIZE);
   sbdi_ctr_128b_inc(&sbdi->hdr->ctr);
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
-  // Management block updated now encrypt it
-  bl_aes_cmac(sbdi, &mng, mng_tag);
   // TODO check if write store[1] still needed
-  // TODO for the next three steps we need absolute consistency!
+  // TODO for the next four steps we need absolute consistency!
+  // Management block updated now encrypt it
+  SBDI_ERR_CHK(bl_aes_cmac(sbdi, &mng, mng_tag));
   sbdi_error_t r = sbdi_bl_write_block(sbdi, &sbdi->write_store[0],
   SBDI_BLOCK_SIZE);
   if (r != SBDI_SUCCESS) {
