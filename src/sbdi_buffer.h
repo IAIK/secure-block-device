@@ -58,6 +58,22 @@ void sbdi_buffer_reset(sbdi_buffer_t *buf);
 uint8_t *sbdi_buffer_get_cptr(const sbdi_buffer_t *buf);
 
 /*!
+ * \brief Returns a pointer to the data buffer underlying the SBDI buffer
+ * that points to the specified byte offset
+ *
+ * Basically, this function provides unsafe access to the underlying data
+ * buffer. The caller must ensure that the position is updated, if necessary.
+ * The function ensures that the given offset is less then the length of the
+ * buffer.
+ *
+ * @param buf[in] a pointer to the buffer from which to extract the pointer
+ * @param off[in] the byte offset into the buffer (must be less than the
+ * length of the buffer)
+ * @return a pointer to the underlying data buffer at the specified offset
+ */
+uint8_t *sbdi_buffer_get_cptr_off(const sbdi_buffer_t *buf, const uint32_t off);
+
+/*!
  * \brief Add a value to the position pointer (offset) of the SBDI buffer
  *
  * @param buf[inout] a pointer to the buffer to update
