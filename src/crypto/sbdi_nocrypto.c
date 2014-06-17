@@ -27,10 +27,12 @@ sbdi_error_t sbdi_nocrypto_encrypt(void *ctx, const uint8_t *pt,
 
 sbdi_error_t sbdi_nocrypto_decrypt(void *ctx, const uint8_t *ct,
     const int ct_len, const sbdi_ctr_pkd_t ctr, const uint32_t blk_nbr,
-    uint8_t *pt, const sbdi_tag_t tag) {
+    uint8_t *pt, const sbdi_tag_t tag)
+{
   // if the context is non-null then this is used incorrectly
   assert(!ctx);
-  SBDI_CHK_PARAM(ct && ct_len > 0 && ctr && sbdi_block_is_valid_phy(blk_nbr) && pt && tag);
+  SBDI_CHK_PARAM(
+      ct && ct_len > 0 && ctr && sbdi_block_is_valid_phy(blk_nbr) && pt && tag);
   if (pt == ct) {
     return SBDI_SUCCESS;
   }
@@ -46,7 +48,8 @@ sbdi_error_t sbdi_nocrypto_decrypt(void *ctx, const uint8_t *ct,
 }
 
 sbdi_error_t sbdi_nocrypto_mac(void *ctx, const unsigned char *msg,
-    const int mlen, unsigned char *C, const unsigned char *ad, const int ad_len) {
+    const int mlen, unsigned char *C, const unsigned char *ad, const int ad_len)
+{
   // if their is a context, then something is wrong
   assert(!ctx);
   SBDI_CHK_PARAM(msg && mlen > 0 && C);
@@ -54,7 +57,7 @@ sbdi_error_t sbdi_nocrypto_mac(void *ctx, const unsigned char *msg,
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_nocrypto_create(sbdi_crypto_t **crypto, sbdi_key_t key)
+sbdi_error_t sbdi_nocrypto_create(sbdi_crypto_t **crypto, const sbdi_key_t key)
 {
   sbdi_crypto_t *c = calloc(1, sizeof(sbdi_crypto_t));
   if (!c) {
@@ -67,7 +70,8 @@ sbdi_error_t sbdi_nocrypto_create(sbdi_crypto_t **crypto, sbdi_key_t key)
   return SBDI_SUCCESS;
 }
 
-void sbdi_nocrypto_destroy(sbdi_crypto_t *crypto) {
+void sbdi_nocrypto_destroy(sbdi_crypto_t *crypto)
+{
   free(crypto);
 }
 

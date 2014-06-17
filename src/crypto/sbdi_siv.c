@@ -110,7 +110,7 @@ sbdi_error_t sbdi_siv_cmac(void *ctx, const unsigned char *msg, const int mlen,
   return SBDI_SUCCESS;
 }
 
-sbdi_error_t sbdi_siv_init(siv_ctx *ctx, sbdi_key_t key)
+sbdi_error_t sbdi_siv_init(siv_ctx *ctx, const sbdi_key_t key)
 {
   SBDI_CHK_PARAM(ctx && key);
   memset(ctx, 0, sizeof(siv_ctx));
@@ -127,7 +127,7 @@ void sbdi_siv_clear(siv_ctx *ctx)
   memset(ctx, 0, sizeof(siv_ctx));
 }
 
-sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key)
+sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, const sbdi_key_t key)
 {
   // The following is a sanity check required by the encrypt and decrypt fun.
   assert(sizeof(sbdi_tag_t) == AES_BLOCK_SIZE);
