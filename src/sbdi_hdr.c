@@ -7,6 +7,7 @@
 
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"
+#include "sbdi_ocb.h"
 #include "sbdi_hdr.h"
 #include "sbdi_buffer.h"
 
@@ -136,8 +137,13 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     }
     break;
   case SBDI_HDR_KEY_TYPE_OCB:
-    free(h);
-    return SBDI_ERR_UNSUPPORTED;
+    r = sbdi_ocb_create(&sbdi->crypto, h->key);
+    if (r != SBDI_SUCCESS) {
+      // Cleanup of header SIV must be handled next layer up
+      free(h);
+      return r;
+    }
+    break;
   default:
     free(h);
     return SBDI_ERR_UNSUPPORTED;

@@ -7,6 +7,7 @@
 
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"
+#include "sbdi_ocb.h"
 
 #include "SecureBlockDeviceInterface.h"
 
@@ -48,6 +49,28 @@ sbdi_t *sbdi_create(sbdi_pio_t *pio)
 }
 
 //----------------------------------------------------------------------
+static inline void sbdi_crypto_destroy(sbdi_crypto_t *crypto,
+    sbdi_hdr_v1_t *hdr)
+{
+  assert((!crypto && !hdr) || (crypto && hdr));
+  if (crypto && hdr) {
+    switch (hdr->type) {
+    case SBDI_HDR_KEY_TYPE_INVALID:
+      break;
+    case SBDI_HDR_KEY_TYPE_NONE:
+      sbdi_nocrypto_destroy(crypto);
+      break;
+    case SBDI_HDR_KEY_TYPE_SIV:
+      sbdi_siv_destroy(crypto);
+      break;
+    case SBDI_HDR_KEY_TYPE_OCB:
+      sbdi_ocb_destroy(crypto);
+      break;
+    }
+  }
+}
+
+//----------------------------------------------------------------------
 void sbdi_delete(sbdi_t *sbdi)
 {
   if (!sbdi) {
@@ -55,6 +78,7 @@ void sbdi_delete(sbdi_t *sbdi)
   }
   sbdi_bc_cache_destroy(sbdi->cache);
   mt_delete(sbdi->mt);
+  sbdi_crypto_destroy(sbdi->crypto, sbdi->hdr);
   // Overwrite header if present
   sbdi_hdr_v1_delete(sbdi->hdr);
   memset(sbdi, 0, sizeof(sbdi_t));
@@ -104,9 +128,12 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
       ktype = SBDI_HDR_KEY_TYPE_SIV;
       break;
     case SBDI_CRYPTO_TYPE_OCB:
+      r = sbdi_ocb_create(&sbdi->crypto, key);
+      if (r != SBDI_SUCCESS) {
+        goto FAIL;
+      }
       ktype = SBDI_HDR_KEY_TYPE_OCB;
-      r = SBDI_ERR_UNSUPPORTED;
-      goto FAIL;
+      break;
     default:
       ktype = SBDI_HDR_KEY_TYPE_INVALID;
       r = SBDI_ERR_UNSUPPORTED;

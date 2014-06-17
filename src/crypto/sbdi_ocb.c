@@ -14,8 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO Warning OCB truncates counter to 12 bytes
+
 #define SBDI_OCB_KEY_SIZE    16u
-#define SBDI_OCB_NONCE_SIZE  (SBDI_BLOCK_CTR_SIZE)
+#define SBDI_OCB_NONCE_SIZE  (SBDI_BLOCK_CTR_SIZE) - 4
 #define SBDI_OCB_AE_KEY_IDX  16u
 #define SBDI_OCB_AD_SIZE     (4u + (SBDI_BLOCK_CTR_SIZE))
 
@@ -51,7 +53,9 @@ sbdi_error_t sbdi_ocb_encrypt(void *ctx, const uint8_t *pt, const int pt_len,
   sbdi_buffer_init(&b, ad, SBDI_OCB_AD_SIZE);
   const unsigned char *ap = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_write_uint32_t(&b, blk_nbr);
-  const unsigned char *np = sbdi_buffer_get_cptr(&b);
+  // Truncate the 4 highermost bytes of the counter!
+  // TODO check that this works out!
+  const unsigned char *np = sbdi_buffer_get_cptr(&b) + 4;
   sbdi_buffer_write_ctr_128b(&b, ctr);
 
   int cr = ae_encrypt(ae_ctx, np, pt, pt_len, ap, 4, ct, tag, 1);
@@ -80,7 +84,9 @@ sbdi_error_t sbdi_ocb_decrypt(void *ctx, const uint8_t *ct, const int ct_len,
   sbdi_buffer_init(&b, ad, SBDI_OCB_AD_SIZE);
   const unsigned char *ap = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_write_uint32_t(&b, blk_nbr);
-  const unsigned char *np = sbdi_buffer_get_cptr(&b);
+  // Truncate the 4 highermost bytes of the counter!
+  // TODO check that this works out!
+  const unsigned char *np = sbdi_buffer_get_cptr(&b) + 4;
   sbdi_buffer_write_bytes(&b, ctr, SBDI_BLOCK_CTR_SIZE);
 
   int cr = ae_decrypt(ae_ctx, np, ct, ct_len, ap, 4, pt, tag, 1);
