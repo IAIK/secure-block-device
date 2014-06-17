@@ -698,7 +698,8 @@ int ae_init(ae_ctx *ctx, const void *key, int key_len, int nonce_len, int tag_le
 }
 
 /* ----------------------------------------------------------------------- */
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 static block gen_offset_from_nonce(ae_ctx *ctx, const void *nonce)
 {
 	const union { unsigned x; unsigned char endian; } little = { 1 };
@@ -735,6 +736,7 @@ static block gen_offset_from_nonce(ae_ctx *ctx, const void *nonce)
 	}
 	return gen_offset(ctx->KtopStr, idx);
 }
+#pragma GCC diagnostic pop
 
 static void process_ad(ae_ctx *ctx, const void *ad, int ad_len, int final)
 {
