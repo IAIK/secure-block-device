@@ -9,7 +9,7 @@ LIB_OBJS = $(LIB_SRC:%.c=%.o)
 PRG_OBJS = $(PRG_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS) $(PRG_OBJS)
 LIB = libSecureBlock.a
-EXT_INC = -I../../merkle-tree/src -I./crypto
+EXT_INC = -I. -I../../merkle-tree/src -I./crypto
 EXT_LIB = -L../../merkle-tree/src -L./crypto -lMerkleTree -lSbdiCrypto
 BIN = sbdi-test
 

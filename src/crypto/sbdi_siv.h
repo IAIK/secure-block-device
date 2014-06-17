@@ -13,9 +13,9 @@ extern "C" {
 #ifndef SBDI_SIV_H_
 #define SBDI_SIV_H_
 
-#include "sbdi_crypto.h"
-
 #include "siv.h"
+
+#include "sbdi_crypto.h"
 
 /*!
  * \brief A version of siv_decrypt that omits the tag check. DEPRECATED!
@@ -35,7 +35,7 @@ extern "C" {
 void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c, unsigned char *p,
     const int len, unsigned char *counter, const int nad, ...);
 
-sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key);
+sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, const sbdi_key_t key);
 void sbdi_siv_destroy(sbdi_crypto_t *crypto);
 
 #endif /* SBDI_SIV_H_ */

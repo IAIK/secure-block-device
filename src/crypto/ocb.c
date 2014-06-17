@@ -51,8 +51,8 @@
 /* This implementation has built-in support for multiple AES APIs. Set any
 /  one of the following to non-zero to specify which to use.               */
 #define USE_OPENSSL_AES      0  /* http://openssl.org                      */
-#define USE_REFERENCE_AES    0  /* Internet search: rijndael-alg-fst.c     */
-#define USE_AES_NI           1  /* Uses compiler's intrinsics              */
+#define USE_REFERENCE_AES    1  /* Internet search: rijndael-alg-fst.c     */
+#define USE_AES_NI           0  /* Uses compiler's intrinsics              */
 
 /* During encryption and decryption, various "L values" are required.
 /  The L values can be precomputed during initialization (requiring extra
@@ -61,12 +61,14 @@
 /  L values to precompute. L_TABLE_SZ must be at least 3. L_TABLE_SZ*16 bytes
 /  are used for L values in ae_ctx. Plaintext and ciphertexts shorter than
 /  2^L_TABLE_SZ blocks need no L values calculated dynamically.            */
-#define L_TABLE_SZ          16
+#define L_TABLE_SZ          12
 
 /* Set L_TABLE_SZ_IS_ENOUGH non-zero iff you know that all plaintexts
 /  will be shorter than 2^(L_TABLE_SZ+4) bytes in length. This results
 /  in better performance.                                                  */
 #define L_TABLE_SZ_IS_ENOUGH 1
+
+#define DONT_USE_SSE 1
 
 /* ----------------------------------------------------------------------- */
 /* Includes and compiler specific definitions                              */
@@ -137,7 +139,7 @@
 /* Define blocks and operations -- Patch if incorrect on your compiler.    */
 /* ----------------------------------------------------------------------- */
 
-#if __SSE2__
+#if __SSE2__  && !DONT_USE_SSE
     #include <xmmintrin.h>              /* SSE instructions and _mm_malloc */
     #include <emmintrin.h>              /* SSE2 instructions               */
     typedef __m128i block;
@@ -698,7 +700,8 @@ int ae_init(ae_ctx *ctx, const void *key, int key_len, int nonce_len, int tag_le
 }
 
 /* ----------------------------------------------------------------------- */
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 static block gen_offset_from_nonce(ae_ctx *ctx, const void *nonce)
 {
 	const union { unsigned x; unsigned char endian; } little = { 1 };
@@ -735,6 +738,7 @@ static block gen_offset_from_nonce(ae_ctx *ctx, const void *nonce)
 	}
 	return gen_offset(ctx->KtopStr, idx);
 }
+#pragma GCC diagnostic pop
 
 static void process_ad(ae_ctx *ctx, const void *ad, int ad_len, int final)
 {

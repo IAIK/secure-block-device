@@ -37,13 +37,22 @@ void sbdi_buffer_reset(sbdi_buffer_t *buf)
 }
 
 //----------------------------------------------------------------------
-uint8_t *sbdi_buffer_get_cptr(const sbdi_buffer_t *buf) {
+uint8_t *sbdi_buffer_get_cptr(const sbdi_buffer_t *buf)
+{
   assert(sbdi_buffer_is_valid(buf));
   return &buf->buffer[buf->pos];
 }
 
 //----------------------------------------------------------------------
-void sbdi_buffer_add_pos(sbdi_buffer_t *buf, const uint32_t add) {
+uint8_t *sbdi_buffer_get_cptr_off(const sbdi_buffer_t *buf, const uint32_t off)
+{
+  assert(buf && buf->buffer && off < buf->length);
+  return &buf->buffer[off];
+}
+
+//----------------------------------------------------------------------
+void sbdi_buffer_add_pos(sbdi_buffer_t *buf, const uint32_t add)
+{
   assert(sbdi_buffer_is_valid(buf));
   // Overflow protection
   assert(buf->pos <= (UINT32_MAX - add));
@@ -110,7 +119,8 @@ void sbdi_buffer_write_bytes(sbdi_buffer_t *buf, const uint8_t *src,
 }
 
 //----------------------------------------------------------------------
-void sbdi_buffer_write_ctr_128b(sbdi_buffer_t *buf, const sbdi_ctr_128b_t *ctr) {
+void sbdi_buffer_write_ctr_128b(sbdi_buffer_t *buf, const sbdi_ctr_128b_t *ctr)
+{
   assert(sbdi_buffer_is_valid(buf));
   sbdi_buffer_write_uint64_t(buf, ctr->hi);
   sbdi_buffer_write_uint64_t(buf, ctr->lo);

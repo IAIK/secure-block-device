@@ -12,12 +12,12 @@ extern "C" {
 #ifndef SBDI_HDR_H_
 #define SBDI_HDR_H_
 
-#include "siv.h"
-
 #include "sbdi_config.h"
 #include "sbdi_buffer.h"
 #include "sbdi_ctr_128b.h"
 #include "sbdi_block.h"
+
+#include <siv.h>
 
 #include <stdint.h>
 
@@ -26,16 +26,27 @@ extern "C" {
 
 #define SBDI_HDR_SUPPORTED_VERSION SBDI_HDR_VERSION_1
 
-#define SBDI_HDR_V1_PACKED_SIZE 84u
-#define SBDI_HDR_V1_KEY_SIZE    32u
-#define SBDI_HDR_V1_TAG_SIZE    SBDI_BLOCK_TAG_SIZE
+#define SBDI_HDR_V1_PACKED_SIZE  88u
+#define SBDI_HDR_V1_KEY_MAX_SIZE 32u
+#define SBDI_HDR_V1_TAG_SIZE     SBDI_BLOCK_TAG_SIZE
+#define SBDI_HDR_V1_KEY_INVALID  0
+#define SBDI_HDR_V1_KEY_SIV      1
+#define SBDI_HDR_V1_KEY_OCB      2
+#define SBDI_HDR_V1_KEY_NONE 65535
 
 typedef uint8_t sbdi_hdr_magic_t[SBDI_HDR_MAGIC_LEN];
-typedef uint8_t sbdi_hdr_v1_sym_key_t[SBDI_HDR_V1_KEY_SIZE];
+typedef uint8_t sbdi_hdr_v1_sym_key_t[SBDI_HDR_V1_KEY_MAX_SIZE];
 
-static const sbdi_hdr_magic_t SBDI_HDR_MAGIC = {
-    0xA1, 0x1D, 0x1F, 0xDE, 0xAD, 0xDA, 0x7A, 0xFF
-};
+// TODO Document
+typedef enum sbdi_hdr_v1_key_type {
+  SBDI_HDR_KEY_TYPE_INVALID = SBDI_HDR_V1_KEY_INVALID,
+  SBDI_HDR_KEY_TYPE_NONE = SBDI_HDR_V1_KEY_NONE,
+  SBDI_HDR_KEY_TYPE_SIV = SBDI_HDR_V1_KEY_SIV,
+  SBDI_HDR_KEY_TYPE_OCB = SBDI_HDR_V1_KEY_OCB
+} sbdi_hdr_v1_key_type_t;
+
+static const sbdi_hdr_magic_t SBDI_HDR_MAGIC = { 0xA1, 0x1D, 0x1F, 0xDE, 0xAD,
+    0xDA, 0x7A, 0xFF };
 
 /*!
  * \brief holds the information necessary to identify a secure block device
@@ -53,13 +64,10 @@ typedef struct secure_block_device_interface_header_v1 {
   sbdi_hdr_id_t id; //!< the secure block device interface identification information
   uint64_t size; //!< the current size of the secure block device in bytes
   sbdi_ctr_128b_t ctr; //!< access counter protecting the header against replay attacks
+  sbdi_hdr_v1_key_type_t type; //!< type of the key used to protect the secure block device
   sbdi_hdr_v1_sym_key_t key; //!< the plaintext secure block device key
   sbdi_tag_t tag; //!< the tag protecting the integrity of the key
-  // TODO rewrite counter that it has a well defined, platform independent internal rep.
-  uint8_t ctr_pkd[SBDI_CTR_128B_SIZE]; //!< scratch area to pack the counter for canonical writing
-  sbdi_buffer_t ctr_buf; //!< buffer to quickly convert counter into canonical representation
 } sbdi_hdr_v1_t;
-
 
 void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
     uint8_t *n1, size_t n1_len, uint8_t *n2, size_t n2_len);
@@ -73,13 +81,15 @@ void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
  *
  * @param hdr[out] an out pointer to the header set by this function on
  * successful header creation
+ * @param type[in] the key type that is encrypted in the header (OCB || SIV)
  * @param key[in] the plaintext symmetric SBDI v1 key to store in this header
  * @return SBDI_SUCCESS if the header could be created successfully;
  *         SBDI_ERR_OUT_Of_MEMORY if the space for the header could not be
  *                                allocated;
  *         SBDI_ERR_ILLEGAL_PARAM if any of the given parameters is null.
  */
-sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr, const sbdi_hdr_v1_sym_key_t key);
+sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
+    const sbdi_hdr_v1_key_type_t type, const sbdi_hdr_v1_sym_key_t key);
 
 /*!
  * \brief Overwrites the key data and frees the memory allocated for the

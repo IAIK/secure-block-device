@@ -194,6 +194,8 @@ public:
   void testReadWriteUpdate()
   {
     loadStore();
+    closeStore();
+    deleteStore();
   }
 };
 

@@ -24,6 +24,16 @@
 typedef uint8_t sbdi_tag_t[SBDI_BLOCK_TAG_SIZE];
 
 /*!
+ * \brief the packed representation of the counter used to make every
+ * encryption unique
+ *
+ * The runtime representation of the the counter might differ from its data
+ * at rest state. This data type defines how much space a packed counter
+ * needs.
+ */
+typedef uint8_t sbdi_ctr_pkd_t[SBDI_BLOCK_CTR_SIZE];
+
+/*!
  * \brief the block data data type for storing actual block data
  */
 typedef uint8_t sbdi_bl_data_t[SBDI_BLOCK_SIZE];
