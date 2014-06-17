@@ -68,6 +68,8 @@
 /  in better performance.                                                  */
 #define L_TABLE_SZ_IS_ENOUGH 1
 
+#define DONT_USE_SSE 1
+
 /* ----------------------------------------------------------------------- */
 /* Includes and compiler specific definitions                              */
 /* ----------------------------------------------------------------------- */
@@ -137,7 +139,7 @@
 /* Define blocks and operations -- Patch if incorrect on your compiler.    */
 /* ----------------------------------------------------------------------- */
 
-#if __SSE2__
+#if __SSE2__  && !DONT_USE_SSE
     #include <xmmintrin.h>              /* SSE instructions and _mm_malloc */
     #include <emmintrin.h>              /* SSE2 instructions               */
     typedef __m128i block;
