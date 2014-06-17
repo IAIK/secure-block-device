@@ -171,6 +171,7 @@ static inline void sbdi_bc_clear_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(sbdi_bc_t *cache,
     uint32_t idx_pos)
 {
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return (sbdi_bc_bt_t) (cache->index.list[idx_pos].flags & UINT8_MAX);
 }
 
