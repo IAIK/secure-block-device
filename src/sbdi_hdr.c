@@ -6,6 +6,7 @@
  */
 
 #include "sbdi_siv.h"
+#include "sbdi_nocrypto.h"
 #include "sbdi_hdr.h"
 #include "sbdi_buffer.h"
 
@@ -22,12 +23,25 @@ void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
   vprf(master, key + SBDI_BLOCK_TAG_SIZE, 1, n2, n2_len);
 }
 
+/*!
+ * \brief Determines if the given key type is supported by this header
+ * library implementation
+ *
+ * @param type the key type to validate
+ * @return true if the key type is supported (valid); false otherwise
+ */
+static inline int hdr_is_key_type_valid(const sbdi_hdr_v1_key_type_t type)
+{
+  return (type == SBDI_HDR_KEY_TYPE_NONE) || (type == SBDI_HDR_KEY_TYPE_OCB)
+      || (type == SBDI_HDR_KEY_TYPE_SIV);
+}
+
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
     const sbdi_hdr_v1_key_type_t type, const sbdi_hdr_v1_sym_key_t key)
 {
-  SBDI_CHK_PARAM(hdr && key &&
-      ((type == SBDI_HDR_V1_KEY_OCB) || (type == SBDI_HDR_V1_KEY_SIV)));
+  SBDI_CHK_PARAM(
+      hdr && key && hdr_is_key_type_valid(type));
   sbdi_hdr_v1_t *h = calloc(1, sizeof(sbdi_hdr_v1_t));
   if (!h) {
     return SBDI_ERR_OUT_Of_MEMORY;
@@ -40,8 +54,8 @@ sbdi_error_t sbdi_hdr_v1_create(sbdi_hdr_v1_t **hdr,
     return r;
   }
   h->type = type;
-  // Tag will be created once the header is written
-  // Copy previously created key into header
+// Tag will be created once the header is written
+// Copy previously created key into header
   memcpy(h->key, key, sizeof(sbdi_hdr_v1_sym_key_t));
   *hdr = h;
   return SBDI_SUCCESS;
@@ -92,7 +106,7 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     return r;
   }
   h->type = sbdi_buffer_read_uint32_t(&b);
-  if (h->type != SBDI_HDR_KEY_TYPE_SIV && h->type != SBDI_HDR_KEY_TYPE_OCB) {
+  if (!hdr_is_key_type_valid(h->type)) {
     free(h);
     return SBDI_ERR_UNSUPPORTED;
   }
@@ -106,6 +120,13 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     return SBDI_ERR_TAG_MISMATCH;
   }
   switch (h->type) {
+  case SBDI_HDR_KEY_TYPE_NONE:
+    r = sbdi_nocrypto_create(&sbdi->crypto, h->key);
+    if (r != SBDI_SUCCESS) {
+      free(h);
+      return r;
+    }
+    break;
   case SBDI_HDR_KEY_TYPE_SIV:
     r = sbdi_siv_create(&sbdi->crypto, h->key);
     if (r != SBDI_SUCCESS) {
@@ -143,8 +164,6 @@ sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master)
   sbdi_buffer_write_bytes(&b, hdr->id.magic, SBDI_HDR_MAGIC_LEN);
   sbdi_buffer_write_uint32_t(&b, hdr->id.version);
   sbdi_buffer_write_uint64_t(&b, hdr->size);
-  // TODO very strange buffer behavior the byte order is very much different
-  // in the header than in the rest of the file ===> find out why!
   sbdi_buffer_write_ctr_128b(&b, &hdr->ctr);
   sbdi_buffer_write_uint32_t(&b, hdr->type);
   uint8_t *kptr = sbdi_buffer_get_cptr(&b);

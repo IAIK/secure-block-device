@@ -29,14 +29,18 @@ extern "C" {
 #define SBDI_HDR_V1_PACKED_SIZE  88u
 #define SBDI_HDR_V1_KEY_MAX_SIZE 32u
 #define SBDI_HDR_V1_TAG_SIZE     SBDI_BLOCK_TAG_SIZE
+#define SBDI_HDR_V1_KEY_INVALID  0
 #define SBDI_HDR_V1_KEY_SIV      1
 #define SBDI_HDR_V1_KEY_OCB      2
+#define SBDI_HDR_V1_KEY_NONE 65535
 
 typedef uint8_t sbdi_hdr_magic_t[SBDI_HDR_MAGIC_LEN];
 typedef uint8_t sbdi_hdr_v1_sym_key_t[SBDI_HDR_V1_KEY_MAX_SIZE];
 
 // TODO Document
 typedef enum sbdi_hdr_v1_key_type {
+  SBDI_HDR_KEY_TYPE_INVALID = SBDI_HDR_V1_KEY_INVALID,
+  SBDI_HDR_KEY_TYPE_NONE = SBDI_HDR_V1_KEY_NONE,
   SBDI_HDR_KEY_TYPE_SIV = SBDI_HDR_V1_KEY_SIV,
   SBDI_HDR_KEY_TYPE_OCB = SBDI_HDR_V1_KEY_OCB
 } sbdi_hdr_v1_key_type_t;

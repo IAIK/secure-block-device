@@ -6,6 +6,7 @@
  */
 
 #include "sbdi_siv.h"
+#include "sbdi_nocrypto.h"
 
 #include "SecureBlockDeviceInterface.h"
 
@@ -88,11 +89,30 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
     sbdi_hdr_v1_derive_key(&mctx, key, (uint8_t*) n1, strlen(n1), (uint8_t*) n2,
         strlen(n2));
     // For now we only support SIV
-    r = sbdi_siv_create(&sbdi->crypto, key);
-    if (r != SBDI_SUCCESS) {
+    sbdi_hdr_v1_key_type_t ktype = SBDI_HDR_KEY_TYPE_INVALID;
+    switch (SBDI_CRYPTO_TYPE) {
+    case SBDI_CRYPTO_TYPE_NONE:
+      r = sbdi_nocrypto_create(&sbdi->crypto, key);
+      ktype = SBDI_HDR_KEY_TYPE_NONE;
+      break;
+    case SBDI_CRYPTO_TYPE_SIV:
+      // TODO do key derivation here
+      r = sbdi_siv_create(&sbdi->crypto, key);
+      if (r != SBDI_SUCCESS) {
+        goto FAIL;
+      }
+      ktype = SBDI_HDR_KEY_TYPE_SIV;
+      break;
+    case SBDI_CRYPTO_TYPE_OCB:
+      ktype = SBDI_HDR_KEY_TYPE_OCB;
+      r = SBDI_ERR_UNSUPPORTED;
+      goto FAIL;
+    default:
+      ktype = SBDI_HDR_KEY_TYPE_INVALID;
+      r = SBDI_ERR_UNSUPPORTED;
       goto FAIL;
     }
-    r = sbdi_hdr_v1_create(&sbdi->hdr, SBDI_HDR_KEY_TYPE_SIV, key);
+    r = sbdi_hdr_v1_create(&sbdi->hdr, ktype, key);
     if (r != SBDI_SUCCESS) {
       goto FAIL;
     }

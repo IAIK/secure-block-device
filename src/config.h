@@ -16,8 +16,12 @@
 #define SBDI_BLOCK_TAG_SIZE     16u
 #define SBDI_MNGT_BLOCK_ENTRIES (SBDI_BLOCK_SIZE/(SBDI_BLOCK_CTR_SIZE + SBDI_BLOCK_TAG_SIZE))
 #define SBDI_BLK_MAX_PHY        ((SBDI_BLK_MAX_LOG) + ((SBDI_BLK_MAX_LOG)/(SBDI_MNGT_BLOCK_ENTRIES)) + 2) //!< The maximum number of physical blocks supported by the secure block device interface
+#define SBDI_CRYPTO_TYPE_NONE   255
+#define SBDI_CRYPTO_TYPE_SIV    1
+#define SBDI_CRYPTO_TYPE_OCB    2
+#define SBDI_CRYPTO_TYPE        SBDI_CRYPTO_TYPE_OCB //!< Specify which kind of cryptography to use as default
 
-#define SBDI_CACHE_MAX_SIZE                                16u
+#define SBDI_CACHE_MAX_SIZE     16u
 #define SBDI_CACHE_PROFILE
 
 
