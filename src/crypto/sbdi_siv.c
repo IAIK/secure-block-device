@@ -7,10 +7,13 @@
 
 #include "sbdi_siv.h"
 #include "sbdi_crypto.h"
+#include "sbdi_buffer.h"
 
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
+
+#define SBDI_SIV_AD_SIZE (4 + (SBDI_BLOCK_CTR_SIZE))
 
 void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c,
     unsigned char *p, const int len, unsigned char *counter, const int nad, ...)
@@ -42,18 +45,27 @@ void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c,
   memcpy(counter, ctr, AES_BLOCK_SIZE);
 }
 
-sbdi_error_t sbdi_siv_encrypt(void *ctx, void *nonce, const void *pt,
-    int pt_len, const void *ad, int ad_len, void *ct, void *tag)
+sbdi_error_t sbdi_siv_encrypt(void *ctx, const uint8_t *pt, const int pt_len,
+    const sbdi_ctr_128b_t *ctr, uint32_t blk_nbr, uint8_t *ct, sbdi_tag_t tag)
 {
   // SIV does not use a nonce, make sure it is null!
   SBDI_CHK_PARAM(
-      ctx && !nonce && ct && ad && pt && tag && pt_len > 0 && ad_len > 0);
+      ctx && pt && pt_len > 0 && ctr && sbdi_block_is_valid_phy(blk_nbr) && ct
+          && tag);
   siv_ctx *s_ctx = (siv_ctx *) ctx;
-  const unsigned char *p = (const unsigned char *) pt;
-  unsigned char *c = (unsigned char *) ct;
-  const int len = (const int) pt_len;
   unsigned char *counter = (unsigned char *) tag;
-  int r = siv_encrypt(s_ctx, p, c, len, counter, 1, ad, ad_len);
+
+  uint8_t ad[SBDI_SIV_AD_SIZE];
+  memset(ad, 0, SBDI_SIV_AD_SIZE);
+  sbdi_buffer_t b;
+  // TODO should I move memset into init, or remove memset?
+  memset(&b, 0, sizeof(sbdi_buffer_t));
+
+  sbdi_buffer_init(&b, ad, SBDI_SIV_AD_SIZE);
+  sbdi_buffer_write_uint32_t(&b, blk_nbr);
+  sbdi_buffer_write_ctr_128b(&b, ctr);
+
+  int r = siv_encrypt(s_ctx, pt, ct, pt_len, counter, 1, ad, SBDI_SIV_AD_SIZE);
   if (r != 1) {
     return SBDI_ERR_CRYPTO_FAIL;
   } else {
@@ -61,18 +73,27 @@ sbdi_error_t sbdi_siv_encrypt(void *ctx, void *nonce, const void *pt,
   }
 }
 
-sbdi_error_t sbdi_siv_decrypt(void *ctx, const void *nonce, const void *ct,
-    int ct_len, const void *ad, int ad_len, void *pt, const void *tag)
+sbdi_error_t sbdi_siv_decrypt(void *ctx, const uint8_t *ct, const int ct_len,
+    const sbdi_ctr_pkd_t ctr, const uint32_t blk_nbr, uint8_t *pt,
+    const sbdi_tag_t tag)
 {
-  // SIV does not use a nonce, make sure it is null!
   SBDI_CHK_PARAM(
-      ctx && !nonce && ct && ad && pt && tag && ct_len > 0 && ad_len > 0);
+      ctx && ct && ct_len > 0 && ctr && sbdi_block_is_valid_phy(blk_nbr) && pt
+          && tag);
   siv_ctx *s_ctx = (siv_ctx *) ctx;
-  const unsigned char *c = (const unsigned char *) ct;
-  unsigned char *p = (unsigned char *) pt;
-  const int len = (const int) ct_len;
   unsigned char *counter = (unsigned char *) tag;
-  int r = siv_decrypt(s_ctx, c, p, len, counter, 1, ad, ad_len);
+
+  uint8_t ad[SBDI_SIV_AD_SIZE];
+  memset(ad, 0, SBDI_SIV_AD_SIZE);
+  sbdi_buffer_t b;
+  // TODO should I move memset into init, or remove memset?
+  memset(&b, 0, sizeof(sbdi_buffer_t));
+
+  sbdi_buffer_init(&b, ad, SBDI_SIV_AD_SIZE);
+  sbdi_buffer_write_uint32_t(&b, blk_nbr);
+  sbdi_buffer_write_bytes(&b, ctr, SBDI_BLOCK_CTR_SIZE);
+
+  int r = siv_decrypt(s_ctx, ct, pt, ct_len, counter, 1, ad, SBDI_SIV_AD_SIZE);
   if (r != 1) {
     return SBDI_ERR_TAG_MISMATCH;
   } else {
@@ -80,14 +101,14 @@ sbdi_error_t sbdi_siv_decrypt(void *ctx, const void *nonce, const void *ct,
   }
 }
 
-sbdi_error_t sbdi_siv_cmac(void *ctx, const unsigned char *msg,
-    const int mlen, unsigned char *C, const unsigned char *ad, const int ad_len) {
+sbdi_error_t sbdi_siv_cmac(void *ctx, const unsigned char *msg, const int mlen,
+    unsigned char *C, const unsigned char *ad, const int ad_len)
+{
   SBDI_CHK_PARAM(ctx && msg && mlen > 0 && C && ad && ad_len > 0);
-  siv_ctx *s_ctx = (siv_ctx *)ctx;
+  siv_ctx *s_ctx = (siv_ctx *) ctx;
   sbdi_bl_aes_cmac(s_ctx, ad, ad_len, msg, mlen, C);
   return SBDI_SUCCESS;
 }
-
 
 sbdi_error_t sbdi_siv_init(siv_ctx *ctx, sbdi_key_t key)
 {
@@ -108,6 +129,8 @@ void sbdi_siv_clear(siv_ctx *ctx)
 
 sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key)
 {
+  // The following is a sanity check required by the encrypt and decrypt fun.
+  assert(sizeof(sbdi_tag_t) == AES_BLOCK_SIZE);
   SBDI_CHK_PARAM(crypto && key);
   sbdi_error_t r = SBDI_ERR_UNSPECIFIED;
   siv_ctx *ctx = calloc(1, sizeof(siv_ctx));
@@ -137,7 +160,8 @@ sbdi_error_t sbdi_siv_create(sbdi_crypto_t **crypto, sbdi_key_t key)
   return r;
 }
 
-void sbdi_siv_destroy(sbdi_crypto_t *crypto) {
+void sbdi_siv_destroy(sbdi_crypto_t *crypto)
+{
   if (crypto) {
     assert(crypto->ctx);
     sbdi_siv_clear(crypto->ctx);
