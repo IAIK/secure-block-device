@@ -13,7 +13,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define SBDI_SIV_AD_SIZE (4 + (SBDI_BLOCK_CTR_SIZE))
+#define SBDI_SIV_AD_SIZE (4u + (SBDI_BLOCK_CTR_SIZE))
 
 void sbdi_siv_decrypt_dep(siv_ctx *ctx, const unsigned char *c,
     unsigned char *p, const int len, unsigned char *counter, const int nad, ...)
