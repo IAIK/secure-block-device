@@ -51,8 +51,8 @@
 /* This implementation has built-in support for multiple AES APIs. Set any
 /  one of the following to non-zero to specify which to use.               */
 #define USE_OPENSSL_AES      0  /* http://openssl.org                      */
-#define USE_REFERENCE_AES    0  /* Internet search: rijndael-alg-fst.c     */
-#define USE_AES_NI           1  /* Uses compiler's intrinsics              */
+#define USE_REFERENCE_AES    1  /* Internet search: rijndael-alg-fst.c     */
+#define USE_AES_NI           0  /* Uses compiler's intrinsics              */
 
 /* During encryption and decryption, various "L values" are required.
 /  The L values can be precomputed during initialization (requiring extra
@@ -61,7 +61,7 @@
 /  L values to precompute. L_TABLE_SZ must be at least 3. L_TABLE_SZ*16 bytes
 /  are used for L values in ae_ctx. Plaintext and ciphertexts shorter than
 /  2^L_TABLE_SZ blocks need no L values calculated dynamically.            */
-#define L_TABLE_SZ          16
+#define L_TABLE_SZ          12
 
 /* Set L_TABLE_SZ_IS_ENOUGH non-zero iff you know that all plaintexts
 /  will be shorter than 2^(L_TABLE_SZ+4) bytes in length. This results
