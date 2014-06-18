@@ -226,7 +226,10 @@ public:
     }
     std::random_shuffle(idxs.begin(), idxs.end());
     for (int i = 0; i < BLKS; ++i) {
-      f_write(i % 256, b, BLK_SIZE, idxs.at(i));
+      f_write(i % 256, b, BLK_SIZE, idxs.at(i) * BLK_SIZE);
+    }
+    for (int i = 0; i < BLKS; ++i) {
+      c_read(i % 256, b, BLK_SIZE, idxs.at(i) * BLK_SIZE);
     }
     closeStore();
     deleteStore();

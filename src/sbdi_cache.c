@@ -227,8 +227,17 @@ static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
-  // Now sync out the corresponding management block
-  return bc_sync_blk(cache, mng_idx);
+  /* Now sync out the corresponding management block
+   * First we need to check if the call back has already written the
+   * management block. The call back is allowed to do so, because it might
+   * want stronger integrity guarantees, but it must flag the management
+   * block as not dirty any more if this is the case.
+   */
+  if (sbdi_bc_is_blk_dirty(cache, mng_idx)) {
+    return bc_sync_blk(cache, mng_idx);
+  } else {
+    return SBDI_SUCCESS;
+  }
 }
 
 //----------------------------------------------------------------------
