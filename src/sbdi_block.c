@@ -313,11 +313,10 @@ static sbdi_error_t bl_read_data_block(sbdi_t *sbdi, sbdi_block_pair_t *pair,
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
-    uint32_t idx, size_t len)
+    uint32_t idx, size_t off, size_t len)
 {
-  if (!sbdi || !ptr || !sbdi_block_is_valid_log(idx) || len > SBDI_BLOCK_SIZE) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(
+      sbdi && ptr && sbdi_block_is_valid_log(idx) && off < SBDI_BLOCK_SIZE && len > 0 && len <= SBDI_BLOCK_SIZE && (off+len) <= SBDI_BLOCK_SIZE);
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
   uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
@@ -325,7 +324,7 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
   // Copy data block from cache into target buffer
-  memcpy(ptr, pair.blk->data, len);
+  memcpy(ptr, (*(pair.blk->data)) + off, len);
   return SBDI_SUCCESS;
 }
 
@@ -449,12 +448,10 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
-    uint32_t idx, size_t len)
+    uint32_t idx, size_t off, size_t len)
 {
-  if (!sbdi || !ptr
-      || !sbdi_block_is_valid_log(idx) || len == 0|| len > SBDI_BLOCK_SIZE) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(
+      sbdi && ptr && sbdi_block_is_valid_log(idx) && off < SBDI_BLOCK_SIZE && len > 0 && len <= SBDI_BLOCK_SIZE && off + len <= SBDI_BLOCK_SIZE);
   SBDI_ERR_CHK(bl_ensure_mngt_blocks_exist(sbdi, idx));
   // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
@@ -463,7 +460,7 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   sbdi_block_pair_t pair;
   bl_pair_init(&pair, mng_idx, dat_idx);
   SBDI_ERR_CHK(bl_read_data_block(sbdi, &pair, tag_idx));
-  memcpy(pair.blk->data, ptr, len);
+  memcpy((*(pair.blk->data)) + off, ptr, len);
 // Nothing has of yet been written to the management block. This has to be
 // done by the sync function, when the dependent data blocks are synced.
 // Afterwards the management block should be written.

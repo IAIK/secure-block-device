@@ -25,10 +25,10 @@ sbdi_error_t sbdi_bl_read_block(const sbdi_t *sbdi, sbdi_block_t *blk,
     size_t len, uint32_t *read);
 
 sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
-    uint32_t idx, size_t len);
+    uint32_t idx, size_t off, size_t len);
 
 sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
-    uint32_t idx, size_t len);
+    uint32_t idx, size_t off, size_t len);
 
 sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
     uint32_t last_blk_idx);

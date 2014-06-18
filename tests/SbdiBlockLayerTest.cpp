@@ -73,7 +73,7 @@ private:
 
   void read(uint32_t i)
   {
-    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    sbdi_error_t r = sbdi_bl_read_data_block(sbdi, b, i, 0, SBDI_BLOCK_SIZE);
     if (r != SBDI_SUCCESS) {
       std::cout << "Reading file @ block " << i << ". Error: "
           << err_to_string(r) << std::endl;
@@ -83,7 +83,7 @@ private:
 
   void write(uint32_t i)
   {
-    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, SBDI_BLOCK_SIZE);
+    sbdi_error_t r = sbdi_bl_write_data_block(sbdi, b, i, 0, SBDI_BLOCK_SIZE);
     if (r != SBDI_SUCCESS) {
       std::cout << "Writing file @ block " << i << ". Error: "
           << err_to_string(r) << std::endl;
@@ -248,4 +248,4 @@ unsigned char SbdiBLockLayerTest::SIV_KEYS[32] = {
     0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb,
     0xfc, 0xfd, 0xfe, 0xff };
 
-CPPUNIT_TEST_SUITE_REGISTRATION(SbdiBLockLayerTest);
+//CPPUNIT_TEST_SUITE_REGISTRATION(SbdiBLockLayerTest);

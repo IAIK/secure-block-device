@@ -327,15 +327,20 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   // This is indirectly already handled
   // determine number of first block
   uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
+  uint32_t adr = (offset == 0) ? (0) : (offset % SBDI_BLOCK_SIZE);
   *rd = 0;
+  size_t to_read = ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
   while (rlen) {
-    size_t to_read = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
-    SBDI_ERR_CHK(sbdi_bl_read_data_block(sbdi, ptr, idx, to_read));
+    // TODO Testcase for writing past a block boundary
+    SBDI_ERR_CHK(sbdi_bl_read_data_block(sbdi, ptr, idx, adr, to_read));
     *rd += to_read;
     rlen -= to_read;
     ptr += to_read;
     assert(os_add_uint32(idx, 1));
     idx += 1;
+    // Block relative offset only relevant the first time.
+    adr = 0;
+    to_read = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
   }
   return SBDI_SUCCESS;
 }
@@ -366,10 +371,12 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
   }
   // determine number of first block
   uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
+  uint32_t adr = (offset == 0) ? (0) : (offset % SBDI_BLOCK_SIZE);
   *wr = 0;
+  size_t to_write = ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
   while (rlen) {
-    size_t to_write = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
-    SBDI_ERR_CHK(sbdi_bl_write_data_block(sbdi, ptr, idx, to_write));
+    // TODO Testcase for writing past a block boundary
+    SBDI_ERR_CHK(sbdi_bl_write_data_block(sbdi, ptr, idx, adr, to_write));
     *wr += to_write;
     // The following addition depends on a previous os_add_size((size_t )offset, nbyte) check!
     if (offset + (*wr) > sbdi_hdr_v1_get_size(sbdi)) {
@@ -379,6 +386,9 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
     ptr += to_write;
     assert(os_add_uint32(idx, 1));
     idx += 1;
+    // Block relative offset only relevant the first time.
+    adr = 0;
+    to_write = (rlen > SBDI_BLOCK_SIZE) ? SBDI_BLOCK_SIZE : rlen;
   }
   return SBDI_SUCCESS;
 }
