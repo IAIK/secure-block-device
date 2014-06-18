@@ -30,11 +30,16 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 
+#include <algorithm>
+#include <vector>
+#include <cstdlib>
+
 class SbdiTest: public CppUnit::TestFixture {
-CPPUNIT_TEST_SUITE( SbdiTest );
+  CPPUNIT_TEST_SUITE( SbdiTest );
   CPPUNIT_TEST(testParameterChecks);
-  CPPUNIT_TEST(testSimpleReadWrite);CPPUNIT_TEST_SUITE_END()
-  ;
+  CPPUNIT_TEST(testSimpleReadWrite);
+  CPPUNIT_TEST(testRandomAccess);
+  CPPUNIT_TEST_SUITE_END();
 
 private:
   static unsigned char SIV_KEYS[32];
@@ -196,6 +201,36 @@ public:
     loadStore();
     closeStore();
     deleteStore();
+  }
+
+  void testRandomAccess()
+  {
+    loadStore();
+    const int BLK_SIZE = 1 * 1024;
+    const int BLKS = 2048;
+    unsigned char *b = (unsigned char *) malloc(
+        sizeof(unsigned char) * BLK_SIZE);
+    CPPUNIT_ASSERT(b);
+    //==== Sequential Setup Phase ====
+    for (int i = 0; i < BLKS; ++i) {
+      f_write(i % 256, b, BLK_SIZE, i * BLK_SIZE);
+    }
+    for (int i = 0; i < BLKS; ++i) {
+      c_read(i % 256, b, BLK_SIZE, i * BLK_SIZE);
+    }
+
+    //==== Random Write Test ====
+    std::vector<int> idxs;
+    for (int i = 0; i < BLKS; ++i) {
+      idxs.push_back(i);
+    }
+    std::random_shuffle(idxs.begin(), idxs.end());
+    for (int i = 0; i < BLKS; ++i) {
+      f_write(i % 256, b, BLK_SIZE, idxs.at(i));
+    }
+    closeStore();
+    deleteStore();
+    free(b);
   }
 };
 
