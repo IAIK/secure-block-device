@@ -16,6 +16,9 @@
 
 #define FILE_NAME "sbdi_tst_enc"
 
+#define ASS_SUC(f) CPPUNIT_ASSERT((f) == SBDI_SUCCESS)
+#define ASS_ERR_ILL_PAR(f) CPPUNIT_ASSERT((f) == SBDI_ERR_ILLEGAL_PARAM)
+
 /*!
  * \brief Checks if every byte in the given buffer is set to the specified
  * value
