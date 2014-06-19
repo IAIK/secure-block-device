@@ -259,6 +259,7 @@ static inline uint32_t bc_find_in_scope_elem(const sbdi_bc_t *cache,
   do {
     SBDI_BC_DEC_IDX(cdt);
     uint32_t cdt_phy = idx->list[cdt].block_idx;
+    // TODO make the inscope function a callback!
     if (sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy, cdt_phy)) {
       return cdt;
     }
