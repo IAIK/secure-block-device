@@ -62,6 +62,8 @@ typedef struct sbdi_block_cache {
 sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
 
+
+
 /*!
  * \brief Determines a cache data block element index based on the position
  * of a specific cache index element
@@ -143,17 +145,57 @@ static inline int sbdi_bc_idx_is_valid(uint32_t cache_idx)
   return cache_idx < SBDI_CACHE_MAX_SIZE;
 }
 
-static inline int sbdi_bc_is_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
+/*!
+ * \brief Determines if the element in the cache index at the given index
+ * position points to a valid physical block address
+ *
+ * @param cache[in] a pointer to the cache witch contains the element to
+ *                  check
+ * @param idx_pos[in] the position of the element to check in the cache index
+ * @return true if the element in the cache index at the given position\
+ *              points to a valid physical address;
+ *         false otherwise
+ */
+static inline int sbdi_bc_is_elem_valid_phy(const sbdi_bc_t *cache,
+    const uint32_t idx_pos)
+{
+  assert(cache && sbdi_bc_idx_is_valid(idx_pos));
+  return sbdi_block_is_valid_phy(cache->index.list[idx_pos].block_idx);
+}
+
+/*!
+ * \brief Determines if the element in the cache index at the given index
+ * position is dirty
+ *
+ * @param cache[in] a pointer to the cache witch contains the element to
+ *                  check
+ * @param idx_pos[in] the position of the element to check in the cache index
+ * @return true if the element in the cache index at the given position is
+ *              dirty;
+ *         false otherwise
+ */
+static inline int sbdi_bc_is_elem_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return cache->index.list[idx_pos].flags & SBDI_BC_BF_DIRTY_CMP;
 }
 
-static inline int sbdi_bc_is_valid_and_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
+/*!
+ * \brief Determines if the element in the cache index at the given index
+ * position is dirty and points to a valid physical block address
+ *
+ * @param cache[in] a pointer to the cache witch contains the element to
+ *                  check
+ * @param idx_pos[in] the position of the element to check in the cache index
+ * @return true if the element in the cache index at the given position is
+ *              dirty and points to a valid physical block address;
+ *         false otherwise
+ */
+static inline int sbdi_bc_is_elem_valid_and_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return sbdi_block_is_valid_phy(cache->index.list[idx_pos].block_idx)
-      && sbdi_bc_is_blk_dirty(cache, idx_pos);
+      && sbdi_bc_is_elem_dirty(cache, idx_pos);
 }
 
 static inline void sbdi_bc_set_blk_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
@@ -175,7 +217,7 @@ static inline sbdi_bc_bt_t sbdi_bc_get_blk_type(sbdi_bc_t *cache,
   return (sbdi_bc_bt_t) (cache->index.list[idx_pos].flags & UINT8_MAX);
 }
 
-static inline int sbdi_bc_is_mngt_blk(sbdi_bc_t *cache, uint32_t idx_pos)
+static inline int sbdi_bc_is_elem_mngt_blk(sbdi_bc_t *cache, uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return sbdi_bc_get_blk_type(cache, idx_pos) == SBDI_BC_BT_MNGT;

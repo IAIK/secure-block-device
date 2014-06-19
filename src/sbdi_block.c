@@ -6,6 +6,7 @@
  */
 
 #include "merkletree.h"
+#include "sbdi_debug.h"
 #include "sbdi_block.h"
 #include "SecureBlockDeviceInterface.h"
 
@@ -472,8 +473,6 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 // Nothing has of yet been written to the management block. This has to be
 // done by the sync function, when the dependent data blocks are synced.
 // Afterwards the management block should be written.
-  // TODO this is not the right place to dirty the management block
-  SBDI_ERR_CHK(sbdi_bc_dirty_blk(sbdi->cache, pair.mng->idx));
   return sbdi_bc_dirty_blk(sbdi->cache, pair.blk->idx);
 // Make sure block is in cache
 // What I need to do:
@@ -587,9 +586,7 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 {
   assert(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
-  assert(
-      sbdi_bc_idx_is_valid(idx_pos)
-          && sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos));
+  assert(sbdi_bc_is_elem_valid_and_dirty(sbdi->cache, idx_pos));
   switch (sbdi_bc_get_blk_type(sbdi->cache, idx_pos)) {
   case SBDI_BC_BT_MNGT:
     assert(sbdi_blic_is_phy_mng_blk(blk->idx));
@@ -609,5 +606,9 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
 {
   SBDI_CHK_PARAM(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
-  return bl_sync((sbdi_t *) sbdi, blk);
+  sbdi_t *t_sbdi = (sbdi_t *) sbdi;
+  SBDI_DBG(sbdi_dbg_print_delim());
+  SBDI_DBG(sbdi_dbg_print_block(blk));
+  SBDI_DBG(sbdi_dbg_print_cache_idx(t_sbdi->cache));
+  return bl_sync(t_sbdi, blk);
 }

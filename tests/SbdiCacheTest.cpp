@@ -281,9 +281,6 @@ public:
     complexSyncDirtyBlocks(0x80, 0x80 + (SBDI_CACHE_MAX_SIZE / 2));
     cacheBlock(&blk, 0x200, SBDI_BC_BT_DATA);
     exp_sync.insert(exp_sync.begin(), 0x02);
-    exp_sync.insert(exp_sync.begin(), 0x04);
-    exp_sync.insert(exp_sync.begin(), 0x06);
-    exp_sync.insert(exp_sync.begin(), 0x00);
     cacheBlock(&blk, 0x201, SBDI_BC_BT_DATA);
     CPPUNIT_ASSERT(exp_sync.size() == 0);
     exp_sync.clear();
