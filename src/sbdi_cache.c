@@ -124,7 +124,9 @@ void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
   // TODO make sure block layer syncs the cache before it frees it!
   // Clear all sensitive information from RAM
-  if (cache) {memset(cache, 0, sizeof(sbdi_bc_t));}
+  if (cache) {
+    memset(cache, 0, sizeof(sbdi_bc_t));
+  }
   free(cache);
 }
 
@@ -135,10 +137,8 @@ void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
  * index
  * @param idx_2 the index of the second element to swap in the block cache
  * index
- * @return SBDI_SUCCESS if the swap is successful, SBDI_ERR_ILLEGAL_PARAM if
- * one of the given parameters is invalid
  */
-static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
+static inline void bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
     uint32_t idx_2)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_1) && sbdi_bc_idx_is_valid(idx_2));
@@ -146,7 +146,6 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
   SWAP(idx->list[idx_1].block_idx, idx->list[idx_2].block_idx);
   SWAP(idx->list[idx_1].cache_idx, idx->list[idx_2].cache_idx);
   SWAP(idx->list[idx_1].flags, idx->list[idx_2].flags);
-  return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------
@@ -168,7 +167,7 @@ sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 #endif
     return SBDI_SUCCESS;
   } else {
-    SBDI_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
+    bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos));
     blk->data = sbdi_bc_get_db_for_cache_idx(cache, SBDI_BC_IDX_P1(idx_pos));
 #ifdef SBDI_CACHE_PROFILE
     cache->hits++;
@@ -211,56 +210,136 @@ static inline sbdi_error_t bc_sync_blk(sbdi_bc_t *cache, uint32_t idx_pos)
  * @return SBDI_SUCCESS if the operation succeeds, SBDI_ERR_ILLEGAL_PARAM if
  * any of the given parameters is invalid
  */
-static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
+//static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
+//{
+//  assert(cache && sbdi_bc_idx_is_valid(mng_idx));
+//  uint32_t mng_phy_idx = idx_get_phy_idx(cache, mng_idx);
+//  // Sync out data blocks first and then the corresponding management block
+//  for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
+//    if (sbdi_bc_is_elem_valid_and_dirty(cache, i) && !sbdi_bc_is_elem_mngt_blk(cache, i)
+//        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx,
+//            idx_get_phy_idx(cache, i))) {
+//      // Not a management block, but dirty and in scope of the management
+//      // block ==> sync
+//      SBDI_ERR_CHK(bc_sync_blk(cache, i));
+//    }
+//  }
+//  /* Now sync out the corresponding management block
+//   * First we need to check if the call back has already written the
+//   * management block. The call back is allowed to do so, because it might
+//   * want stronger integrity guarantees, but it must flag the management
+//   * block as not dirty any more if this is the case.
+//   */
+//  if (sbdi_bc_is_elem_dirty(cache, mng_idx)) {
+//    return bc_sync_blk(cache, mng_idx);
+//  } else {
+//    return SBDI_SUCCESS;
+//  }
+//}
+
+/*!
+ * \brief finds the most recently used element in the cache index that is
+ * in-scope of the management block specified by its physical block index and
+ * returns its cache index position if such an element exists
+ *
+ * If such an element does not exist this function returns an invalid cache
+ * index position.
+ *
+ * @param cache[in] a pointer to the cache in which to look for an element
+ * that is in-scope of the specified management block
+ * @param mng_phy the physical management block index
+ * @return the position of the element in the cache index
+ */
+static inline uint32_t bc_find_in_scope_elem(const sbdi_bc_t *cache,
+    const uint32_t mng_phy)
 {
-  assert(cache && sbdi_bc_idx_is_valid(mng_idx));
-  uint32_t mng_phy_idx = idx_get_phy_idx(cache, mng_idx);
-  // Sync out data blocks first and then the corresponding management block
-  for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-    if (sbdi_bc_is_valid_and_dirty(cache, i) && !sbdi_bc_is_mngt_blk(cache, i)
-        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx,
-            idx_get_phy_idx(cache, i))) {
-      // Not a management block, but dirty and in scope of the management
-      // block ==> sync
-      SBDI_ERR_CHK(bc_sync_blk(cache, i));
+  assert(cache);
+  const sbdi_bc_idx_t *idx = &cache->index;
+  uint32_t cdt = idx->lru;
+  do {
+    SBDI_BC_DEC_IDX(cdt);
+    uint32_t cdt_phy = idx->list[cdt].block_idx;
+    if (sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy, cdt_phy)) {
+      return cdt;
     }
-  }
-  /* Now sync out the corresponding management block
-   * First we need to check if the call back has already written the
-   * management block. The call back is allowed to do so, because it might
-   * want stronger integrity guarantees, but it must flag the management
-   * block as not dirty any more if this is the case.
-   */
-  if (sbdi_bc_is_blk_dirty(cache, mng_idx)) {
-    return bc_sync_blk(cache, mng_idx);
-  } else {
-    return SBDI_SUCCESS;
-  }
+  } while (cdt != idx->lru);
+  return UINT32_MAX;
+}
+
+/*!
+ * \brief Bumps-up the cache index element specified by the given start
+ * position to the cache index element at the specified end position
+ *
+ * @param cache[in/out] a pointer to the cache data type instance that
+ * contains the index to modify
+ * @param srt_pos[in] the position of the index element to bump-up
+ * @param end_pos[in] the target position to where to bump the element
+ */
+static inline void bc_bump_up_blk(sbdi_bc_t *cache, uint32_t srt_pos, const uint32_t end_pos) {
+  assert(srt_pos != end_pos && sbdi_bc_idx_is_valid(srt_pos) && sbdi_bc_idx_is_valid(end_pos));
+  do {
+    bc_swap(cache, srt_pos, SBDI_BC_IDX_P1(srt_pos));
+    SBDI_BC_INC_IDX(srt_pos);
+  } while (srt_pos != end_pos);
 }
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
     sbdi_bc_bt_t blk_type)
 {
-  if (!cache || !blk || !sbdi_block_is_valid_phy(blk->idx)
-      || blk_type == SBDI_BC_BT_RESV) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(
+      cache && blk && sbdi_block_is_valid_phy(blk->idx)
+          && ((blk_type == SBDI_BC_BT_DATA) || (blk_type == SBDI_BC_BT_MNGT)));
   blk->data = NULL;
   SBDI_ERR_CHK(sbdi_bc_find_blk(cache, blk));
   if (blk->data) {
     return SBDI_SUCCESS;
   }
-  // Make sure the block that gets evicted is in sync!
-  if (sbdi_bc_is_valid_and_dirty(cache, idx_get_lru(cache))) {
-    if (sbdi_bc_is_mngt_blk(cache, idx_get_lru(cache))) {
-      // in case we deal with a management block it is probably best to
-      // sync out all its dependent blocks. This SHOULD ensure a consistent
-      // state.
-      SBDI_ERR_CHK(sbdi_bc_sync_mngt_blk(cache, idx_get_lru(cache)));
+  int lru = idx_get_lru(cache);
+  while (1) {
+    if (sbdi_bc_is_elem_valid_phy(cache, lru)) {
+      if (sbdi_bc_is_elem_mngt_blk(cache, lru)) {
+        /* If the management block has in-scope data blocks that are more
+         * recently used than the management block itself, it makes sense to
+         * bump up the management block.
+         * First, this can happen if a specific management block is already in
+         * the cache and a new in-scope data block gets loaded. Now the newly
+         * read data block will be the most recently used block and the
+         * corresponding management block will less recently used.
+         * Second, we bump-up the management block to the most recently used
+         * in-scope data block. This SHOULD ensure that all in-scope data
+         * blocks get removed before the management block. */
+        uint32_t mng_phy = idx_get_phy_idx(cache, lru);
+        uint32_t tgt_pos = bc_find_in_scope_elem(cache, mng_phy);
+        if (sbdi_bc_idx_is_valid(tgt_pos)) {
+          /* In-scope data block exists
+           * Need to bump-up management block. If the next higher up block is
+           * also a management block we need to do this recursively. */
+          bc_bump_up_blk(cache, lru, tgt_pos);
+          continue;
+        } else {
+          /* No in-scope data block
+           * Management block can be synchronized out without worrying about
+           * in-scope data blocks. */
+          if (sbdi_bc_is_elem_dirty(cache, lru)) {
+            SBDI_ERR_CHK(bc_sync_blk(cache, lru));
+          }
+          /* Management block, but not dirty
+           * Depending on the integrity guarantees of the sync callback it can
+           * happen that a management block is in cache that is not dirty, but
+           * still has dirty dependent blocks higher up in the LRU list.
+           * Anyway nothing to do in this case. */
+          break;
+        }
+      } else {
+        /* Data block ==> sync if dirty */
+        if (sbdi_bc_is_elem_dirty(cache, lru)) {
+          SBDI_ERR_CHK(bc_sync_blk(cache, lru));
+        }
+        break;
+      }
     } else {
-      // This is just a data block, sync it out
-      SBDI_ERR_CHK(bc_sync_blk(cache, idx_get_lru(cache)));
+      break;
     }
   }
   // Finally, reserve the cache entry for the new block
@@ -274,32 +353,25 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || !sbdi_block_is_valid_phy(phy_idx)) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(cache && sbdi_block_is_valid_phy(phy_idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
   SBDI_BC_CHK_IDX_POS(idx_pos);
+  // Management blocks should never be set dirty directly
+  SBDI_CHK_PARAM(!sbdi_bc_is_elem_mngt_blk(cache, idx_pos));
   sbdi_bc_set_blk_dirty(cache, idx_pos);
-  if (sbdi_bc_is_mngt_blk(cache, idx_pos)
-      && SBDI_BC_IDX_P1(idx_pos) != idx_get_lru(cache)) {
-    // This is a management block and it's not already at the top of the
-    // cache list ==> bump it up
-    SBDI_ERR_CHK(sbdi_bc_swap(cache, idx_pos, SBDI_BC_IDX_P1(idx_pos)));
-  }
   return SBDI_SUCCESS;
 }
 
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
 {
-  if (!cache || !sbdi_block_is_valid_phy(phy_idx)) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(cache && sbdi_block_is_valid_phy(phy_idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
-  // Test if the block marked for eviction is found. If not, this is bad news,
-  // as the only place where this function is called, is when a cache
-  // reservation must be invalidated, because a block could not be loaded.
-  // This means the block to be evicted must be in cache at this point.
+  /* Test if the block marked for eviction is found. If not, this is bad
+   * news, as the only place where this function is called, is when a cache
+   * reservation must be invalidated, because a block could not be loaded.
+   * This means the block to be evicted must be in cache at this point.
+   */
   SBDI_BC_CHK_IDX_POS(idx_pos);
   idx_invalidate_phy_idx(cache, idx_pos);
   if (idx_pos == idx_get_lru(cache)) {
@@ -312,7 +384,7 @@ sbdi_error_t sbdi_bc_evict_blk(sbdi_bc_t *cache, uint32_t phy_idx)
   do {
     SBDI_BC_DEC_IDX(swp);
     if (sbdi_block_is_valid_phy(idx_get_phy_idx(cache, swp))) {
-      SBDI_ERR_CHK(sbdi_bc_swap(cache, swp_last, swp));
+      bc_swap(cache, swp_last, swp);
       swp_last = swp;
     }
   } while (swp != idx_get_lru(cache));
@@ -328,8 +400,8 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   // Sync out data blocks first and then the corresponding management
   // blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-    if (sbdi_bc_is_valid_and_dirty(cache, i)
-        && !sbdi_bc_is_mngt_blk(cache, i)) {
+    if (sbdi_bc_is_elem_valid_and_dirty(cache, i)
+        && !sbdi_bc_is_elem_mngt_blk(cache, i)) {
       // Not a management block, but dirty ==> sync in the first round
       // TODO must not trigger automatic management block syncing?
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
@@ -337,7 +409,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
   }
   // Second round: sync out all remaining dirty management blocks
   for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-    if (sbdi_bc_is_valid_and_dirty(cache, i)) {
+    if (sbdi_bc_is_elem_valid_and_dirty(cache, i)) {
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
