@@ -296,17 +296,25 @@ static sbdi_error_t bl_read_data_block(sbdi_t *sbdi, sbdi_block_pair_t *pair,
     uint32_t tag_idx)
 {
   assert(sbdi && pair);
+  int do_bump_mng_blk = 0;
   SBDI_ERR_CHK(sbdi_bc_find_blk(sbdi->cache, pair->blk));
   if (!(pair->blk->data)) {
     SBDI_ERR_CHK(sbdi_bc_find_blk(sbdi->cache, pair->mng));
     if (!pair->mng->data) {
       // Management block not yet in cache
       SBDI_ERR_CHK(bl_read_mngt_block(sbdi, pair->mng));
+      do_bump_mng_blk = 1;
     }
     // Data block not yet in cache
     uint8_t *ctr = bl_get_ctr_address(pair->mng, tag_idx);
     uint8_t *tag = bl_get_tag_address(pair->mng, tag_idx);
     SBDI_ERR_CHK(bl_cache_decrypt(sbdi, pair->blk, tag, ctr));
+    /* Management block should stay in cache longer so make sure it gets the
+     * LRU slot, instead of the data block! */
+    if (do_bump_mng_blk) {
+      // We just loaded the block, this simply must succeed!
+      assert(sbdi_bc_find_blk(sbdi->cache, pair->mng) == SBDI_SUCCESS);
+    }
   }
   return SBDI_SUCCESS;
 }
