@@ -55,7 +55,7 @@ private:
     struct stat s;
     CPPUNIT_ASSERT(fstat(fd, &s) == 0);
     pio = sbdi_pio_create(&fd, s.st_size);
-    CPPUNIT_ASSERT(sbdi_open(&sbdi, pio, SIV_KEYS, root) == SBDI_SUCCESS);
+    CPPUNIT_ASSERT(sbdi_open(&sbdi, pio, SBDI_CRYPTO_NONE, SIV_KEYS, root) == SBDI_SUCCESS);
   }
 
   void closeStore()

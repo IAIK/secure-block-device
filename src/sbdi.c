@@ -86,11 +86,14 @@ void sbdi_delete(sbdi_t *sbdi)
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
-    mt_hash_t root)
+sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
+    sbdi_sym_mst_key_t mkey, mt_hash_t root)
 {
   // TODO what about root? Can be null, but only ...
   SBDI_CHK_PARAM(s && pio && mkey);
+#ifdef SBDI_CRYPTO_TYPE
+  ct = SBDI_CRYPTO_TYPE;
+#endif
   // variables that need explicit cleaning
   siv_ctx mctx;
   memset(&mctx, 0, sizeof(siv_ctx));
@@ -114,12 +117,12 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
         strlen(n2));
     // For now we only support SIV
     sbdi_hdr_v1_key_type_t ktype = SBDI_HDR_KEY_TYPE_INVALID;
-    switch (SBDI_CRYPTO_TYPE) {
-    case SBDI_CRYPTO_TYPE_NONE:
+    switch (ct) {
+    case SBDI_CRYPTO_NONE:
       r = sbdi_nocrypto_create(&sbdi->crypto, key);
       ktype = SBDI_HDR_KEY_TYPE_NONE;
       break;
-    case SBDI_CRYPTO_TYPE_SIV:
+    case SBDI_CRYPTO_SIV:
       // TODO do key derivation here
       r = sbdi_siv_create(&sbdi->crypto, key);
       if (r != SBDI_SUCCESS) {
@@ -127,7 +130,7 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
       }
       ktype = SBDI_HDR_KEY_TYPE_SIV;
       break;
-    case SBDI_CRYPTO_TYPE_OCB:
+    case SBDI_CRYPTO_OCB:
       r = sbdi_ocb_create(&sbdi->crypto, key);
       if (r != SBDI_SUCCESS) {
         goto FAIL;
@@ -329,7 +332,8 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
   uint32_t adr = (offset == 0) ? (0) : (offset % SBDI_BLOCK_SIZE);
   *rd = 0;
-  size_t to_read = ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
+  size_t to_read =
+      ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
   while (rlen) {
     // TODO Testcase for writing past a block boundary
     SBDI_ERR_CHK(sbdi_bl_read_data_block(sbdi, ptr, idx, adr, to_read));
@@ -373,7 +377,8 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
   uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
   uint32_t adr = (offset == 0) ? (0) : (offset % SBDI_BLOCK_SIZE);
   *wr = 0;
-  size_t to_write = ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
+  size_t to_write =
+      ((rlen + adr) > SBDI_BLOCK_SIZE) ? (SBDI_BLOCK_SIZE - adr) : rlen;
   while (rlen) {
     // TODO Testcase for writing past a block boundary
     SBDI_ERR_CHK(sbdi_bl_write_data_block(sbdi, ptr, idx, adr, to_write));

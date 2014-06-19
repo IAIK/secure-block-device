@@ -19,6 +19,7 @@ extern "C" {
 #include "sbdi_ctr_128b.h"
 #include "sbdi_block.h"
 #include "sbdi_hdr.h"
+#include "sbdi_crypto_type.h"
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -83,7 +84,7 @@ struct secure_block_device_interface {
 sbdi_t *sbdi_create(sbdi_pio_t *pioypto);
 void sbdi_delete(sbdi_t *sbdi);
 
-sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_sym_mst_key_t mkey,
+sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct, sbdi_sym_mst_key_t mkey,
     mt_hash_t root);
 sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
 
