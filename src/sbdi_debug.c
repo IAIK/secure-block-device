@@ -36,7 +36,7 @@ void sbdi_dbg_print_cache_idx(sbdi_bc_t *cache)
   for (uint32_t i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
     printf("[IDX][%02" PRIu32 "]:{0x%08" PRIx32 ", %02" PRIu32, i,
         idx->list[i].block_idx, idx->list[i].cache_idx);
-    char dirty = (sbdi_bc_is_blk_dirty(cache, i)) ? 'd' : ' ';
+    char dirty = (sbdi_bc_is_elem_dirty(cache, i)) ? 'd' : ' ';
     sbdi_bc_bt_t t = sbdi_bc_get_blk_type(cache, i);
     char type = ' ';
     switch (t) {
