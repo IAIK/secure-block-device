@@ -152,9 +152,7 @@ static inline sbdi_error_t sbdi_bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bc_find_blk(sbdi_bc_t *cache, sbdi_block_t *blk)
 {
-  if (!cache || !blk || !sbdi_block_is_valid_phy(blk->idx)) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(cache && blk && sbdi_block_is_valid_phy(blk->idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, blk->idx);
   if (!sbdi_bc_idx_is_valid(idx_pos)) {
     blk->data = NULL;

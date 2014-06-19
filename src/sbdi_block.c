@@ -600,8 +600,6 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 //----------------------------------------------------------------------
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
 {
-  if (!sbdi || !blk || !blk->data || !sbdi_block_is_valid_phy(blk->idx)) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
+  SBDI_CHK_PARAM(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
   return bl_sync((sbdi_t *) sbdi, blk);
 }
