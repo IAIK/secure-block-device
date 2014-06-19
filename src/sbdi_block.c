@@ -6,6 +6,7 @@
  */
 
 #include "merkletree.h"
+#include "sbdi_debug.h"
 #include "sbdi_block.h"
 #include "SecureBlockDeviceInterface.h"
 
@@ -609,5 +610,9 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 sbdi_error_t sbdi_bl_sync(void *sbdi, sbdi_block_t *blk)
 {
   SBDI_CHK_PARAM(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
-  return bl_sync((sbdi_t *) sbdi, blk);
+  sbdi_t *t_sbdi = (sbdi_t *) sbdi;
+  SBDI_DBG(sbdi_dbg_print_delim());
+  SBDI_DBG(sbdi_dbg_print_block(blk));
+  SBDI_DBG(sbdi_dbg_print_cache_idx(t_sbdi->cache));
+  return bl_sync(t_sbdi, blk);
 }
