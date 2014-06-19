@@ -586,9 +586,7 @@ static sbdi_error_t bl_sync(sbdi_t *sbdi, sbdi_block_t *blk)
 {
   assert(sbdi && blk && blk->data && sbdi_block_is_valid_phy(blk->idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(sbdi->cache, blk->idx);
-  assert(
-      sbdi_bc_idx_is_valid(idx_pos)
-          && sbdi_bc_is_blk_dirty(sbdi->cache, idx_pos));
+  assert(sbdi_bc_is_elem_valid_and_dirty(sbdi->cache, idx_pos));
   switch (sbdi_bc_get_blk_type(sbdi->cache, idx_pos)) {
   case SBDI_BC_BT_MNGT:
     assert(sbdi_blic_is_phy_mng_blk(blk->idx));
