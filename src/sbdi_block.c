@@ -473,8 +473,6 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 // Nothing has of yet been written to the management block. This has to be
 // done by the sync function, when the dependent data blocks are synced.
 // Afterwards the management block should be written.
-  // TODO this is not the right place to dirty the management block
-  SBDI_ERR_CHK(sbdi_bc_dirty_blk(sbdi->cache, pair.mng->idx));
   return sbdi_bc_dirty_blk(sbdi->cache, pair.blk->idx);
 // Make sure block is in cache
 // What I need to do:
