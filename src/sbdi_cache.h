@@ -35,7 +35,21 @@ typedef enum sbdi_block_cache_block_type {
   SBDI_BC_BT_DATA = SBDI_BC_BT_DATA_CMP,
 } sbdi_bc_bt_t;
 
-typedef sbdi_error_t (*sbdi_sync_fp_t)(void *sync_data, sbdi_block_t *blk);
+typedef sbdi_error_t (*sbdi_bc_sync_fp_t)(void *sync_data, sbdi_block_t *blk);
+
+/*!
+ * \brief Determines if the given data block specified by blk is in scope of
+ * the management block specified by mng and returns true if this is the case
+ *
+ * @param mng[in] the identifier of the management block (e.g. physical block
+ *                index)
+ * @param blk[in] the identifier of the data block (e.g. physical block
+ *                index)
+ * @return true if the specified data block is in scope of the specified
+ *              management block;
+ *         false otherwise
+ */
+typedef int (*sbdi_bc_is_in_scope_fp_t)(const uint32_t mng, const uint32_t blk);
 
 typedef struct sbdi_block_cache_index_element {
   uint32_t block_idx;
@@ -48,21 +62,56 @@ typedef struct sbdi_block_cache_index {
   sbdi_bc_idx_elem_t list[SBDI_CACHE_MAX_SIZE];
 } sbdi_bc_idx_t;
 
+typedef struct sbdi_block_cache_callbacks {
+  void *sync_data;
+  sbdi_bc_sync_fp_t sync;
+  sbdi_bc_is_in_scope_fp_t in_scope;
+} sbdi_bc_cb_t;
+
 typedef struct sbdi_block_cache {
 #ifdef SBDI_CACHE_PROFILE
   uint64_t hits;
   uint64_t misses;
+  uint64_t bumps;
 #endif
-  sbdi_sync_fp_t sync;
-  void *sync_data;
+  sbdi_bc_cb_t cbs;
   sbdi_bc_idx_t index;
   sbdi_bl_data_t store[SBDI_CACHE_MAX_SIZE];
 } sbdi_bc_t;
 
-sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data);
+/*!
+ * \brief Creates a new cache for a secure block device interface
+ *
+ * Allocates the memory required for the cache. To clean up the cache, call
+ * sbdi_bc_cache_destroy(). None of the arguments to this function may be
+ * null!
+ *
+ * @param sync_data[in] a void pointer to a data type that might be required
+ *                  by the sync callback function
+ * @param sync[in] a function pointer to the sync callback function, which is
+ *                 used to synchronize dirty data in the cache before this
+ *                 data is evicted from the cache
+ * @param in_scope[in] a function pointer to the is_in_scope callback
+ *                     function. This function is used by the cache to
+ *                     determine which data blocks are in-scope (dependent
+ *                     on) a specific management block
+ * @return a freshly created cache data type instance if the operation
+ *         succeeds; NULL otherwise
+ */
+sbdi_bc_t *sbdi_bc_cache_create(void *sync_data, sbdi_bc_sync_fp_t sync,
+    sbdi_bc_is_in_scope_fp_t in_scope);
+
+/*!
+ * \brief Destroys the given cache by overwriting the complete cache memory
+ * and freeing all resources associated with the cache
+ *
+ * The caller has to ensure that all data in the cache is synchronized,
+ * before calling this function, otherwise the data in the cache will be
+ * lost.
+ *
+ * @param cache[in] a pointer to the cache to destroy
+ */
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache);
-
-
 
 /*!
  * \brief Determines a cache data block element index based on the position
@@ -191,7 +240,8 @@ static inline int sbdi_bc_is_elem_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
  *              dirty and points to a valid physical block address;
  *         false otherwise
  */
-static inline int sbdi_bc_is_elem_valid_and_dirty(sbdi_bc_t *cache, uint32_t idx_pos)
+static inline int sbdi_bc_is_elem_valid_and_dirty(sbdi_bc_t *cache,
+    uint32_t idx_pos)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_pos));
   return sbdi_block_is_valid_phy(cache->index.list[idx_pos].block_idx)
@@ -239,30 +289,6 @@ static inline void sbdi_bc_set_blk_type(sbdi_bc_t *cache, uint32_t idx_pos,
   assert(
       cache && idx_pos < SBDI_CACHE_MAX_SIZE && (blk_type == SBDI_BC_BT_DATA || blk_type == SBDI_BC_BT_MNGT));
   cache->index.list[idx_pos].flags = blk_type;
-}
-
-/*!
- * \brief computes if the block with the given physical data block index is
- * in scope of the management block with the given physical block index
- *
- * A data block is in scope of a management block if its counter value and
- * tag are stored in the management block. This can be computed from the
- * physical management block index, by simply adding the amount of entries
- * that fit into a management block and see if the physical index of the
- * data block is less than or equal to this number:
- *
- * in_scope(mng_idx, blk_idx) =
- *   blk_idx > mng_idx && blk_idx <= (mng_idx + MNGT_BLOCK_ENTRIES)
- *
- * @param phy_mng the physical block index of a management block
- * @param phy_dat the physical block index of a data block
- * @return true if the data block with the given physical index is in scope
- * of the management block with the given index
- */
-static inline int sbdi_blic_is_phy_dat_in_phy_mngt_scope(uint32_t phy_mng,
-    uint32_t phy_dat)
-{
-  return phy_dat > phy_mng && phy_dat <= (phy_mng + SBDI_MNGT_BLOCK_ENTRIES);
 }
 
 #ifdef SBDI_CACHE_PROFILE

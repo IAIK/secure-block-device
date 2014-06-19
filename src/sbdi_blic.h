@@ -183,4 +183,28 @@ static inline uint32_t sbdi_blic_mng_blk_nbr_to_mng_phy(
   return (mng_blk_nbr * (SBDI_MNGT_BLOCK_ENTRIES + 1)) + 1;
 }
 
+/*!
+ * \brief computes if the block with the given physical data block index is
+ * in scope of the management block with the given physical block index
+ *
+ * A data block is in scope of a management block if its counter value and
+ * tag are stored in the management block. This can be computed from the
+ * physical management block index, by simply adding the amount of entries
+ * that fit into a management block and see if the physical index of the
+ * data block is less than or equal to this number:
+ *
+ * in_scope(mng_idx, blk_idx) =
+ *   blk_idx > mng_idx && blk_idx <= (mng_idx + MNGT_BLOCK_ENTRIES)
+ *
+ * @param phy_mng the physical block index of a management block
+ * @param phy_dat the physical block index of a data block
+ * @return true if the data block with the given physical index is in scope
+ * of the management block with the given index
+ */
+static inline int sbdi_blic_is_phy_dat_in_phy_mngt_scope(uint32_t phy_mng,
+    uint32_t phy_dat)
+{
+  return phy_dat > phy_mng && phy_dat <= (phy_mng + SBDI_MNGT_BLOCK_ENTRIES);
+}
+
 #endif /* SBDI_BLIC_H_ */

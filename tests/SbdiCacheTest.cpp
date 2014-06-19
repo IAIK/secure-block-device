@@ -74,10 +74,16 @@ private:
     }
   }
 
+  static int is_in_scope(const uint32_t mng, const uint32_t blk)
+  {
+    // TODO do something more suited here
+    return blk > mng && blk <= (mng + SBDI_MNGT_BLOCK_ENTRIES);
+  }
+
 public:
   void setUp()
   {
-    cache = sbdi_bc_cache_create(&sync_cb, &exp_sync);
+    cache = sbdi_bc_cache_create(&exp_sync, &sync_cb, &is_in_scope);
     exp_sync.clear();
   }
 
@@ -219,7 +225,7 @@ public:
       memset(blk->data, i, SBDI_BLOCK_SIZE);
     }
     sbdi_block_init(blk, 0x50, NULL);
-    ASS_ERR_ILL_PAR(sbdi_bc_dirty_blk(cache, blk->idx));
+    ASS_SUC(sbdi_bc_dirty_blk(cache, blk->idx));
     sbdi_block_init(blk, 0x51, NULL);
     ASS_SUC(sbdi_bc_dirty_blk(cache, blk->idx));
     sbdi_block_init(blk, 0x52, NULL);
@@ -230,6 +236,7 @@ public:
     CPPUNIT_ASSERT(exp_sync.size() == 0);
     exp_sync.clear();
     // No sync should happen!
+    exp_sync.insert(exp_sync.begin(), 0x50);
     exp_sync.insert(exp_sync.begin(), 0x52);
     ASS_SUC(sbdi_bc_sync(cache));
     CPPUNIT_ASSERT(exp_sync.size() == 0);
@@ -264,12 +271,7 @@ public:
         continue;
       }
       sbdi_block_init(blk, i, NULL);
-      if (i == s_idx) {
-        CPPUNIT_ASSERT(
-            sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_ERR_ILLEGAL_PARAM);
-      } else {
-        CPPUNIT_ASSERT(sbdi_bc_dirty_blk(cache, blk->idx) == SBDI_SUCCESS);
-      }
+      ASS_SUC(sbdi_bc_dirty_blk(cache, blk->idx));
     }
   }
 

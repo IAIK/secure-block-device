@@ -93,9 +93,10 @@ static inline void idx_invalidate_phy_idx(sbdi_bc_t *cache, uint32_t idx)
 }
 
 //----------------------------------------------------------------------
-sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
+sbdi_bc_t *sbdi_bc_cache_create(void *sync_data, sbdi_bc_sync_fp_t sync,
+    sbdi_bc_is_in_scope_fp_t in_scope)
 {
-  if (!sync || !sync_data) {
+  if (!sync || !sync_data || !in_scope) {
     return NULL;
   }
   sbdi_bc_t *cache = calloc(1, sizeof(sbdi_bc_t));
@@ -103,8 +104,9 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
     return NULL;
   }
   // set sync callback
-  cache->sync = sync;
-  cache->sync_data = sync_data;
+  cache->cbs.sync = sync;
+  cache->cbs.sync_data = sync_data;
+  cache->cbs.in_scope = in_scope;
   // Initialize lru (Superfluous under calloc)
   cache->index.lru = 0;
   // Initialize block cache index numbers
@@ -122,7 +124,6 @@ sbdi_bc_t *sbdi_bc_cache_create(sbdi_sync_fp_t sync, void *sync_data)
 //----------------------------------------------------------------------
 void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
 {
-  // TODO make sure block layer syncs the cache before it frees it!
   // Clear all sensitive information from RAM
   if (cache) {
     memset(cache, 0, sizeof(sbdi_bc_t));
@@ -138,8 +139,7 @@ void sbdi_bc_cache_destroy(sbdi_bc_t *cache)
  * @param idx_2 the index of the second element to swap in the block cache
  * index
  */
-static inline void bc_swap(sbdi_bc_t *cache, uint32_t idx_1,
-    uint32_t idx_2)
+static inline void bc_swap(sbdi_bc_t *cache, uint32_t idx_1, uint32_t idx_2)
 {
   assert(cache && sbdi_bc_idx_is_valid(idx_1) && sbdi_bc_idx_is_valid(idx_2));
   sbdi_bc_idx_t *idx = bc_get_idx(cache);
@@ -197,45 +197,10 @@ static inline sbdi_error_t bc_sync_blk(sbdi_bc_t *cache, uint32_t idx_pos)
   sbdi_block_t to_sync;
   sbdi_block_init(&to_sync, idx_get_phy_idx(cache, idx_pos),
       sbdi_bc_get_db_for_cache_idx(cache, idx_pos));
-  SBDI_ERR_CHK(cache->sync(cache->sync_data, &to_sync));
+  SBDI_ERR_CHK(cache->cbs.sync(cache->cbs.sync_data, &to_sync));
   sbdi_bc_clear_blk_dirty(cache, idx_pos);
   return SBDI_SUCCESS;
 }
-
-/*!
- *\brief Syncs all data blocks belonging to a specific management block
- * @param cache the cache data type
- * @param mng_idx the cache list index of the cache index element describing
- * the management block
- * @return SBDI_SUCCESS if the operation succeeds, SBDI_ERR_ILLEGAL_PARAM if
- * any of the given parameters is invalid
- */
-//static sbdi_error_t sbdi_bc_sync_mngt_blk(sbdi_bc_t *cache, uint32_t mng_idx)
-//{
-//  assert(cache && sbdi_bc_idx_is_valid(mng_idx));
-//  uint32_t mng_phy_idx = idx_get_phy_idx(cache, mng_idx);
-//  // Sync out data blocks first and then the corresponding management block
-//  for (int i = 0; i < SBDI_CACHE_MAX_SIZE; ++i) {
-//    if (sbdi_bc_is_elem_valid_and_dirty(cache, i) && !sbdi_bc_is_elem_mngt_blk(cache, i)
-//        && sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy_idx,
-//            idx_get_phy_idx(cache, i))) {
-//      // Not a management block, but dirty and in scope of the management
-//      // block ==> sync
-//      SBDI_ERR_CHK(bc_sync_blk(cache, i));
-//    }
-//  }
-//  /* Now sync out the corresponding management block
-//   * First we need to check if the call back has already written the
-//   * management block. The call back is allowed to do so, because it might
-//   * want stronger integrity guarantees, but it must flag the management
-//   * block as not dirty any more if this is the case.
-//   */
-//  if (sbdi_bc_is_elem_dirty(cache, mng_idx)) {
-//    return bc_sync_blk(cache, mng_idx);
-//  } else {
-//    return SBDI_SUCCESS;
-//  }
-//}
 
 /*!
  * \brief finds the most recently used element in the cache index that is
@@ -259,8 +224,7 @@ static inline uint32_t bc_find_in_scope_elem(const sbdi_bc_t *cache,
   do {
     SBDI_BC_DEC_IDX(cdt);
     uint32_t cdt_phy = idx->list[cdt].block_idx;
-    // TODO make the inscope function a callback!
-    if (sbdi_blic_is_phy_dat_in_phy_mngt_scope(mng_phy, cdt_phy)) {
+    if (cache->cbs.in_scope(mng_phy, cdt_phy)) {
       return cdt;
     }
   } while (cdt != idx->lru);
@@ -276,11 +240,18 @@ static inline uint32_t bc_find_in_scope_elem(const sbdi_bc_t *cache,
  * @param srt_pos[in] the position of the index element to bump-up
  * @param end_pos[in] the target position to where to bump the element
  */
-static inline void bc_bump_up_blk(sbdi_bc_t *cache, uint32_t srt_pos, const uint32_t end_pos) {
-  assert(srt_pos != end_pos && sbdi_bc_idx_is_valid(srt_pos) && sbdi_bc_idx_is_valid(end_pos));
+static inline void bc_bump_up_blk(sbdi_bc_t *cache, uint32_t srt_pos,
+    const uint32_t end_pos)
+{
+  assert(
+      srt_pos != end_pos && sbdi_bc_idx_is_valid(srt_pos)
+          && sbdi_bc_idx_is_valid(end_pos));
   do {
     bc_swap(cache, srt_pos, SBDI_BC_IDX_P1(srt_pos));
     SBDI_BC_INC_IDX(srt_pos);
+#ifdef SBDI_CACHE_PROFILE
+    cache->bumps++;
+#endif
   } while (srt_pos != end_pos);
 }
 
@@ -357,8 +328,6 @@ sbdi_error_t sbdi_bc_dirty_blk(sbdi_bc_t *cache, uint32_t phy_idx)
   SBDI_CHK_PARAM(cache && sbdi_block_is_valid_phy(phy_idx));
   uint32_t idx_pos = sbdi_bc_find_blk_idx_pos(cache, phy_idx);
   SBDI_BC_CHK_IDX_POS(idx_pos);
-  // Management blocks should never be set dirty directly
-  SBDI_CHK_PARAM(!sbdi_bc_is_elem_mngt_blk(cache, idx_pos));
   sbdi_bc_set_blk_dirty(cache, idx_pos);
   return SBDI_SUCCESS;
 }
@@ -404,7 +373,6 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
     if (sbdi_bc_is_elem_valid_and_dirty(cache, i)
         && !sbdi_bc_is_elem_mngt_blk(cache, i)) {
       // Not a management block, but dirty ==> sync in the first round
-      // TODO must not trigger automatic management block syncing?
       SBDI_ERR_CHK(bc_sync_blk(cache, i));
     }
   }
@@ -421,7 +389,8 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
 #ifdef SBDI_CACHE_PROFILE
 void sbdi_bc_print_stats(sbdi_bc_t *cache)
 {
-  printf("%" PRIu64 " hits/%" PRIu64 " misses; ratio: %f\n", cache->hits,
-      cache->misses, (double) cache->hits / (double) cache->misses);
+  printf("%" PRIu64 " hits/%" PRIu64 " misses; ratio: %f; bumps: %" PRIu64 "\n",
+      cache->hits, cache->misses,
+      (double) cache->hits / (double) cache->misses, cache->bumps);
 }
 #endif

@@ -38,7 +38,8 @@ sbdi_t *sbdi_create(sbdi_pio_t *pio)
     free(sbdi);
     return NULL;
   }
-  sbdi_bc_t *cache = sbdi_bc_cache_create(&sbdi_bl_sync, sbdi);
+  sbdi_bc_t *cache = sbdi_bc_cache_create(sbdi, &sbdi_bl_sync,
+      &sbdi_blic_is_phy_dat_in_phy_mngt_scope);
   if (!cache) {
     mt_delete(mt);
     free(sbdi);
