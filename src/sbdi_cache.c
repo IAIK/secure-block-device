@@ -267,8 +267,8 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
   if (blk->data) {
     return SBDI_SUCCESS;
   }
-  int lru = idx_get_lru(cache);
   while (1) {
+    int lru = idx_get_lru(cache);
     if (sbdi_bc_is_elem_valid_phy(cache, lru)) {
       if (sbdi_bc_is_elem_mngt_blk(cache, lru)) {
         /* If the management block has in-scope data blocks that are more
@@ -282,6 +282,19 @@ sbdi_error_t sbdi_bc_cache_blk(sbdi_bc_t *cache, sbdi_block_t *blk,
          * in-scope data block. This SHOULD ensure that all in-scope data
          * blocks get removed before the management block. */
         uint32_t mng_phy = idx_get_phy_idx(cache, lru);
+        if (cache->cbs.in_scope(mng_phy, blk->idx)) {
+          /* If the current management block (the one that is about to be
+           * evicted) is the management block required by the block to cache
+           * something very bad happens. The caller MIGHT have already
+           * checked that the management block is in cache. Now this
+           * management block gets evicted. If we are lucky this leads to a
+           * TAG mismatch (depends on the cache usage), or to an inconsistent
+           * state if we are unlucky. Bottom line check if the block to cache
+           * is in-scope of the management block we are about to evict.
+           */
+          idx_inc_lru(cache);
+          continue;
+        }
         uint32_t tgt_pos = bc_find_in_scope_elem(cache, mng_phy);
         if (sbdi_bc_idx_is_valid(tgt_pos)) {
           /* In-scope data block exists
@@ -390,7 +403,7 @@ sbdi_error_t sbdi_bc_sync(sbdi_bc_t *cache)
 void sbdi_bc_print_stats(sbdi_bc_t *cache)
 {
   printf("%" PRIu64 " hits/%" PRIu64 " misses; ratio: %f; bumps: %" PRIu64 "\n",
-      cache->hits, cache->misses,
-      (double) cache->hits / (double) cache->misses, cache->bumps);
+      cache->hits, cache->misses, (double) cache->hits / (double) cache->misses,
+      cache->bumps);
 }
 #endif
