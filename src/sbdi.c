@@ -462,6 +462,7 @@ sbdi_error_t sbdi_write(ssize_t *wr, sbdi_t *sbdi, const void *buf,
 sbdi_error_t sbdi_fsync(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey)
 {
   // TODO the cache and header sync must be atomic, do something about that
+  SBDI_CHK_PARAM(sbdi && mkey);
   SBDI_ERR_CHK(sbdi_bc_sync(sbdi->cache));
   siv_ctx mctx;
   memset(&mctx, 0, sizeof(siv_ctx));
