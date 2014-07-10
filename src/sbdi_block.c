@@ -462,6 +462,7 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
   SBDI_CHK_PARAM(
       sbdi && ptr && sbdi_block_is_valid_log(idx) && off < SBDI_BLOCK_SIZE && len > 0 && len <= SBDI_BLOCK_SIZE && off + len <= SBDI_BLOCK_SIZE);
   SBDI_ERR_CHK(bl_ensure_mngt_blocks_exist(sbdi, idx));
+  SBDI_DBG(sbdi_dbg_print_sbdi_bl_write_data_block_params(ptr, idx, off, len));
   // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);

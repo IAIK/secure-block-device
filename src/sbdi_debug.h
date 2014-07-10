@@ -21,6 +21,8 @@ extern int debug;
 void sbdi_dbg_print_delim();
 void sbdi_dbg_print_block(sbdi_block_t *blk);
 void sbdi_dbg_print_cache_idx(sbdi_bc_t *cache);
+void sbdi_dbg_print_sbdi_bl_write_data_block_params(unsigned char *ptr,
+    uint32_t idx, size_t off, size_t len);
 
 #endif /* SBDI_DEBUG_H_ */
 

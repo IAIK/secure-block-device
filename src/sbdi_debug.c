@@ -28,6 +28,13 @@ void sbdi_dbg_print_block(sbdi_block_t *blk)
   printf("[BLK]: {0x%08" PRIx32 ", %p}\n", blk->idx, (void *) blk->data);
 }
 
+void sbdi_dbg_print_sbdi_bl_write_data_block_params(unsigned char *ptr,
+    uint32_t idx, size_t off, size_t len)
+{
+  printf("[SBDI_BL_WRITE_DB]: (ptr: %p, idx: %" PRIu32 ", off: %zx, len: %zx)\n", ptr,
+      idx, off, len);
+}
+
 void sbdi_dbg_print_cache_idx(sbdi_bc_t *cache)
 {
   assert(cache);
