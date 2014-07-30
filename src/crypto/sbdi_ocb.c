@@ -59,7 +59,7 @@ sbdi_error_t sbdi_ocb_encrypt(void *ctx, const uint8_t *pt, const int pt_len,
   sbdi_buffer_write_ctr_128b(&b, ctr);
 
   int cr = ae_encrypt(ae_ctx, np, pt, pt_len, ap, 4, ct, tag, 1);
-  if (cr != 4096) {
+  if (cr != SBDI_BLOCK_SIZE) {
     return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
@@ -90,7 +90,7 @@ sbdi_error_t sbdi_ocb_decrypt(void *ctx, const uint8_t *ct, const int ct_len,
   sbdi_buffer_write_bytes(&b, ctr, SBDI_BLOCK_CTR_SIZE);
 
   int cr = ae_decrypt(ae_ctx, np, ct, ct_len, ap, 4, pt, tag, 1);
-  if (cr != 4096) {
+  if (cr != SBDI_BLOCK_SIZE) {
     return SBDI_ERR_CRYPTO_FAIL;
   }
   return SBDI_SUCCESS;
