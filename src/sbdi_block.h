@@ -30,8 +30,7 @@ sbdi_error_t sbdi_bl_read_data_block(sbdi_t *sbdi, unsigned char *ptr,
 sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
     uint32_t idx, size_t off, size_t len);
 
-sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
-    uint32_t last_blk_idx);
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root);
 
 sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, sbdi_block_t *hdr);
 

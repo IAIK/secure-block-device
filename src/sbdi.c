@@ -160,7 +160,7 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
   } else if (r != SBDI_SUCCESS) {
     goto FAIL;
   }
-  sbdi_bl_verify_block_layer(sbdi, root, pio->size_at_open / SBDI_BLOCK_SIZE);
+  sbdi_bl_verify_block_layer(sbdi, root);
   *s = sbdi;
   return SBDI_SUCCESS;
 

@@ -32,7 +32,6 @@ sbdi_pio_t *sbdi_pio_create(void *iod, off_t size_at_open)
     return NULL;
   }
   io->iod = iod;
-  io->size_at_open = size_at_open;
   io->pread = &bl_pread_i;
   io->pwrite = &bl_pwrite_i;
   return io;

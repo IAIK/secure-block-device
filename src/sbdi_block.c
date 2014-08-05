@@ -149,78 +149,87 @@ sbdi_error_t bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk,
       sizeof(sbdi_ctr_128b_t));
 }
 
-/*!
- * \brief Reads the content of a management block into memory, computes the
- * tag of the management block and adds it to the hash tree
- *
- * This function is essential for checking the integrity of the secure block
- * device interface, before it gets used. It reads the content of a single
- * management block (while bypassing the cache!), decrypts the management
- * block and adds the resulting tag to the Merkle tree.
- *
- * @param sbdi the secure block device interface to read the management block
- * from
- * @param phy_mng_idx the physical block index of the management block to
- * read
- * @param read the number of bytes read from the secure block device
- * interface; useful for checking a management block exists.
- * @return SBDI_SUCCESS if the block can be successfully read and added to
- * the Merkle tree; an SBDI_ERR_* error code otherwise.
- */
-static sbdi_error_t bl_verify_mngt_block(sbdi_t *sbdi, uint32_t phy_mng_idx,
-    uint32_t read)
+//----------------------------------------------------------------------
+sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root)
 {
-  assert(sbdi_blic_is_phy_mng_blk(phy_mng_idx));
+  uint32_t i = 0;
+  uint32_t mng_phy = 0;
+  uint32_t read = -1;
+  sbdi_block_t *mng;
   sbdi_tag_t tag;
+  mt_hash_t check_root;
+
+  SBDI_CHK_PARAM(sbdi && root);
+  mng = &sbdi->write_store[0];
   memset(tag, 0, sizeof(tag));
-  sbdi_block_t *mng = sbdi->write_store;
-  mng->idx = phy_mng_idx;
-  // Management block should always be fully readable.
-  SBDI_ERR_CHK(sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read));
-  SBDI_ERR_CHK(bl_aes_cmac(sbdi, mng, tag));
-  return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
+  memset(check_root, 0, sizeof(mt_hash_t));
+  memset(*sbdi->write_store[0].data, 0, SBDI_BLOCK_SIZE);
+
+  for (i = 0;;i++) {
+    mng_phy = sbdi_blic_mng_blk_nbr_to_mng_phy(i);
+
+    sbdi_block_init(mng, mng_phy, sbdi->write_store[0].data);
+    sbdi_error_t r = sbdi_bl_read_block(sbdi, mng, SBDI_BLOCK_SIZE, &read);
+    if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {
+      // Note: Block does not yet exist, create empty block.
+      SBDI_ERR_CHK(sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
+      if (memcmp(root, check_root, sizeof(mt_hash_t))) {
+        return SBDI_ERR_TAG_MISMATCH;
+      }
+      return SBDI_SUCCESS;
+    } else if (r != SBDI_SUCCESS) {
+      // I/O error => stop open!
+      return r;
+    } else {
+      // BLock found, MAC it and add it to Merkle-Tree
+      SBDI_ERR_CHK(bl_aes_cmac(sbdi, mng, tag));
+      SBDI_ERR_CHK(
+          sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t))));
+    }
+  }
+  return SBDI_ERR_ILLEGAL_STATE;
 }
 
 //----------------------------------------------------------------------
-sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
-    uint32_t phy_last_blk_idx)
-{
-  if (!sbdi || !root) {
-    return SBDI_ERR_ILLEGAL_PARAM;
-  }
-  if (!phy_last_blk_idx) {
-    // Empty or non existing or invalid file ==> nothing to do
-    // TODO might want to change this once I have header handling and stuff
-    return SBDI_SUCCESS;
-  }
-  // TODO Document that this function builds the hash tree, so that basic
-  // hash tree update operations work, which is a requirement for every data
-  // block write
-  // TODO Should I check logical or physical indices for being to large?
-  assert(sbdi_block_is_valid_phy(phy_last_blk_idx));
-  // TODO next method is for logical index not physical fix that
-  uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
-  uint32_t read = 0;
-  sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);
-  if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {
-    // The first management block does not yet exist ==> no tree building
-    // necessary
-    return SBDI_SUCCESS;
-  } else if (r != SBDI_SUCCESS) {
-    return r;
-  }
-  for (int i = 1; i < (mng_nbr + 1); ++i) {
-    uint32_t phy_mng = sbdi_blic_mng_blk_nbr_to_mng_phy(i);
-    SBDI_ERR_CHK(bl_verify_mngt_block(sbdi, phy_mng, read));
-  }
-  mt_hash_t check_root;
-  memset(check_root, 0, sizeof(mt_hash_t));
-  SBDI_ERR_CHK(sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
-  if (memcmp(root, check_root, sizeof(mt_hash_t))) {
-    return SBDI_ERR_TAG_MISMATCH;
-  }
-  return SBDI_SUCCESS;
-}
+//sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
+//    uint32_t phy_last_blk_idx)
+//{
+//  if (!sbdi || !root) {
+//    return SBDI_ERR_ILLEGAL_PARAM;
+//  }
+//  if (!phy_last_blk_idx) {
+//    // Empty or non existing or invalid file ==> nothing to do
+//    // TODO might want to change this once I have header handling and stuff
+//    return SBDI_SUCCESS;
+//  }
+//  // TODO Document that this function builds the hash tree, so that basic
+//  // hash tree update operations work, which is a requirement for every data
+//  // block write
+//  // TODO Should I check logical or physical indices for being to large?
+//  assert(sbdi_block_is_valid_phy(phy_last_blk_idx));
+//  // TODO next method is for logical index not physical fix that
+//  uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
+//  uint32_t read = 0;
+//  sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);
+//  if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {
+//    // The first management block does not yet exist ==> no tree building
+//    // necessary
+//    return SBDI_SUCCESS;
+//  } else if (r != SBDI_SUCCESS) {
+//    return r;
+//  }
+//  for (int i = 1; i < (mng_nbr + 1); ++i) {
+//    uint32_t phy_mng = sbdi_blic_mng_blk_nbr_to_mng_phy(i);
+//    SBDI_ERR_CHK(bl_verify_mngt_block(sbdi, phy_mng, read));
+//  }
+//  mt_hash_t check_root;
+//  memset(check_root, 0, sizeof(mt_hash_t));
+//  SBDI_ERR_CHK(sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, check_root)));
+//  if (memcmp(root, check_root, sizeof(mt_hash_t))) {
+//    return SBDI_ERR_TAG_MISMATCH;
+//  }
+//  return SBDI_SUCCESS;
+//}
 
 /*!
  * \brief Reads a data block, decrypts the data block, verifies decryption,
