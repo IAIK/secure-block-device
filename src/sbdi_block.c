@@ -32,6 +32,9 @@ typedef struct sbdi_block_pair {
   sbdi_block_t *mng;
 } sbdi_block_pair_t;
 
+const static uint8_t ZERO[SBDI_BLOCK_TAG_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0 };
+
 /*!
  * \brief Initializes an allocated block pair instance with the given
  * indices.
@@ -256,6 +259,11 @@ static sbdi_error_t bl_cache_decrypt(sbdi_t *sbdi, sbdi_block_t *blk,
   assert(sbdi && blk && sbdi_block_is_valid_phy(blk->idx) && tag && ctr);
   SBDI_ERR_CHK(sbdi_bc_cache_blk(sbdi->cache, blk, SBDI_BC_BT_DATA));
   assert(blk->data);
+  // Check if block has never been written
+  if (!memcmp(tag, ZERO, SBDI_BLOCK_TAG_SIZE)) {
+    memset(*blk->data, 0, SBDI_BLOCK_SIZE);
+    return SBDI_SUCCESS;
+  }
   uint32_t read = 0;
   sbdi_error_t r = sbdi_bl_read_block(sbdi, blk, SBDI_BLOCK_SIZE, &read);
   if (r == SBDI_ERR_IO_MISSING_BLOCK && read == 0) {

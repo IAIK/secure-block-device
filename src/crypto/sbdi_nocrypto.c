@@ -17,7 +17,7 @@ sbdi_error_t sbdi_nocrypto_encrypt(void *ctx, const uint8_t *pt,
   // if the context is non-null then this is used incorrectly
   assert(!ctx);
   SBDI_CHK_PARAM(pt && ctr && pt_len > 0 && tag);
-  memset(tag, 0, SBDI_BLOCK_TAG_SIZE);
+  memset(tag, 0xFF, SBDI_BLOCK_TAG_SIZE);
   if (pt == ct) {
     return SBDI_SUCCESS;
   }
@@ -53,7 +53,7 @@ sbdi_error_t sbdi_nocrypto_mac(void *ctx, const unsigned char *msg,
   // if their is a context, then something is wrong
   assert(!ctx);
   SBDI_CHK_PARAM(msg && mlen > 0 && C);
-  memset(C, 0, SBDI_BLOCK_TAG_SIZE);
+  memset(C, 0x00, SBDI_BLOCK_TAG_SIZE);
   return SBDI_SUCCESS;
 }
 
