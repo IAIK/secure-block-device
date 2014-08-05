@@ -296,7 +296,7 @@ static sbdi_error_t bl_read_mngt_block(sbdi_t *sbdi, sbdi_block_t *mng)
   }
   r = sbdi_mt_sbdi_err_conv(
       mt_verify(sbdi->mt, tag, sizeof(sbdi_tag_t), (mng_blk_nbr + 1)));
-  if (r == SBDI_ERR_TAG_MISMATCH) {
+  if (r != SBDI_SUCCESS) {
     sbdi_bc_evict_blk(sbdi->cache, mng->idx);
   }
   return r;
