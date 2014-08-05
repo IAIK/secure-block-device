@@ -108,6 +108,9 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
     goto FAIL;
   }
   sbdi_t *sbdi = sbdi_create(pio);
+  if (!sbdi) {
+    goto FAIL;
+  }
   r = sbdi_hdr_v1_read(sbdi, &mctx);
   if (r == SBDI_ERR_IO_MISSING_BLOCK) {
     // Empty block device ==> create header
