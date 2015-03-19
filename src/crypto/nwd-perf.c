@@ -22,6 +22,7 @@
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"
 #include "sbdi_siv.h"
+#include "sbdi_buffer.h"
 
 static const sbdi_key_t key = {
   0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
@@ -38,6 +39,8 @@ typedef void (*sbdi_crypto_destroy)(sbdi_crypto_t *crypto);
 #define SBDI_BLOCK_TAG_SIZE       16u //!< The size in bytes of a cryptographic block tag (a mac over a single block)
 
 #define NWD_PERF_MAX_BLOCK_COUNT 256u //!< Maximum block count
+#define NWD_PERF_RUNS_PER_OP       1u //!< Runs per operation
+#define NWD_PERF_MAJOR_LOOPS      20u //!< Major loops for encrypt and decrypt
 
 static uint8_t g_block_data[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
 static uint8_t g_block_ciph[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
@@ -61,12 +64,17 @@ typedef struct sbdi_perf_setup {
   uint8_t *tag;
   size_t idx;
   sbdi_ctr_128b_t *ctr;
+  unsigned quirks;
 } sbdi_perf_setup_t;
+
+#define QUIRK_NEED_SPURIOUS_MAC 0x00000001
 
 static void nwd_perf_encrypt(void *arg);
 static void nwd_perf_decrypt(void *arg);
 static void nwd_perf_random(uint8_t *data, size_t size);
-static void nwd_perf_test(const char *name, sbdi_crypto_t *ctx, size_t num_blocks);
+static void nwd_perf_test(const char *name, size_t num_blocks,
+                          sbdi_error_t (*create)(sbdi_crypto_t **crypto, const sbdi_key_t key),
+                          void (*destroy)(sbdi_crypto_t *crypto), unsigned quirk);
 
 //----------------------------------------------------------------------
 int main(void)
@@ -74,13 +82,23 @@ int main(void)
   nwd_stopwatch_init();
   nwd_perf_random(g_block_data, sizeof(g_block_data));
 
-  sbdi_crypto_t *crypto = NULL;
-  SBDI_ERR_CHECK(sbdi_nocrypto_create(&crypto, key));
-  nwd_perf_test("nocrypto", crypto, NWD_PERF_MAX_BLOCK_COUNT);
-  sbdi_nocrypto_destroy(crypto);
+  // No crypto
+  //
+  // FIXME: Check why we need the "spurious" MAC here??
+  nwd_perf_test("nocrypto", NWD_PERF_MAX_BLOCK_COUNT,
+                &sbdi_nocrypto_create, &sbdi_nocrypto_destroy,
+                QUIRK_NEED_SPURIOUS_MAC);
 
-  //nwd_perf_test("aes-siv", NULL, NWD_PERF_MAX_BLOCK_COUNT);
-  //nwd_perf_test("aes-ocb", NULL, NWD_PERF_MAX_BLOCK_COUNT);
+  // OCB mode
+  nwd_perf_test("ocb", NWD_PERF_MAX_BLOCK_COUNT,
+                &sbdi_ocb_create, &sbdi_ocb_destroy,
+                0);
+
+  // SIV mode
+  nwd_perf_test("siv", NWD_PERF_MAX_BLOCK_COUNT,
+                &sbdi_siv_create, &sbdi_siv_destroy,
+                0);
+
   return 0;
 }
 
@@ -102,72 +120,88 @@ static void nwd_perf_random(uint8_t *data, size_t size)
 }
 
 //----------------------------------------------------------------------
-static void nwd_perf_test(const char *name, sbdi_crypto_t *ctx, size_t num_blocks)
+static void nwd_perf_test(const char *name, size_t num_blocks,
+                          sbdi_error_t (*create)(sbdi_crypto_t **crypto, const sbdi_key_t key),
+                          void (*destroy)(sbdi_crypto_t *crypto),
+                          unsigned quirks)
 {
+  sbdi_crypto_t *ctx = NULL;
   sbdi_ctr_128b_t ctr;
 
-  printf("perf: %s: -- starting test --\n", name);
+  printf("perf %s start\n", name);
+
+  SBDI_ERR_CHECK(create(&ctx, key));
 
   // Prepare test blocks
   memset(g_block_data, 0, sizeof(g_block_data));
   nwd_perf_random(g_block_data, num_blocks * NWD_PERF_MAX_BLOCK_COUNT);
 
-  // Run the encryption tests (this will create valid ciphertexts and tags)
+  // We assume all block counters as zero (for simplicity)
   SBDI_ERR_CHECK(sbdi_ctr_128b_init(&ctr, 0, 0));
-  for (size_t i = 0; i < num_blocks; ++i) {
-    uint8_t *plaintext  = g_block_data + i * SBDI_BLOCK_SIZE;
-    uint8_t *ciphertext = g_block_ciph + i * SBDI_BLOCK_SIZE;
-    uint8_t *tag        = g_block_tags + i * SBDI_BLOCK_TAG_SIZE;
 
-    // Clear ciphertext and tag
-    memset(ciphertext, 0, SBDI_BLOCK_SIZE);
-    memset(tag, 0, SBDI_BLOCK_TAG_SIZE);
+  // Run the encryption tests (this will create valid ciphertexts and tags)
+  for (size_t k = 0; k < NWD_PERF_MAJOR_LOOPS; ++k) {
+    printf("perf %s encrypt(%u) ", name, (unsigned) k);
+    for (size_t i = 0; i < num_blocks; ++i) {
+      uint8_t *plaintext  = g_block_data + i * SBDI_BLOCK_SIZE;
+      uint8_t *ciphertext = g_block_ciph + i * SBDI_BLOCK_SIZE;
+      uint8_t *tag        = g_block_tags + i * SBDI_BLOCK_TAG_SIZE;
 
-    // Run the actual encryption
-    sbdi_perf_setup_t op_ctx = {
-      .crypto = ctx,
-      .plaintext = plaintext,
-      .ciphertext = ciphertext,
-      .tag = tag,
-      .ctr = &ctr,
-      .idx = i,
-    };
+      // Clear ciphertext and tag
+      memset(ciphertext, 0, SBDI_BLOCK_SIZE);
+      memset(tag, 0, SBDI_BLOCK_TAG_SIZE);
 
-    int64_t duration = nwd_stopwatch_measure(&nwd_perf_encrypt, &op_ctx, 1);
-    printf("perf: %s: encrypt: %" PRId64 "\n", name, duration);
+      // Run the actual encryption
+      sbdi_perf_setup_t op_ctx = {
+        .crypto = ctx,
+        .plaintext = plaintext,
+        .ciphertext = ciphertext,
+        .tag = tag,
+        .ctr = &ctr,
+        .idx = i,
+        .quirks = quirks
+      };
 
-    // Increment the counter
-    SBDI_ERR_CHECK(sbdi_ctr_128b_inc(&ctr));
+      int64_t duration = nwd_stopwatch_measure(&nwd_perf_encrypt, &op_ctx, NWD_PERF_RUNS_PER_OP);
+      printf(" %" PRId64, duration);
+      fflush(stdout);
+    }
+    printf("\n");
   }
 
   // Run the decryption tests (we have valid tags and ciphertexts from above)
-  SBDI_ERR_CHECK(sbdi_ctr_128b_reset(&ctr));
-  for (size_t i = 0; i < num_blocks; ++i) {
-    uint8_t *plaintext  = g_block_data + i * SBDI_BLOCK_SIZE;
-    uint8_t *ciphertext = g_block_ciph + i * SBDI_BLOCK_SIZE;
-    uint8_t *tag        = g_block_tags + i * SBDI_BLOCK_TAG_SIZE;
+  for (size_t k = 0; k < NWD_PERF_MAJOR_LOOPS; ++k) {
+    printf("perf %s decrypt(%u)", name, (unsigned) k);
+    for (size_t i = 0; i < num_blocks; ++i) {
+      uint8_t *plaintext  = g_block_data + i * SBDI_BLOCK_SIZE;
+      uint8_t *ciphertext = g_block_ciph + i * SBDI_BLOCK_SIZE;
+      uint8_t *tag        = g_block_tags + i * SBDI_BLOCK_TAG_SIZE;
 
-    // Clear ciphertext and tag
-    memset(plaintext, 0, SBDI_BLOCK_SIZE);
+      // Clear ciphertext and tag
+      memset(plaintext, 0, SBDI_BLOCK_SIZE);
 
-    // Run the actual encryption
-    sbdi_perf_setup_t op_ctx = {
-      .crypto = ctx,
-      .plaintext = plaintext,
-      .ciphertext = ciphertext,
-      .tag = tag,
-      .ctr = &ctr,
-      .idx = i,
-    };
+      // Run the actual encryption
+      sbdi_perf_setup_t op_ctx = {
+        .crypto = ctx,
+        .plaintext = plaintext,
+        .ciphertext = ciphertext,
+        .tag = tag,
+        .ctr = &ctr,
+        .idx = i,
+        .quirks = quirks
+      };
 
-    int64_t duration = nwd_stopwatch_measure(&nwd_perf_decrypt, &op_ctx, 1);
-    printf("perf: %s: decrypt: %" PRId64 "\n", name, duration);
-
-    // Increment the counter
-    SBDI_ERR_CHECK(sbdi_ctr_128b_inc(&ctr));
+      int64_t duration = nwd_stopwatch_measure(&nwd_perf_decrypt, &op_ctx, NWD_PERF_RUNS_PER_OP);
+      printf(" %" PRId64, duration);
+      fflush(stdout);
+    }
+    printf("\n");
   }
 
-  printf("perf: %s: -- completed test --\n", name);
+  destroy(ctx);
+
+  printf("perf %s --stop--\n", name);
+  fflush(stdout);
 }
 
 //----------------------------------------------------------------------
@@ -179,9 +213,11 @@ static void nwd_perf_encrypt(void *arg)
   SBDI_ERR_CHECK((ctx->crypto->enc)(ctx->crypto->ctx, ctx->plaintext, SBDI_BLOCK_SIZE,
                                     ctx->ctr, ctx->idx, ctx->ciphertext, ctx->tag));
 
-  // Then MAC (may be a NOP)
-  SBDI_ERR_CHECK((ctx->crypto->mac)(ctx->crypto->ctx, ctx->ciphertext, SBDI_BLOCK_SIZE,
-                                    ctx->tag, (uint8_t *) &ctx->ctr, sizeof(sbdi_ctr_128b_t)));
+  // We need this for the "nocrypto" scheme - but why?
+  if ((ctx->quirks & QUIRK_NEED_SPURIOUS_MAC)) {
+    SBDI_ERR_CHECK((ctx->crypto->mac)(ctx->crypto->ctx, ctx->ciphertext, SBDI_BLOCK_SIZE,
+                                      ctx->tag, (uint8_t *) ctx->ctr, sizeof(sbdi_ctr_128b_t)));
+  }
 }
 
 //----------------------------------------------------------------------
@@ -189,9 +225,11 @@ static void nwd_perf_decrypt(void *arg)
 {
   sbdi_perf_setup_t *ctx = arg;
   SBDI_ERR_CHECK((ctx->crypto->dec)(ctx->crypto->ctx, ctx->ciphertext, SBDI_BLOCK_SIZE,
-                                    (uint8_t *) ctx->ctr, ctx->idx, ctx->plaintext, ctx->tag));
+                                    (uint8_t *) ctx->ctr, ctx->idx,
+                                    ctx->plaintext, ctx->tag));
 }
 //----------------------------------------------------------------------
 // Pull in relevant parts of the SBDI implementation
 //
 #include "sbdi_ctr_128b.c"
+#include "sbdi_buffer.c"

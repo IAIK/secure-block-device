@@ -59,12 +59,12 @@ void nwd_stopwatch_init(void)
   }
 
   // Estimate the overhead of an nwd_stopwatch_measure() call with an empty target function.
-  const size_t count = 10000;
+  const size_t count = 100000;
   int64_t total = 0;
   double square_sum = 0.0;
 
   for (size_t n = 0; n < count; ++n) {
-    int64_t sample = nwd_stopwatch_measure(&nwd_stopwatch_dummy, NULL, 1000);
+    int64_t sample = nwd_stopwatch_measure(&nwd_stopwatch_dummy, NULL, 1);
     total += sample;
     square_sum += (double) sample * (double) sample;
   }
@@ -73,9 +73,9 @@ void nwd_stopwatch_init(void)
   g_clock_overhead_dev = sqrt((square_sum - (double) total * (double) total / count) / (count - 1.0));
 
   // Print setup
-  printf("stopwatch: resolution: %" PRId64 " ns\n", g_clock_res);
-  printf("stopwatch: overhead (avg): %g ns\n", g_clock_overhead_avg);
-  printf("stopwatch: overhead (dev): %g ns\n", g_clock_overhead_dev);
+  printf("stopwatch resolution: %" PRId64 "\n", g_clock_res);
+  printf("stopwatch overhead(avg) %g\n", g_clock_overhead_avg);
+  printf("stopwatch overhead(dev) %g\n", g_clock_overhead_dev);
 }
 
 //----------------------------------------------------------------------
@@ -131,5 +131,5 @@ int64_t nwd_stopwatch_measure(void (*func)(void*), void *arg, size_t iterations)
   }
   nwd_stopwatch_stop(&sw);
 
-  return nwd_stopwatch_delta(&sw) / 1;
+  return nwd_stopwatch_delta(&sw) / iterations;
 }
