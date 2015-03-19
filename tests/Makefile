@@ -12,7 +12,7 @@ TST_CXX_SRC = AesSivTest.cpp SbdiCtrTest.cpp SbdiCacheTest.cpp SbdiTestRunner.cp
 TST_CXX_OBJS = $(TST_CXX_SRC:%.cpp=%.o)
 TST_SRC = $(TST_CXX_SRC)
 TST_OBJS = $(TST_CXX_OBJS)
-TST_LIB =  -Wl,--start-group ../../merkle-tree/src/libMerkleTree.a ../src/crypto/libSbdiCrypto.a ../src/libSecureBlock.a -Wl,--end-group 
+TST_LIB =  -Wl,--start-group ../../merkle-tree/src/libMerkleTree.a ../src/crypto/libSbdiCrypto.a ../src/libSecureBlock.a -Wl,--end-group
 TST_BIN = secure-block-test
 
 all: dep $(TST_BIN)
@@ -23,7 +23,7 @@ coverage: dep $(TST_BIN)
 
 test: $(TST_BIN)
 	$(Q)$(VGRUN) ./$(TST_BIN)
-	
+
 prof: $(TST_BIN)
 	$(Q)$(VGPROF) ./$(TST_BIN)
 
