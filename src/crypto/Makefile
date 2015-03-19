@@ -10,9 +10,9 @@ OBJS = $(LIB_OBJS)
 LIB = libSbdiCrypto.a
 EXT_LIB =
 
-NWD_PERF_SRC  = nwd-perf.c
+NWD_PERF_SRC  = nwd-perf.c nwd-stopwatch.c
 NWD_PERF_OBJS = $(NWD_PERF_SRC:%.c=%.o)
-NWD_PERF_APP  = nwd-perf
+NWD_PERF_APP  = nwd-crypto-perf
 
 OBJS += $(NWD_PERF_OBJS)
 
@@ -34,7 +34,7 @@ silent: CFLAGS +=-ggdb
 silent: clean dep $(LIB) $(NWD_PERF_APP)
 
 release: CFLAGS +=-O3 -fgnu89-inline
-release: clean dep $(LIB) $(NWD_PERF_APP) FORCE
+release: clean dep $(LIB) $(NWD_PERF_APP)
 
 .PHONY: clean doc
 clean:
@@ -51,7 +51,8 @@ dep: $(SRC)
 
 # Normal world performance test app
 $(NWD_PERF_OBJS): CFLAGS  += -I. -I.. -I../../../merkle-tree/src
-$(NWD_PERF_APP):  LIBS    += -L ../../../merkle-tree/src -L. -lMerkleTree -lSbdiCrypto
+$(NWD_PERF_APP):  LDFLAGS +=
+$(NWD_PERF_APP):  LIBS    += -L ../../../merkle-tree/src -L. -lMerkleTree -lSbdiCrypto -lrt -lm
 
 $(NWD_PERF_APP): $(NWD_PERF_OBJS) $(LIB)
 	$(Q)$(CC) -o$@ $(LDFLAGS) $(NWD_PERF_OBJS) $(LIBS)

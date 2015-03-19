@@ -1,6 +1,6 @@
 Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
-	
+
 DEPENDFILE = .depend
 LIB_SRC = sbdi.c sbdi_hdr.c sbdi_block.c sbdi_ctr_128b.c sbdi_cache.c sbdi_buffer.c sbdi_pio.c sbdi_debug.c
 PRG_SRC = sbdi_test.c
@@ -31,8 +31,8 @@ silent: CFLAGS +=-ggdb
 silent: clean dep $(BIN)
 
 release: CFLAGS +=-O3 -fgnu89-inline
-release: clean dep $(BIN) FORCE
-	
+release: clean dep $(BIN)
+
 .PHONY: clean doc
 clean:
 	$(Q)rm -Rf $(BIN) $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
@@ -50,5 +50,3 @@ dep: $(SRC)
 	$(Q)$(CC) $(EXT_INC) -MM $(SRC) > $(DEPENDFILE)
 
 -include $(DEPENDFILE)
-
- 
