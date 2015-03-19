@@ -102,12 +102,13 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
   memset(&key, 0, sizeof(sbdi_hdr_v1_sym_key_t));
   sbdi_error_t r = SBDI_ERR_UNSPECIFIED;
   // Start body of function
+  sbdi_t *sbdi = NULL;
   int cr = siv_init(&mctx, mkey, SIV_256);
   if (cr == -1) {
     r = SBDI_ERR_CRYPTO_FAIL;
     goto FAIL;
   }
-  sbdi_t *sbdi = sbdi_create(pio);
+  sbdi = sbdi_create(pio);
   if (!sbdi) {
     goto FAIL;
   }
