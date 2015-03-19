@@ -13,8 +13,8 @@ EXT_INC = -I. -I../../merkle-tree/src -I./crypto
 EXT_LIB = -L../../merkle-tree/src -L./crypto -lMerkleTree -lSbdiCrypto
 BIN = sbdi-test
 
-CFLAGS  += $(EXT_INC)
-LDFLAGS += $(EXT_LIB)
+CFLAGS  += $(EXT_INC) $(EXTRA_CFLAGS)
+LDFLAGS += $(EXT_LIB) $(EXTRA_LDFLAGS)
 
 all: debug
 
