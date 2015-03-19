@@ -28,7 +28,7 @@
  * @return 1 if each byte in the buffer equals the specified value; 0
  * otherwise
  */
-static int memchrcmp(const unsigned char *buffer, const int chr,
+static inline int memchrcmp(const unsigned char *buffer, const int chr,
     const size_t len)
 {
   assert(chr <= UINT8_MAX);
