@@ -33,7 +33,7 @@ coverage: dep $(LIB) $(NWD_PERF_APP)
 silent: CFLAGS +=-ggdb
 silent: clean dep $(LIB) $(NWD_PERF_APP)
 
-release: CFLAGS +=-O3 -fgnu89-inline
+release: CFLAGS +=-O3 -fgnu89-inline -DNDEBUG -Wno-error=unused-function
 release: clean dep $(LIB) $(NWD_PERF_APP)
 
 .PHONY: clean doc

@@ -30,7 +30,7 @@ coverage: dep $(BIN)
 silent: CFLAGS +=-ggdb
 silent: clean dep $(BIN)
 
-release: CFLAGS +=-O3 -fgnu89-inline
+release: CFLAGS +=-O3 -fgnu89-inline -DNDEBUG -Wno-error=unused-function
 release: clean dep $(BIN)
 
 .PHONY: clean doc
