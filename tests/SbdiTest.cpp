@@ -74,7 +74,7 @@ private:
 
   void read(unsigned char *buf, size_t len, off_t off)
   {
-    off_t rd = 0;
+    ssize_t rd = 0;
     sbdi_error_t r = sbdi_pread(&rd, sbdi, buf, len, off);
     if (r != SBDI_SUCCESS) {
       std::cout << "Reading file @ offset " << off << ". Error: "
@@ -85,7 +85,7 @@ private:
 
   void write(unsigned char *buf, size_t len, off_t off)
   {
-    off_t wr = 0;
+    ssize_t wr = 0;
     sbdi_error_t r = sbdi_pwrite(&wr, sbdi, buf, len, off);
     if (r != SBDI_SUCCESS) {
       std::cout << "Writing file @ offset " << off << ". Error: "
