@@ -588,8 +588,8 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     return r;
   }
   // Management Index for Merkle tree needs to be logical index
-  r = mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t),
-      (sbdi_blic_phy_mng_to_mng_blk_nbr(mng.idx) + 1));
+  r = sbdi_mt_sbdi_err_conv(mt_update(sbdi->mt, mng_tag, sizeof(sbdi_tag_t),
+                                      (sbdi_blic_phy_mng_to_mng_blk_nbr(mng.idx) + 1)));
   if (r != SBDI_SUCCESS) {
     // TODO additional error handling required!
     return r;
