@@ -623,7 +623,7 @@ ae_ctx* ae_allocate(void *misc)
 {
 	void *p;
 	(void) misc;                     /* misc unused in this implementation */
-	#if (__SSE2__ && !_M_X64 && !_M_AMD64 && !__amd64__)
+	#if (__SSE2__ && !_M_X64 && !_M_AMD64 && !__amd64__ && !DONT_USE_SSE)
     	p = _mm_malloc(sizeof(ae_ctx),16);
 	#elif (__ALTIVEC__ && !__PPC64__)
 		if (posix_memalign(&p,16,sizeof(ae_ctx)) != 0) p = NULL;
@@ -635,7 +635,7 @@ ae_ctx* ae_allocate(void *misc)
 
 void ae_free(ae_ctx *ctx)
 {
-	#if (__SSE2__ && !_M_X64 && !_M_AMD64 && !__amd64__)
+	#if (__SSE2__ && !_M_X64 && !_M_AMD64 && !__amd64__ && !DONT_USE_SSE)
 		_mm_free(ctx);
 	#else
 		free(ctx);
