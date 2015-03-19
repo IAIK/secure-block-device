@@ -1,38 +1,44 @@
 Q = @
 CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 CPPFLAGS = -I../
-	
+
 DEPENDFILE = .depend
 LIB_SRC = rijndael-alg-fst.c aes.c ocb.c siv.c sbdi_nocrypto.c sbdi_ocb.c sbdi_siv.c
 SRC = $(LIB_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS)
 LIB = libSbdiCrypto.a
-EXT_LIB = 
+EXT_LIB =
 
-CFLAGS  += $(CPPFLAGS)
-LDFLAGS += $(EXT_LIB)
+NWD_PERF_SRC  = nwd-perf.c
+NWD_PERF_OBJS = $(NWD_PERF_SRC:%.c=%.o)
+NWD_PERF_APP  = nwd-perf
+
+OBJS += $(NWD_PERF_OBJS)
+
+CFLAGS  += $(CPPFLAGS) $(EXTRA_CFLAGS)
+LDFLAGS += $(EXT_LIB) $(EXTRA_LDFLAGS)
 
 all: debug
 
 debug: LDFLAGS +=-ggdb
 debug: CFLAGS +=-ggdb
-debug: dep $(LIB)
+debug: dep $(LIB) $(NWD_PERF_APP)
 
 coverage: LDFLAGS +=-ggdb -coverage
 coverage: CFLAGS +=-ggdb -fprofile-arcs -ftest-coverage
-coverage: dep $(LIB)
+coverage: dep $(LIB) $(NWD_PERF_APP)
 
 #silent: CFLAGS +=-ggdb -pg
 silent: CFLAGS +=-ggdb
-silent: clean dep $(LIB)
+silent: clean dep $(LIB) $(NWD_PERF_APP)
 
 release: CFLAGS +=-O3 -fgnu89-inline
-release: clean dep $(LIB) FORCE
-	
+release: clean dep $(LIB) $(NWD_PERF_APP) FORCE
+
 .PHONY: clean doc
 clean:
-	$(Q)rm -Rf $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
+	$(Q)rm -Rf $(NWD_PERF_APP) $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
 
 doc:
 	$(Q)doxygen
@@ -43,6 +49,12 @@ $(LIB): $(LIB_OBJS)
 dep: $(SRC)
 	$(Q)$(CC) $(CPPFLAGS) -MM $(SRC) > $(DEPENDFILE)
 
--include $(DEPENDFILE)
+# Normal world performance test app
+$(NWD_PERF_OBJS): CFLAGS  += -I. -I.. -I../../../merkle-tree/src
+$(NWD_PERF_APP):  LIBS    += -L ../../../merkle-tree/src -L. -lMerkleTree -lSbdiCrypto
 
- 
+$(NWD_PERF_APP): $(NWD_PERF_OBJS) $(LIB)
+	$(Q)$(CC) -o$@ $(LDFLAGS) $(NWD_PERF_OBJS) $(LIBS)
+
+
+-include $(DEPENDFILE)
