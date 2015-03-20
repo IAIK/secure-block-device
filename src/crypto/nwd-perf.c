@@ -18,6 +18,7 @@
 
 #include "nwd-stopwatch.h"
 
+
 // Pull-in the normal world APIs
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"
@@ -40,8 +41,15 @@ typedef void (*sbdi_crypto_destroy)(sbdi_crypto_t *crypto);
 #define SBDI_BLOCK_TAG_SIZE       16u //!< The size in bytes of a cryptographic block tag (a mac over a single block)
 
 #define NWD_PERF_MAX_BLOCK_COUNT 256u //!< Maximum block count
-#define NWD_PERF_RUNS_PER_OP       1u //!< Runs per operation
-#define NWD_PERF_MAJOR_LOOPS       1u //!< Major loops for encrypt and decrypt
+#define NWD_PERF_RUNS_PER_OP       3u //!< Runs per operation
+#define NWD_PERF_MAJOR_LOOPS      10u //!< Major loops for encrypt and decrypt
+
+// Enable (define) to compare decryption results with plaintexts
+// #define NWD_PERF_CRYPTO_CHECKS 1
+
+#if NWD_PERF_CRYPTO_CHECKS
+static uint8_t g_block_ref[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
+#endif
 
 static uint8_t g_block_data[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
 static uint8_t g_block_ciph[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
@@ -78,6 +86,8 @@ static void nwd_perf_test(const char *name, size_t num_blocks,
 int main(void)
 {
   nwd_stopwatch_init();
+
+  // Setup random data (and create a reference copy)
   nwd_perf_random(g_block_data, sizeof(g_block_data));
 
   // No crypto
@@ -97,7 +107,6 @@ int main(void)
   // HMAC mode
   nwd_perf_test("hmac", NWD_PERF_MAX_BLOCK_COUNT,
                 &sbdi_hmac_create, &sbdi_hmac_destroy);
-
   return 0;
 }
 
@@ -133,6 +142,11 @@ static void nwd_perf_test(const char *name, size_t num_blocks,
   // Prepare test blocks
   memset(g_block_data, 0, sizeof(g_block_data));
   nwd_perf_random(g_block_data, num_blocks * NWD_PERF_MAX_BLOCK_COUNT);
+
+#if NWD_PERF_CRYPTO_CHECKS
+  // Sample reference blocks
+  memcpy(g_block_ref, g_block_data, sizeof(g_block_data));
+#endif
 
   // We assume all block counters as zero (for simplicity)
   SBDI_ERR_CHECK(sbdi_ctr_128b_init(&ctr, 0, 0));
@@ -190,6 +204,15 @@ static void nwd_perf_test(const char *name, size_t num_blocks,
       int64_t duration = nwd_stopwatch_measure(&nwd_perf_decrypt, &op_ctx, NWD_PERF_RUNS_PER_OP);
       printf(" %" PRId64, duration);
       fflush(stdout);
+
+#if NWD_PERF_CRYPTO_CHECKS
+      // Sanity check: Must be at reference value again
+      const uint8_t *ref_plaintext = g_block_ref + i * SBDI_BLOCK_SIZE;
+      if (memcmp(plaintext, ref_plaintext, SBDI_BLOCK_SIZE) != 0) {
+        fprintf(stderr, "corrupted data after decryption\n");
+        abort();
+      }
+#endif
     }
     printf("\n");
   }
