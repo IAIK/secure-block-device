@@ -64,17 +64,14 @@ typedef struct sbdi_perf_setup {
   uint8_t *tag;
   size_t idx;
   sbdi_ctr_128b_t *ctr;
-  unsigned quirks;
 } sbdi_perf_setup_t;
-
-#define QUIRK_NEED_SPURIOUS_MAC 0x00000001
 
 static void nwd_perf_encrypt(void *arg);
 static void nwd_perf_decrypt(void *arg);
 static void nwd_perf_random(uint8_t *data, size_t size);
 static void nwd_perf_test(const char *name, size_t num_blocks,
                           sbdi_error_t (*create)(sbdi_crypto_t **crypto, const sbdi_key_t key),
-                          void (*destroy)(sbdi_crypto_t *crypto), unsigned quirk);
+                          void (*destroy)(sbdi_crypto_t *crypto));
 
 //----------------------------------------------------------------------
 int main(void)
@@ -86,18 +83,15 @@ int main(void)
   //
   // FIXME: Check why we need the "spurious" MAC here??
   nwd_perf_test("nocrypto", NWD_PERF_MAX_BLOCK_COUNT,
-                &sbdi_nocrypto_create, &sbdi_nocrypto_destroy,
-                QUIRK_NEED_SPURIOUS_MAC);
+                &sbdi_nocrypto_create, &sbdi_nocrypto_destroy);
 
   // OCB mode
   nwd_perf_test("ocb", NWD_PERF_MAX_BLOCK_COUNT,
-                &sbdi_ocb_create, &sbdi_ocb_destroy,
-                0);
+                &sbdi_ocb_create, &sbdi_ocb_destroy);
 
   // SIV mode
   nwd_perf_test("siv", NWD_PERF_MAX_BLOCK_COUNT,
-                &sbdi_siv_create, &sbdi_siv_destroy,
-                0);
+                &sbdi_siv_create, &sbdi_siv_destroy);
 
   return 0;
 }
@@ -122,8 +116,7 @@ static void nwd_perf_random(uint8_t *data, size_t size)
 //----------------------------------------------------------------------
 static void nwd_perf_test(const char *name, size_t num_blocks,
                           sbdi_error_t (*create)(sbdi_crypto_t **crypto, const sbdi_key_t key),
-                          void (*destroy)(sbdi_crypto_t *crypto),
-                          unsigned quirks)
+                          void (*destroy)(sbdi_crypto_t *crypto))
 {
   sbdi_crypto_t *ctx = NULL;
   sbdi_ctr_128b_t ctr;
@@ -159,7 +152,6 @@ static void nwd_perf_test(const char *name, size_t num_blocks,
         .tag = tag,
         .ctr = &ctr,
         .idx = i,
-        .quirks = quirks
       };
 
       int64_t duration = nwd_stopwatch_measure(&nwd_perf_encrypt, &op_ctx, NWD_PERF_RUNS_PER_OP);
@@ -188,7 +180,6 @@ static void nwd_perf_test(const char *name, size_t num_blocks,
         .tag = tag,
         .ctr = &ctr,
         .idx = i,
-        .quirks = quirks
       };
 
       int64_t duration = nwd_stopwatch_measure(&nwd_perf_decrypt, &op_ctx, NWD_PERF_RUNS_PER_OP);
@@ -212,12 +203,6 @@ static void nwd_perf_encrypt(void *arg)
   // First encrypt
   SBDI_ERR_CHECK((ctx->crypto->enc)(ctx->crypto->ctx, ctx->plaintext, SBDI_BLOCK_SIZE,
                                     ctx->ctr, ctx->idx, ctx->ciphertext, ctx->tag));
-
-  // We need this for the "nocrypto" scheme - but why?
-  if ((ctx->quirks & QUIRK_NEED_SPURIOUS_MAC)) {
-    SBDI_ERR_CHECK((ctx->crypto->mac)(ctx->crypto->ctx, ctx->ciphertext, SBDI_BLOCK_SIZE,
-                                      ctx->tag, (uint8_t *) ctx->ctr, sizeof(sbdi_ctr_128b_t)));
-  }
 }
 
 //----------------------------------------------------------------------
