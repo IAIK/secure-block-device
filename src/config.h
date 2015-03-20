@@ -19,6 +19,7 @@
 #define SBDI_CRYPTO_TYPE_NONE   65535u //!< Cryptographic abstraction layer that implements all crypto implementations as NOPs
 #define SBDI_CRYPTO_TYPE_SIV    1u //!< Cryptographic abstraction layer that uses SIV and CMAC for its cryptographic operations
 #define SBDI_CRYPTO_TYPE_OCB    2u //!< Cryptographic abstraction layer that uses OCB and CMAC for its cryptographic operations
+#define SBDI_CRYPTO_TYPE_HMAC   3u //!< Cryptographic abstraction layer that uses CBC and HMAC for its cryptographic operations
 /* Enable runtime cryptographic abstraction layer selection */
 #undef SBDI_CRYPTO_TYPE
 // #define SBDI_CRYPTO_TYPE        SBDI_CRYPTO_TYPE_OCB /*!< Specify which kind of cryptography to use as default */

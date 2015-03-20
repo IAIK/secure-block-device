@@ -3,7 +3,7 @@ CFLAGS  +=-Wall -Werror -pedantic -std=gnu99
 CPPFLAGS = -I../
 
 DEPENDFILE = .depend
-LIB_SRC = rijndael-alg-fst.c aes.c ocb.c siv.c sbdi_nocrypto.c sbdi_ocb.c sbdi_siv.c
+LIB_SRC = rijndael-alg-fst.c aes.c ocb.c siv.c sbdi_nocrypto.c sbdi_ocb.c sbdi_siv.c sbdi_hmac.c
 SRC = $(LIB_SRC)
 LIB_OBJS = $(LIB_SRC:%.c=%.o)
 OBJS = $(LIB_OBJS)
@@ -52,7 +52,7 @@ dep: $(SRC)
 # Normal world performance test app
 $(NWD_PERF_OBJS): CFLAGS  += -I. -I.. -I../../../merkle-tree/src
 $(NWD_PERF_APP):  LDFLAGS +=
-$(NWD_PERF_APP):  LIBS    += -L ../../../merkle-tree/src -L. -lMerkleTree -lSbdiCrypto -lrt -lm
+$(NWD_PERF_APP):  LIBS    += -L ../../../merkle-tree/src -L. -lSbdiCrypto -lMerkleTree -lrt -lm
 
 $(NWD_PERF_APP): $(NWD_PERF_OBJS) $(LIB)
 	$(Q)$(CC) -o$@ $(LDFLAGS) $(NWD_PERF_OBJS) $(LIBS)

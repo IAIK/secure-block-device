@@ -8,6 +8,7 @@
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"
+#include "sbdi_hmac.h"
 
 #include "SecureBlockDeviceInterface.h"
 
@@ -66,6 +67,9 @@ static inline void sbdi_crypto_destroy(sbdi_crypto_t *crypto,
       break;
     case SBDI_HDR_KEY_TYPE_OCB:
       sbdi_ocb_destroy(crypto);
+      break;
+    case SBDI_HDR_KEY_TYPE_HMAC:
+      sbdi_hmac_destroy(crypto);
       break;
     }
   }
@@ -141,6 +145,13 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
         goto FAIL;
       }
       ktype = SBDI_HDR_KEY_TYPE_OCB;
+      break;
+    case SBDI_CRYPTO_HMAC:
+      r = sbdi_hmac_create(&sbdi->crypto, key);
+      if (r != SBDI_SUCCESS) {
+        goto FAIL;
+      }
+      ktype = SBDI_HDR_KEY_TYPE_HMAC;
       break;
     default:
       ktype = SBDI_HDR_KEY_TYPE_INVALID;

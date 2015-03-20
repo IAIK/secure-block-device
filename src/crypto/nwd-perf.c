@@ -22,6 +22,7 @@
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"
 #include "sbdi_siv.h"
+#include "sbdi_hmac.h"
 #include "sbdi_buffer.h"
 
 static const sbdi_key_t key = {
@@ -40,7 +41,7 @@ typedef void (*sbdi_crypto_destroy)(sbdi_crypto_t *crypto);
 
 #define NWD_PERF_MAX_BLOCK_COUNT 256u //!< Maximum block count
 #define NWD_PERF_RUNS_PER_OP       1u //!< Runs per operation
-#define NWD_PERF_MAJOR_LOOPS      20u //!< Major loops for encrypt and decrypt
+#define NWD_PERF_MAJOR_LOOPS       1u //!< Major loops for encrypt and decrypt
 
 static uint8_t g_block_data[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
 static uint8_t g_block_ciph[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
@@ -92,6 +93,10 @@ int main(void)
   // SIV mode
   nwd_perf_test("siv", NWD_PERF_MAX_BLOCK_COUNT,
                 &sbdi_siv_create, &sbdi_siv_destroy);
+
+  // HMAC mode
+  nwd_perf_test("hmac", NWD_PERF_MAX_BLOCK_COUNT,
+                &sbdi_hmac_create, &sbdi_hmac_destroy);
 
   return 0;
 }

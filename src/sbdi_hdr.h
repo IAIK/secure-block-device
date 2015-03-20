@@ -32,6 +32,7 @@ extern "C" {
 #define SBDI_HDR_V1_KEY_INVALID  0
 #define SBDI_HDR_V1_KEY_SIV      1
 #define SBDI_HDR_V1_KEY_OCB      2
+#define SBDI_HDR_V1_KEY_HMAC     3
 #define SBDI_HDR_V1_KEY_NONE 65535
 
 typedef uint8_t sbdi_hdr_magic_t[SBDI_HDR_MAGIC_LEN];
@@ -42,7 +43,8 @@ typedef enum sbdi_hdr_v1_key_type {
   SBDI_HDR_KEY_TYPE_INVALID = SBDI_HDR_V1_KEY_INVALID,
   SBDI_HDR_KEY_TYPE_NONE = SBDI_HDR_V1_KEY_NONE,
   SBDI_HDR_KEY_TYPE_SIV = SBDI_HDR_V1_KEY_SIV,
-  SBDI_HDR_KEY_TYPE_OCB = SBDI_HDR_V1_KEY_OCB
+  SBDI_HDR_KEY_TYPE_OCB = SBDI_HDR_V1_KEY_OCB,
+  SBDI_HDR_KEY_TYPE_HMAC = SBDI_HDR_V1_KEY_HMAC,
 } sbdi_hdr_v1_key_type_t;
 
 static const sbdi_hdr_magic_t SBDI_HDR_MAGIC = { 0xA1, 0x1D, 0x1F, 0xDE, 0xAD,

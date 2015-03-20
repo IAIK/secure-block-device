@@ -8,6 +8,7 @@
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"
+#include "sbdi_hmac.h"
 #include "sbdi_hdr.h"
 #include "sbdi_buffer.h"
 
@@ -34,7 +35,7 @@ void sbdi_hdr_v1_derive_key(siv_ctx *master, sbdi_hdr_v1_sym_key_t key,
 static inline int hdr_is_key_type_valid(const sbdi_hdr_v1_key_type_t type)
 {
   return (type == SBDI_HDR_KEY_TYPE_NONE) || (type == SBDI_HDR_KEY_TYPE_OCB)
-      || (type == SBDI_HDR_KEY_TYPE_SIV);
+    || (type == SBDI_HDR_KEY_TYPE_SIV) || (type == SBDI_HDR_KEY_TYPE_HMAC);
 }
 
 //----------------------------------------------------------------------
@@ -138,6 +139,14 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     break;
   case SBDI_HDR_KEY_TYPE_OCB:
     r = sbdi_ocb_create(&sbdi->crypto, h->key);
+    if (r != SBDI_SUCCESS) {
+      // Cleanup of header SIV must be handled next layer up
+      free(h);
+      return r;
+    }
+    break;
+  case SBDI_HDR_KEY_TYPE_HMAC:
+    r = sbdi_hmac_create(&sbdi->crypto, h->key);
     if (r != SBDI_SUCCESS) {
       // Cleanup of header SIV must be handled next layer up
       free(h);
