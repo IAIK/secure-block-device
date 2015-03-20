@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Define to debug management block tag issues with "nocrypto"
+// (incompatible with standard usage)
+// #define SBDI_NOCRYPTO_DEBUG_MGMT_TAGS 1
+
 sbdi_error_t sbdi_nocrypto_encrypt(void *ctx, const uint8_t *pt,
     const int pt_len, const sbdi_ctr_128b_t *ctr, uint32_t blk_nbr, uint8_t *ct,
     sbdi_tag_t tag)
@@ -17,7 +21,11 @@ sbdi_error_t sbdi_nocrypto_encrypt(void *ctx, const uint8_t *pt,
   // if the context is non-null then this is used incorrectly
   assert(!ctx);
   SBDI_CHK_PARAM(pt && ctr && pt_len > 0 && tag);
+#ifdef SBDI_NOCRYPTO_DEBUG_MGMT_TAGS
   memset(tag, 0xFF, SBDI_BLOCK_TAG_SIZE);
+#else
+  memset(tag, 0x00, SBDI_BLOCK_TAG_SIZE);
+#endif
   if (pt == ct) {
     return SBDI_SUCCESS;
   }
@@ -74,4 +82,3 @@ void sbdi_nocrypto_destroy(sbdi_crypto_t *crypto)
 {
   free(crypto);
 }
-
