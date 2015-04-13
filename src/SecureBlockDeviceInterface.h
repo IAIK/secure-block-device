@@ -101,6 +101,7 @@ sbdi_error_t sbdi_lseek(off_t *new_off, sbdi_t *sbdi, off_t offset,
     sbdi_whence_t whence);
 
 sbdi_error_t sbdi_fsync(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey);
+sbdi_error_t sbdi_sync(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root);
 
 #endif /* SECURE_BLOCK_DEVICE_INTERFACE_H_ */
 

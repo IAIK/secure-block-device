@@ -183,6 +183,39 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
 }
 
 //----------------------------------------------------------------------
+sbdi_error_t sbdi_sync(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
+{
+  SBDI_CHK_PARAM(sbdi && mkey && root);
+  siv_ctx mctx;
+  memset(&mctx, 0, sizeof(siv_ctx));
+  sbdi_error_t r = SBDI_ERR_UNSPECIFIED;
+  int cr = siv_init(&mctx, mkey, SIV_256);
+  if (cr == -1) {
+    r = SBDI_ERR_CRYPTO_FAIL;
+    goto FAIL;
+  }
+  r = sbdi_hdr_v1_write(sbdi, &mctx);
+  if (r != SBDI_SUCCESS) {
+    // TODO very bad, potentially partially written header!
+    goto FAIL;
+  }
+  r = sbdi_bc_sync(sbdi->cache);
+  if (r != SBDI_SUCCESS) {
+    // TODO very bad, potentially inconsistent state!
+    goto FAIL;
+  }
+  r = sbdi_mt_sbdi_err_conv(mt_get_root(sbdi->mt, root));
+  if (r != SBDI_SUCCESS) {
+    // this should not happen, because it should have failed earlier
+    goto FAIL;
+  }
+  return SBDI_SUCCESS;
+
+  FAIL: memset(&mctx, 0, sizeof(siv_ctx));
+  return r;
+}
+
+//----------------------------------------------------------------------
 sbdi_error_t sbdi_close(sbdi_t *sbdi, sbdi_sym_mst_key_t mkey, mt_hash_t root)
 {
   SBDI_CHK_PARAM(sbdi && mkey && root);
