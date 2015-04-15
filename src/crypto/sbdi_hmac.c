@@ -223,8 +223,14 @@ static sbdi_error_t sbdi_hmac_encrypt(void *pctx, const uint8_t *pt,
   // Dummy encryption (for testing)
   memmove(ct, pt, pt_len);
 #else
+  // CAVEAT EMPTOR: AES_cbc_encrypt destroys the original iv
+  // during the process ... we, however, need it later on as AD
+  // for tag computation.
+  uint8_t iv_copy[AES_BLOCK_SIZE];
+  memcpy(iv_copy, iv, AES_BLOCK_SIZE);
+
   // Encrypt the block (we use AES CBC for simplicity)
-  AES_cbc_encrypt(pt, ct, pt_len, &ctx->enc_key, iv, 1);
+  AES_cbc_encrypt(pt, ct, pt_len, &ctx->enc_key, iv_copy, 1);
 #endif
 
   // Create the authentication tag (given the IV and ciphertext)
