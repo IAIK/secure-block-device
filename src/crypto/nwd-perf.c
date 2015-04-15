@@ -45,7 +45,7 @@ typedef void (*sbdi_crypto_destroy)(sbdi_crypto_t *crypto);
 #define NWD_PERF_MAJOR_LOOPS      10u //!< Major loops for encrypt and decrypt
 
 // Enable (define) to compare decryption results with plaintexts
-// #define NWD_PERF_CRYPTO_CHECKS 1
+#define NWD_PERF_CRYPTO_CHECKS 1
 
 #if NWD_PERF_CRYPTO_CHECKS
 static uint8_t g_block_ref[NWD_PERF_MAX_BLOCK_COUNT * SBDI_BLOCK_SIZE];
