@@ -149,7 +149,7 @@ static sbdi_error_t sbdi_hmac_sha256_tag(uint8_t tag[SBDI_BLOCK_TAG_SIZE],
 {
 #if SBDI_HMAC_INSECURE_TAG
   // For testing: Always generate all zero tags
-  memset(tag, 0, SBDI_BLOCK_TAG_SIZE);
+  memset(tag, 0xFF, SBDI_BLOCK_TAG_SIZE);
   return SBDI_SUCCESS;
 
 #else
