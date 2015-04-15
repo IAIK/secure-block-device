@@ -12,6 +12,7 @@
 // Pull-in the SHA implementation from the merkle tree
 #include "../../../merkle-tree/src/sha.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -165,7 +166,8 @@ static sbdi_error_t sbdi_hmac_sha256_tag(uint8_t tag[SBDI_BLOCK_TAG_SIZE],
 //----------------------------------------------------------------------
 static sbdi_error_t sbdi_hmac_aes_iv(uint8_t iv[AES_BLOCK_SIZE],
                                      sbdi_cbc_hmac_t *ctx,
-                                     const sbdi_ctr_128b_t *ctr, uint32_t blk_nbr)
+                                     const void *p_ctr, uint32_t blk_nbr,
+                                     bool is_host_counter)
 {
 #if SBDI_HMAC_INSECURE_IV
   // For testing: Always generate all zero IVs
@@ -191,13 +193,30 @@ static sbdi_error_t sbdi_hmac_aes_iv(uint8_t iv[AES_BLOCK_SIZE],
   //   before we hit 2^96 updates).
   //
   assert(AES_BLOCK_SIZE == 4 * sizeof(uint32_t));
+  assert(sizeof(sbdi_ctr_128b_t) == AES_BLOCK_SIZE);
+  assert(sizeof(sbdi_ctr_pkd_t) == AES_BLOCK_SIZE);
 
   uint8_t tmp[AES_BLOCK_SIZE];
-  sbdi_buffer_t b;
-  sbdi_buffer_init(&b, tmp, AES_BLOCK_SIZE);
-  sbdi_buffer_write_uint32_t(&b, (uint32_t) (ctr->hi >> 32) ^ blk_nbr);
-  sbdi_buffer_write_uint32_t(&b, (uint32_t) (ctr->hi));
-  sbdi_buffer_write_uint64_t(&b, (uint64_t) ctr->lo);
+  if (is_host_counter) {
+    // Host-endianess counter (p_ctr points to a sbdi_ctr_128b_t)
+    const sbdi_ctr_128b_t *ctr = p_ctr;
+    sbdi_buffer_t b;
+    sbdi_buffer_init(&b, tmp, AES_BLOCK_SIZE);
+    sbdi_buffer_write_uint64_t(&b, (uint64_t) ctr->hi);
+    sbdi_buffer_write_uint64_t(&b, (uint64_t) ctr->lo);
+
+  } else {
+    // Network-endianess counter (p_ctr points to a sbdi_ctr_pkd_t)
+    memcpy(tmp, p_ctr, sizeof(sbdi_ctr_pkd_t));
+  }
+
+  // Encode the block number
+  tmp[0] ^= (uint8_t) (blk_nbr >> 24);
+  tmp[1] ^= (uint8_t) (blk_nbr >> 16);
+  tmp[2] ^= (uint8_t) (blk_nbr >> 8);
+  tmp[3] ^= (uint8_t) blk_nbr;
+
+  // Encrypt the IV
   AES_encrypt(tmp, iv, &ctx->enc_key);
   SBDI_STMT_ZEROIZE(memset(tmp, 0, AES_BLOCK_SIZE));
   return SBDI_SUCCESS;
@@ -218,8 +237,7 @@ static sbdi_error_t sbdi_hmac_encrypt(void *pctx, const uint8_t *pt,
   SBDI_CHK_PARAM(pt && ctr && pt_len > 0 && tag);
 
   // Prepare the IV (dependent on K_enc, ctr and blk_nbr)
-  sbdi_hmac_aes_iv(iv, ctx, ctr, blk_nbr);
-
+  sbdi_hmac_aes_iv(iv, ctx, ctr, blk_nbr, true);
 
 #if SBDI_HMAC_INSECURE_CIPHER
   // Dummy encryption (for testing)
@@ -257,12 +275,12 @@ sbdi_error_t sbdi_hmac_decrypt(void *pctx, const uint8_t *ct,
   sbdi_tag_t expected_tag;
   sbdi_error_t ret;
   assert(pctx);
+  assert(sizeof(sbdi_ctr_pkd_t) == AES_BLOCK_SIZE);
   SBDI_CHK_PARAM(
       ct && ct_len > 0 && ctr && sbdi_block_is_valid_phy(blk_nbr) && pt && tag);
 
   // Prepare the IV (dependent on K_enc, ctr and blk_nbr)
-  // FIXME: Counter type safety?
-  sbdi_hmac_aes_iv(iv, ctx, (const  sbdi_ctr_128b_t *) ctr, blk_nbr);
+  sbdi_hmac_aes_iv(iv, ctx, ctr, blk_nbr, false);
 
   // Recompute the expected authentication tag (authenticate IV and ciphertext)
   ret = sbdi_hmac_sha256_tag(expected_tag, ctx, ct, ct_len, iv);
