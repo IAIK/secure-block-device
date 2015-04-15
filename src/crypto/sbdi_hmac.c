@@ -192,12 +192,14 @@ static sbdi_error_t sbdi_hmac_aes_iv(uint8_t iv[AES_BLOCK_SIZE],
   //
   assert(AES_BLOCK_SIZE == 4 * sizeof(uint32_t));
 
+  uint8_t tmp[AES_BLOCK_SIZE];
   sbdi_buffer_t b;
-  sbdi_buffer_init(&b, iv, AES_BLOCK_SIZE);
+  sbdi_buffer_init(&b, tmp, AES_BLOCK_SIZE);
   sbdi_buffer_write_uint32_t(&b, (uint32_t) (ctr->hi >> 32) ^ blk_nbr);
   sbdi_buffer_write_uint32_t(&b, (uint32_t) (ctr->hi));
   sbdi_buffer_write_uint64_t(&b, (uint64_t) ctr->lo);
-  AES_encrypt(iv, iv, &ctx->enc_key);
+  AES_encrypt(tmp, iv, &ctx->enc_key);
+  SBDI_STMT_ZEROIZE(memset(tmp, 0, AES_BLOCK_SIZE));
   return SBDI_SUCCESS;
 #endif
 }
