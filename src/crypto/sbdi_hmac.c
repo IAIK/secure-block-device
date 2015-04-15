@@ -264,6 +264,7 @@ sbdi_error_t sbdi_hmac_decrypt(void *pctx, const uint8_t *ct,
 
   // Verify the authentication tag
   if (memcmp(tag, expected_tag, sizeof(sbdi_tag_t)) != 0) {
+    ret = SBDI_ERR_TAG_MISMATCH;
     goto fail;
   }
 
