@@ -107,7 +107,7 @@ private:
   void cmp(uint32_t c)
   {
     CPPUNIT_ASSERT(c <= UINT8_MAX);
-    CPPUNIT_ASSERT(memchrcmp(b, c, 4096));
+    CPPUNIT_ASSERT(memchrcmp(b, c, SBDI_BLOCK_SIZE));
   }
 
   void c_read(uint32_t i, uint32_t v)

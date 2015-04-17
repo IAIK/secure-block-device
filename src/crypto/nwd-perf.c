@@ -36,7 +36,6 @@ static const sbdi_key_t key = {
 typedef void (*sbdi_crypto_destroy)(sbdi_crypto_t *crypto);
 
 //----------------------------------------------------------------------
-#define SBDI_BLOCK_SIZE         4096u //!< The block size of the secure block device interface
 #define SBDI_BLOCK_CTR_SIZE       16u //!< The size in bytes of the counter (nonce) used to make every block write unique
 #define SBDI_BLOCK_TAG_SIZE       16u //!< The size in bytes of a cryptographic block tag (a mac over a single block)
 
