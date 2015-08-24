@@ -13,9 +13,10 @@ extern "C" {
 #define SBDI_PIO_H_
 
 #include <sys/types.h>
+#include <stdint.h>
 
 /*!
- * \brief Defines a function pointer very similar to pread
+ * \brief Defines a function pointer similar to pread
  *
  * @param iod[in] a pointer to the I/O descriptor, e.g. a pointer to a file
  *                descriptor
@@ -33,11 +34,27 @@ typedef ssize_t (*bl_pread)(void *iod, void *buf, size_t nbyte, off_t offset);
  *                descriptor
  * @param buf[in] a pointer to a buffer containing the data to write
  * @param nbyte[in] the number of bytes to write
- * @param offset the offset where to write the data
+ * @param offset[in] the offset where to write the data
  * @return the number of bytes written if successful; -1 otherwise
  */
 typedef ssize_t (*bl_pwrite)(void *iod, const void * buf, size_t nbyte,
     off_t offset);
+
+/*!
+ * \brief Defines a function pointer for a function that generates random
+ * numbers into a caller created buffer
+ *
+ * This function is used to generate the seed information required when
+ * generating a new secure block device root key. For security reasons this
+ * should be as close to a true random number generator as possible.
+ *
+ * @param buf[out] a pointer to the buffer to fill with random bytes
+ * @param nbyte[in] the number of random bytes to generate
+ * @param offset[in] the offset into the given buffer where to start generating
+ * random bytes
+ * @return the number of random bytes generated if successful; -1 otherwise
+ */
+typedef ssize_t (*bl_generate_seed)(uint8_t *buf, size_t nbyte);
 
 /*!
  * \brief wrapper data type to hide pread and pwrite implementation
@@ -46,6 +63,7 @@ typedef struct sbdi_pio {
   void *iod;          //!< I/O descriptor pointer, e.g. file decriptor pointer
   bl_pread pread;    //!< pread like function pointer
   bl_pwrite pwrite;  //!< pwrite like function pointer
+  bl_generate_seed genseed; //!< function pointer to seed generator function
 } sbdi_pio_t;
 
 /*!

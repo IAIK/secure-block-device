@@ -119,11 +119,11 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
   r = sbdi_hdr_v1_read(sbdi, &mctx);
   if (r == SBDI_ERR_IO_MISSING_BLOCK) {
     // Empty block device ==> create header
-    // TODO find a better way to provide nonce material
-    const char *n1 = "nonce1";
-    const char *n2 = "nonce2";
-    sbdi_hdr_v1_derive_key(&mctx, key, (uint8_t*) n1, strlen(n1), (uint8_t*) n2,
-        strlen(n2));
+    // FIXME find a better way to provide nonce material
+    uint8_t nonce[SBDI_HDR_V1_KEY_MAX_SIZE];
+    pio->genseed(nonce, SBDI_HDR_V1_KEY_MAX_SIZE);
+    sbdi_hdr_v1_derive_key(&mctx, key, nonce, SBDI_HDR_V1_KEY_MAX_SIZE/2,
+        nonce + SBDI_HDR_V1_KEY_MAX_SIZE/2, SBDI_HDR_V1_KEY_MAX_SIZE/2);
     // For now we only support SIV
     sbdi_hdr_v1_key_type_t ktype = SBDI_HDR_KEY_TYPE_INVALID;
     switch (ct) {
@@ -355,10 +355,10 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   // overflow on addition using unsigned integer overflow check!
   SBDI_CHK_PARAM(os_add_size((size_t )offset, nbyte));
   if (offset + nbyte > sbdi_size) {
-    // Reduce the amount of bytes read to the amount that is currently there
+    // TODO Reduce the amount of bytes read to the amount that is currently there
     // In in multi-threading environment this will lead to race conditions if
     // sbdi_pread, sbdi_read, sbdi_pwrite, sbdi_write are not properly
-    // synchronized! TODO (ensure this!)
+    // synchronized!
     rlen -= ((offset + nbyte) - sbdi_size);
   }
   // TODO handle case where read would be beyond max SBD size

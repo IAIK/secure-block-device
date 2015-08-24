@@ -164,13 +164,13 @@ uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi);
 /*!
  * \brief Updates the current size of the secure block device in the header
  *
- * TODO For now I track the size of the file in the header. This, as well as
+ * FIXME For now I track the size of the file in the header. This, as well as
  * tracking the global counter in the header is susceptible to attacks, as an
  * attacker can prevent updating the header. Both the global counter, as well
  * as the actual size of secure block device can be recovered from the secure
  * block device, if only a suitable mechanism of detecting an out of date
  * header is in place.
- * One such mechanism might be as setting the header to corrupt as soon as
+ * One such mechanism might be setting the header to corrupt as soon as
  * the secure block device is opened and updating this state in the Merkle
  * tree. On close, when the header is written, the flag is cleared and the
  * Merkle tree updated appropriately. This way a corrupt header should be
@@ -192,7 +192,7 @@ void sbdi_hdr_v1_update_size(sbdi_t *sbdi, const size_t size);
 /*!
  * \brief Retrieves the current logical file size from the header
  *
- * TODO: This is currently unsafe (see update_size). Fix.
+ * FIXME: This is currently unsafe (see update_size).
  *
  * The logical size of the file is stored as an unsigned 64 bit data type.
  * This might not match the platform specific size_t type. The caller has to
