@@ -58,7 +58,6 @@ sbdi_error_t sbdi_siv_encrypt(void *ctx, const uint8_t *pt, const int pt_len,
   uint8_t ad[SBDI_SIV_AD_SIZE];
   memset(ad, 0, SBDI_SIV_AD_SIZE);
   sbdi_buffer_t b;
-  // TODO should I move memset into init, or remove memset?
   memset(&b, 0, sizeof(sbdi_buffer_t));
 
   sbdi_buffer_init(&b, ad, SBDI_SIV_AD_SIZE);
@@ -86,7 +85,6 @@ sbdi_error_t sbdi_siv_decrypt(void *ctx, const uint8_t *ct, const int ct_len,
   uint8_t ad[SBDI_SIV_AD_SIZE];
   memset(ad, 0, SBDI_SIV_AD_SIZE);
   sbdi_buffer_t b;
-  // TODO should I move memset into init, or remove memset?
   memset(&b, 0, sizeof(sbdi_buffer_t));
 
   sbdi_buffer_init(&b, ad, SBDI_SIV_AD_SIZE);

@@ -76,7 +76,6 @@ private:
 
   static int is_in_scope(const uint32_t mng, const uint32_t blk)
   {
-    // TODO do something more suited here
     return blk > mng && blk <= (mng + SBDI_MNGT_BLOCK_ENTRIES);
   }
 

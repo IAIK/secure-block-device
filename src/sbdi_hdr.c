@@ -101,7 +101,6 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master)
     return SBDI_ERR_UNSUPPORTED;
   }
   h->size = sbdi_buffer_read_uint64_t(&b);
-// TODO make sure all global counter values are packed in the same way!
   r = sbdi_buffer_read_ctr_128b(&b, &h->ctr);
   if (r != SBDI_SUCCESS) {
     free(h);

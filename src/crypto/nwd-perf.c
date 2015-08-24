@@ -91,7 +91,6 @@ int main(void)
 
   // No crypto
   //
-  // FIXME: Check why we need the "spurious" MAC here??
   nwd_perf_test("nocrypto", NWD_PERF_MAX_BLOCK_COUNT,
                 &sbdi_nocrypto_create, &sbdi_nocrypto_destroy);
 

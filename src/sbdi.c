@@ -119,7 +119,6 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
   r = sbdi_hdr_v1_read(sbdi, &mctx);
   if (r == SBDI_ERR_IO_MISSING_BLOCK) {
     // Empty block device ==> create header
-    // FIXME find a better way to provide nonce material
     uint8_t nonce[SBDI_HDR_V1_KEY_MAX_SIZE];
     pio->genseed(nonce, SBDI_HDR_V1_KEY_MAX_SIZE);
     sbdi_hdr_v1_derive_key(&mctx, key, nonce, SBDI_HDR_V1_KEY_MAX_SIZE/2,
@@ -132,7 +131,6 @@ sbdi_error_t sbdi_open(sbdi_t **s, sbdi_pio_t *pio, sbdi_crypto_type_t ct,
       ktype = SBDI_HDR_KEY_TYPE_NONE;
       break;
     case SBDI_CRYPTO_SIV:
-      // TODO do key derivation here
       r = sbdi_siv_create(&sbdi->crypto, key);
       if (r != SBDI_SUCCESS) {
         goto FAIL;
@@ -303,7 +301,6 @@ static inline int os_add_uint32(const uint32_t a, const uint32_t b)
  */
 static inline sbdi_error_t os_add_off_size(const size_t a, const off_t b)
 {
-  // TODO put this assertions and other of its kind into an initializer
   assert(sizeof(size_t) == sizeof(off_t));
   if (b < 0) {
     // Integer overflow possible
@@ -333,7 +330,6 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   SBDI_CHK_PARAM(rd && sbdi && buf);
   // Make sure offset is non-negative and less than or equal to the max sbd size
   SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
-  // TODO: Put this and others of its kind into an initializer
   assert(sizeof(size_t) == sizeof(off_t));
   SBDI_CHK_PARAM(nbyte < SBDI_SIZE_MAX);
 //  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);
@@ -355,14 +351,8 @@ sbdi_error_t sbdi_pread(ssize_t *rd, sbdi_t *sbdi, void *buf, size_t nbyte,
   // overflow on addition using unsigned integer overflow check!
   SBDI_CHK_PARAM(os_add_size((size_t )offset, nbyte));
   if (offset + nbyte > sbdi_size) {
-    // TODO Reduce the amount of bytes read to the amount that is currently there
-    // In in multi-threading environment this will lead to race conditions if
-    // sbdi_pread, sbdi_read, sbdi_pwrite, sbdi_write are not properly
-    // synchronized!
     rlen -= ((offset + nbyte) - sbdi_size);
   }
-  // TODO handle case where read would be beyond max SBD size
-  // This is indirectly already handled
   // determine number of first block
   uint32_t idx = (offset == 0) ? (0) : (offset / SBDI_BLOCK_SIZE);
   uint32_t adr = (offset == 0) ? (0) : (offset % SBDI_BLOCK_SIZE);
@@ -391,7 +381,6 @@ sbdi_error_t sbdi_pwrite(ssize_t *wr, sbdi_t *sbdi, const void *buf,
   SBDI_CHK_PARAM(wr && sbdi && buf);
   // Make sure offset is non-negative and less than or equal to the max SBD size
   SBDI_CHK_PARAM(offset >= 0 && offset <= SBDI_SIZE_MAX);
-  // TODO: Put this and others of its kind into an initializer
   assert(sizeof(size_t) == sizeof(off_t));
   SBDI_CHK_PARAM(nbyte < SBDI_SIZE_MAX);
 //  SBDI_CHK_PARAM(__MAX(off_t) <= SBDI_SIZE_MAX);

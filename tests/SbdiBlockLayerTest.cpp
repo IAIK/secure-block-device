@@ -179,7 +179,6 @@ public:
     c_read(1, 0x11);
     CPPUNIT_ASSERT(sbdi_bc_sync(sbdi->cache) == SBDI_SUCCESS);
     closeStore();
-    // TODO Management block 0 looks funny at this point! Why is that?
     loadStore();
     c_read(1, 0x11);
     c_read(0, 0x10);

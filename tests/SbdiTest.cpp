@@ -163,6 +163,7 @@ public:
     ASS_ERR_ILL_PAR(sbdi_lseek(NULL, sbdi, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
     ASS_ERR_ILL_PAR(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX + 1, SBDI_SEEK_SET));
     ASS_SUC(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX-1, SBDI_SEEK_SET));
+    // NOTE: This check fails on 32 bit systems, because the overflow detection is triggered
     ASS_SUC(sbdi_write(&rd, sbdi, d, 1));
     ASS_SUC(sbdi_lseek(&of, sbdi, SBDI_SIZE_MAX-1, SBDI_SEEK_SET));
     ASS_SUC(sbdi_read(&rd, sbdi, d, 1));

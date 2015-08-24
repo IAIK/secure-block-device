@@ -47,14 +47,12 @@ sbdi_error_t sbdi_ocb_encrypt(void *ctx, const uint8_t *pt, const int pt_len,
   uint8_t ad[SBDI_OCB_AD_SIZE];
   memset(ad, 0, SBDI_OCB_AD_SIZE);
   sbdi_buffer_t b;
-  // TODO should I move memset into init, or remove memset?
   memset(&b, 0, sizeof(sbdi_buffer_t));
 
   sbdi_buffer_init(&b, ad, SBDI_OCB_AD_SIZE);
   const unsigned char *ap = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_write_uint32_t(&b, blk_nbr);
   // Truncate the 4 highermost bytes of the counter!
-  // TODO check that this works out!
   const unsigned char *np = sbdi_buffer_get_cptr(&b) + 4;
   sbdi_buffer_write_ctr_128b(&b, ctr);
 
@@ -78,14 +76,12 @@ sbdi_error_t sbdi_ocb_decrypt(void *ctx, const uint8_t *ct, const int ct_len,
   uint8_t ad[SBDI_OCB_AD_SIZE];
   memset(ad, 0, SBDI_OCB_AD_SIZE);
   sbdi_buffer_t b;
-  // TODO should I move memset into init, or remove memset?
   memset(&b, 0, sizeof(sbdi_buffer_t));
 
   sbdi_buffer_init(&b, ad, SBDI_OCB_AD_SIZE);
   const unsigned char *ap = sbdi_buffer_get_cptr(&b);
   sbdi_buffer_write_uint32_t(&b, blk_nbr);
   // Truncate the 4 highermost bytes of the counter!
-  // TODO check that this works out!
   const unsigned char *np = sbdi_buffer_get_cptr(&b) + 4;
   sbdi_buffer_write_bytes(&b, ctr, SBDI_BLOCK_CTR_SIZE);
 
@@ -137,7 +133,6 @@ sbdi_error_t sbdi_ocb_create(sbdi_crypto_t **crypto, const sbdi_key_t key)
     goto FAIL;
   }
 // Use the upper 16 bytes of the 32 byte key for OCB
-// TODO index differently
   int cr = ae_init(ae_ctx, key + SBDI_OCB_AE_KEY_IDX, SBDI_OCB_KEY_SIZE,
   SBDI_OCB_NONCE_SIZE, SBDI_BLOCK_TAG_SIZE);
   if (cr != AE_SUCCESS) {

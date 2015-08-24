@@ -140,8 +140,7 @@ sbdi_error_t bl_aes_cmac(const sbdi_t *sbdi, const sbdi_block_t *blk,
   sbdi_ctr_128b_t ctr;
   unsigned char *C = tag;
 
-  // TODO Reactivate this sanity check!
-  //assert(sizeof(sbdi_ctr_128b_t) == AES_BLOCK_SIZE);
+  assert(sizeof(sbdi_ctr_128b_t) == AES_BLOCK_SIZE);
   // I adapted the aes_cmac to add the block counter first. For this to work
   // I needed to pad the block index counter to a 16 byte block. Using the
   // 128 bit counter was the easiest way I could think of.
@@ -361,10 +360,8 @@ sbdi_error_t sbdi_bl_verify_header(sbdi_t *sbdi, sbdi_block_t *hdr)
   memset(tag, 0, sizeof(sbdi_tag_t));
   SBDI_ERR_CHK(bl_aes_cmac(sbdi, hdr, tag));
   if (mt_al_get_size(sbdi->mt) == 0) {
-    // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
-    // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(
         mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
@@ -388,8 +385,6 @@ static int bl_is_valid_write_source(const sbdi_t *sbdi, const uint8_t *mem,
   const uint8_t *w_s = &sbdi->write_store_dat[0][0];
   int incache = mem >= c_s && mem <= c_s + (SBDI_CACHE_SIZE) - len;
   // Management block may only be written from block 0
-  // TODO do I still need write store[1] now that I can directly write
-  // management blocks from cache?
   int instore = mem >= w_s && mem <= w_s + (SBDI_BLOCK_SIZE) - len;
   return incache || instore;
 }
@@ -428,9 +423,7 @@ static sbdi_error_t bl_mac_write_mngt(sbdi_t *sbdi, sbdi_block_t *mng,
   assert(sbdi && mng);
   assert(sizeof(sbdi_ctr_128b_t) == SBDI_BLOCK_CTR_SIZE);
   SBDI_ERR_CHK(bl_aes_cmac(sbdi, mng, mng_tag));
-  // TODO if this gets only partially written then there is a big problem!
-  // TODO I do not need to write the whole block, just the updated part is
-  // sufficient
+  // TODO I do not need to write the whole block, just the updated part is sufficient
   return sbdi_bl_write_block(sbdi, mng, SBDI_BLOCK_SIZE);
 }
 
@@ -461,7 +454,6 @@ static sbdi_error_t bl_ensure_mngt_blocks_exist(sbdi_t *sbdi, uint32_t log)
     sbdi->write_store[0].idx = sbdi_blic_mng_blk_nbr_to_mng_phy(s);
     sbdi_buffer_t b;
     sbdi_buffer_init(&b, *sbdi->write_store[0].data, SBDI_BLOCK_CTR_SIZE);
-    // TODO do I need a better nonce than the current global counter?
     sbdi_buffer_write_ctr_128b(&b, &sbdi->hdr->ctr);
     sbdi_ctr_128b_inc(&sbdi->hdr->ctr);
     SBDI_ERR_CHK(bl_mac_write_mngt(sbdi, &sbdi->write_store[0], mng_tag));
@@ -480,7 +472,6 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
       sbdi && ptr && sbdi_block_is_valid_log(idx) && off < SBDI_BLOCK_SIZE && len > 0 && len <= SBDI_BLOCK_SIZE && off + len <= SBDI_BLOCK_SIZE);
   SBDI_ERR_CHK(bl_ensure_mngt_blocks_exist(sbdi, idx));
   SBDI_DBG(sbdi_dbg_print_sbdi_bl_write_data_block_params(ptr, idx, off, len));
-  // TODO Think about caching behavior, when only one of the pair is in cache and is also the LRU.
   uint32_t mng_idx = sbdi_blic_log_to_phy_mng_blk(idx);
   uint32_t dat_idx = sbdi_blic_log_to_phy_dat_blk(idx);
   uint32_t tag_idx = sbdi_blic_log_to_mng_tag_pos(idx);
@@ -505,16 +496,12 @@ sbdi_error_t sbdi_bl_write_data_block(sbdi_t *sbdi, unsigned char *ptr,
 sbdi_error_t sbdi_bl_write_hdr_block(sbdi_t *sbdi, sbdi_block_t *hdr)
 {
   sbdi_tag_t tag;
-  // TODO memset tag!
   SBDI_CHK_PARAM(sbdi && hdr && hdr->idx == 0 && hdr->data);
   SBDI_ERR_CHK(bl_aes_cmac(sbdi, hdr, tag));
   SBDI_ERR_CHK(sbdi_bl_write_block(sbdi, hdr, SBDI_BLOCK_SIZE));
-  // TODO r < BLOCK_SIZE is really really bad => incompletely written header!
   if (mt_al_get_size(sbdi->mt) == 0) {
-    // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(mt_add(sbdi->mt, tag, sizeof(sbdi_tag_t)));
   } else {
-    // TODO If the next line fails this is also really really bad!
     return sbdi_mt_sbdi_err_conv(
         mt_update(sbdi->mt, tag, sizeof(sbdi_tag_t), 0));
   }
@@ -542,7 +529,6 @@ static inline void bl_update_mng_blk(sbdi_block_t *mng, uint32_t idx,
   memcpy(tag_addr, tag, SBDI_BLOCK_TAG_SIZE);
 
   sbdi_buffer_t b;
-  // TODO should I move memset into init, or remove memset?
   memset(&b, 0, sizeof(sbdi_buffer_t));
   sbdi_buffer_init(&b, ctr_addr, SBDI_BLOCK_CTR_SIZE);
   sbdi_buffer_write_ctr_128b(&b, ctr);
@@ -572,7 +558,6 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
   bl_update_mng_blk(&mng, tag_idx, &sbdi->hdr->ctr, data_tag);
   sbdi_tag_t mng_tag;
   memset(mng_tag, 0, sizeof(sbdi_tag_t));
-  // TODO check if write store[1] still needed
   // TODO for the next four steps we need absolute consistency!
   // Management block updated now encrypt it
   SBDI_ERR_CHK(bl_aes_cmac(sbdi, &mng, mng_tag));
@@ -594,7 +579,6 @@ static sbdi_error_t bl_encrypt_write_data(sbdi_t *sbdi, sbdi_block_t *blk)
     // TODO additional error handling required!
     return r;
   }
-  // TODO problem if mngt block still dirty from other dependent block
   sbdi_bc_clear_blk_dirty(sbdi->cache, mng_idx_pos);
   return SBDI_SUCCESS;
 }

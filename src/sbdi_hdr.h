@@ -38,7 +38,6 @@ extern "C" {
 typedef uint8_t sbdi_hdr_magic_t[SBDI_HDR_MAGIC_LEN];
 typedef uint8_t sbdi_hdr_v1_sym_key_t[SBDI_HDR_V1_KEY_MAX_SIZE];
 
-// TODO Document
 typedef enum sbdi_hdr_v1_key_type {
   SBDI_HDR_KEY_TYPE_INVALID = SBDI_HDR_V1_KEY_INVALID,
   SBDI_HDR_KEY_TYPE_NONE = SBDI_HDR_V1_KEY_NONE,
@@ -148,18 +147,6 @@ sbdi_error_t sbdi_hdr_v1_read(sbdi_t *sbdi, siv_ctx *master);
  *         SBDI_ERR_TAG_MISMATCH if the key in the header has been modified.
  */
 sbdi_error_t sbdi_hdr_v1_write(sbdi_t *sbdi, siv_ctx *master);
-
-/*!
- * \brief Converts the current global counter value into a canonical
- * representation for use in the block layer
- *
- * This is a very ugly hack! I need to get rid of this ASAP.
- *
- * @param @param sbdi[in] a pointer to the secure block device interface to
- * pack the header of
- * @return a pointer to the packed header area
- */
-uint8_t *sbdi_hdr_v1_pack_ctr(sbdi_t *sbdi);
 
 /*!
  * \brief Updates the current size of the secure block device in the header

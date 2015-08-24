@@ -8,11 +8,10 @@
 #ifndef CONFIG_H_
 #define CONFIG_H_
 
-// TODO Requirement MAX BLOCK INDEX < UINT32_MAX!
+// NOTE Requirement MAX BLOCK INDEX < UINT32_MAX!
 // #define SBDI_BLOCK_SIZE         4096u //!< The block size of the secure block device interface
 #define SBDI_BLOCK_SIZE         2048u //!< The block size of the secure block device interface
 #define SBDI_SIZE_MAX           UINT32_C(2147483647)  //!< The maximum size in bytes of the secure block device interface
-// TODO The following leads to problems on 32 bit systems ==> fix
 #define SBDI_BLK_MAX_LOG        (SBDI_SIZE_MAX / SBDI_BLOCK_SIZE) + (((SBDI_SIZE_MAX % SBDI_BLOCK_SIZE) > 0)?1:0)  //!< The maximum number of logical blocks supported by the secure block device interface
 #define SBDI_BLOCK_CTR_SIZE     16u //!< The size in bytes of the counter (nonce) used to make every block write unique
 #define SBDI_BLOCK_TAG_SIZE     16u //!< The size in bytes of a cryptographic block tag (a mac over a single block)
