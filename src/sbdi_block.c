@@ -196,20 +196,23 @@ sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root)
 //sbdi_error_t sbdi_bl_verify_block_layer(sbdi_t *sbdi, mt_hash_t root,
 //    uint32_t phy_last_blk_idx)
 //{
+//  TODO Implement function to verify the integrity of the secure block device, and do potential repair if necessary/possible.
+//  NOTE The secure block device checks integrity, when a block is needed this
+//       function should do a complete check when it is called.
 //  if (!sbdi || !root) {
 //    return SBDI_ERR_ILLEGAL_PARAM;
 //  }
 //  if (!phy_last_blk_idx) {
 //    // Empty or non existing or invalid file ==> nothing to do
-//    // TODO might want to change this once I have header handling and stuff
+//    // NOTE might want to change this once I have header handling and stuff
 //    return SBDI_SUCCESS;
 //  }
-//  // TODO Document that this function builds the hash tree, so that basic
+//  // NOTE Document that this function builds the hash tree, so that basic
 //  // hash tree update operations work, which is a requirement for every data
 //  // block write
-//  // TODO Should I check logical or physical indices for being to large?
+//  // NOTE Should I check logical or physical indices for being to large?
 //  assert(sbdi_block_is_valid_phy(phy_last_blk_idx));
-//  // TODO next method is for logical index not physical fix that
+//  // NOTE next method is for logical index not physical fix that
 //  uint32_t mng_nbr = sbdi_blic_phy_to_mng_blk_nbr(phy_last_blk_idx);
 //  uint32_t read = 0;
 //  sbdi_error_t r = bl_verify_mngt_block(sbdi, 1, read);

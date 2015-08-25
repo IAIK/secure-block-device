@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO Warning OCB truncates counter to 12 bytes
+// NOTE OCB truncates counter to 12 bytes
 
 #define SBDI_OCB_KEY_SIZE    16u
 #define SBDI_OCB_NONCE_SIZE  (SBDI_BLOCK_CTR_SIZE) - 4
