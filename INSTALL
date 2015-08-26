@@ -1,0 +1,5 @@
+Installing the Secure Block Device
+
+The Secure Block Device is a software library intended for linking to your
+software, it is therefore not installed. See README for details on how to
+build and use the Secure Block Device. 
