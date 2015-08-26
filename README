@@ -187,25 +187,28 @@ This library has so far been tested on ARM (32-bit) and AMD64.
 The library's user interface is specified in
 'src/SecureBlockDeviceInterface.h'. The 'tests/SbdiTests.cpp' outlines how to
 use the library. The back end storage the Secure Block Device Library uses is
-abstracted via the Block Device Abstraction Layer. The Secure Block Device
-Library comes with a wrapper for files. Typically, a new Secure Block Device
-instance is created by calling sbdi_open() with a concrete Block Device
-Abstraction Layer instance, a cryptographic root key, a root hash, and the
-type of authenticated encryption to use. The instance has to be destroyed by a
-subsequent call to mt_delete(). In between new integrity tags can be appended
-to the tree as leafs by using mt_add(). An existing leaf can be updated using
-the mt_update() function. Each addition or update of a leaf will update the
-root hash of the hash tree, which can be obtained by calling the mg_get_root()
-function.  Finally, to reduce the size of the hash tree, the mt_truncate()
-function can be used to specify a new last leaf in the tree. All leaves with a
-higher index will be invalidated and the memory used to store them freed. This
-is useful for example to support a data store that can shrink and grow in
-size.
+abstracted via the Block Device Abstraction Layer.
+
+The Secure Block Device Library comes with a wrapper for files. Typically, a
+new Secure Block Device instance is created by calling sbdi_open() with a
+concrete Block Device Abstraction Layer instance, a cryptographic root key, a
+root hash, and the type of authenticated encryption to use. The instance has
+to be destroyed by a subsequent call to sbdi_close(). The sbdi_close()
+function also requires the cryptographic root key (to re-encrypt the updated
+Secure Block Device header), and the root hash, this time as out parameter.
+The root hash is a single representative of the overall integrity of the
+Secure Block Device and has to be kept safe until the next opening of the same
+Secure Block Device. The Secure Block Device can be used between a call to
+sbdi_open() and its corresponding call to sbdi_close(). The rest of the Secure
+Block Device Library's API is modelled after the POSIX file abstraction. So,
+sbdi_read(), sbdi_write(), sbdi_lseek(), sbdi_pread(), sbdi_pwrite(),
+sbdi_sync(), and sbdi_fsync() work similar to their POSIX read, write, ...
+counterparts.
 
 === 4. Licensing ===
 
 For details on the licensing see LICENSE. The Merkle Tree (Hash Tree)
-implementation uses the 'sha.h' and 'sha224-256.c' files from RFC4634 [3] as
+implementation uses the 'sha.h' and 'sha224-256.c' files from RFC4634 [8] as
 implementation of the SHA-256 hash.
 
 === Bibliography ===
