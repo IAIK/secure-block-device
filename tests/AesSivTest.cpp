@@ -18,16 +18,18 @@
 #define AD_LEN 24
 
 class AesSivTest: public CppUnit::TestFixture {
-CPPUNIT_TEST_SUITE( AesSivTest );
+  CPPUNIT_TEST_SUITE( AesSivTest );
   CPPUNIT_TEST(testSivEncryption);
   CPPUNIT_TEST(testSivDecryption);
-  CPPUNIT_TEST(testSivInplaceEnDecryption);CPPUNIT_TEST_SUITE_END()
-  ;
+  CPPUNIT_TEST(testSivInplaceEnDecryption);
+  CPPUNIT_TEST(testSivAesCmac);
+  CPPUNIT_TEST_SUITE_END();
 
 private:
   static unsigned char SIV_KEYS[32];
   static unsigned char PLAIN_TEXT[PT_LEN];
   static unsigned char PLAIN_TEXT_2[IV_LEN];
+  static unsigned char PLAIN_TEXT_3[IV_LEN*2];
   static unsigned char AD_H1[AD_LEN];
 
   static unsigned char TV_CIPHER_TEXT[PT_LEN];
@@ -129,6 +131,15 @@ public:
     dec2(tstMemIdx(3), tstMemIdx(4), ivMemIdx(0), PT2_LEN);
   }
 
+  void testSivAesCmac() {
+    memcpy(iv_mem, PLAIN_TEXT_2, PT2_LEN);
+    memcpy(iv_mem + PT2_LEN, PLAIN_TEXT_3, IV_LEN*2);
+    sbdi_bl_aes_cmac(&ctx, PLAIN_TEXT_2, PT2_LEN, PLAIN_TEXT_3, IV_LEN*2, tstMemIdx(0));
+    aes_cmac(&tst, iv_mem, (IV_LEN * 3), tstMemIdx(1));
+    CPPUNIT_ASSERT(!memcmp(tstMemIdx(0), tstMemIdx(1), PT2_LEN));
+    CPPUNIT_ASSERT(memcmp(tstMemIdx(0), tstMemIdx(2), PT2_LEN));
+  }
+
 };
 
 unsigned char AesSivTest::SIV_KEYS[32] = {
@@ -146,6 +157,13 @@ unsigned char AesSivTest::PLAIN_TEXT[PT_LEN] = {
 
 unsigned char AesSivTest::PLAIN_TEXT_2[IV_LEN] = { 0x00, 0x11, 0x22, 0x33, 0x44,
     0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
+
+unsigned char AesSivTest::PLAIN_TEXT_3[IV_LEN*2] = {
+    0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x00, 0x11,
+    0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+    0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
+    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+};
 
 unsigned char AesSivTest::AD_H1[24] = {
     //AD  (H1)  10111213 14151617 18191a1b 1c1d1e1f
