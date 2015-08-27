@@ -207,9 +207,7 @@ counterparts.
 
 === 4. Licensing ===
 
-For details on the licensing see LICENSE. The Merkle Tree (Hash Tree)
-implementation uses the 'sha.h' and 'sha224-256.c' files from RFC4634 [8] as
-implementation of the SHA-256 hash.
+For details on the licensing see LICENSE. 
 
 === Bibliography ===
 [1] https://en.wikipedia.org/wiki/Authenticated_encryption
