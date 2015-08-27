@@ -111,6 +111,10 @@ static void pad(unsigned char *buf, int len)
   }
 }
 
+/*
+ * aes_cmac()
+ *  CMAC mode of AES per NIST SP 800-38B
+ */
 static inline void do_aes_cmac_work(siv_ctx *ctx, const unsigned char *msg, int mlen,
     unsigned char *C) {
   int n, i, slop;
@@ -164,50 +168,9 @@ static inline void do_aes_cmac_work(siv_ctx *ctx, const unsigned char *msg, int 
 void aes_cmac(siv_ctx *ctx, const unsigned char *msg, int mlen,
     unsigned char *C)
 {
-  int n, i, slop;
-  unsigned char Mn[AES_BLOCK_SIZE], *ptr;
-
   memcpy(C, zero, AES_BLOCK_SIZE);
 
-  /*
-   * n is the number of block-length blocks
-   */
-  n = (mlen + (AES_BLOCK_SIZE - 1)) / AES_BLOCK_SIZE;
-
-  /*
-   * CBC mode for first n-1 blocks
-   */
-  ptr = (unsigned char *) msg;
-  for (i = 0; i < (n - 1); i++) {
-    xor(C, ptr);
-    AES_encrypt(C, C, &ctx->s2v_sched);
-    ptr += AES_BLOCK_SIZE;
-  }
-
-  /*
-   * if last block is whole then (M ^ K1)
-   * else (M || 10* ^ K2)
-   */
-  memset(Mn, 0, AES_BLOCK_SIZE);
-  if ((slop = (mlen % AES_BLOCK_SIZE)) != 0) {
-    memcpy(Mn, ptr, slop);
-    pad(Mn, slop);
-    xor(Mn, ctx->K2);
-  } else {
-    if (msg != NULL && mlen != 0) {
-      memcpy(Mn, ptr, AES_BLOCK_SIZE);
-      xor(Mn, ctx->K1);
-    } else {
-      pad(Mn, 0);
-      xor(Mn, ctx->K2);
-    }
-  }
-  /*
-   * and do CBC with that xor'd and possibly padded block
-   */
-  xor(C, Mn);
-  AES_encrypt(C, C, &ctx->s2v_sched);
-  return;
+  do_aes_cmac_work(ctx, msg, mlen, C);
 }
 
 void sbdi_bl_aes_cmac(siv_ctx *ctx, const unsigned char *ad,
