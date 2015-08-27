@@ -1,12 +1,211 @@
+=== 1. License ===
+
 Copyright (c) IAIK, Graz University of Technology, 2014, 2015.
 All rights reserved.
 
-The Secure Block Device is released under a dual licensing model:
+The Secure Block Device Library is released under a dual licensing model:
 
-* For Open Source development, the Secure Block Device is licensed under the terms of the GNU
+* For Open Source development, the Secure Block Device Library is licensed under the terms of the GNU
   GPL version 2. The full text of the GNU GPL v2 is shipped with the product (see LICENSE.GPL2)
   or can be found online at https://www.gnu.org/licenses/gpl-2.0.html.
 
 * In all other cases, the "Stiftung SIC Java (tm) Crypto-Software Development Kit Licence Agreement"
   applies. The full license text can be found online at Stiftung SIC. For pricing and further information
   please contact jce-sales@iaik.at.
+
+=== 2. 3rd Party Software Sources ===
+
+The Secure Block Device Library uses the following 3rd party software source
+files for implementing the following components: SHA-256, AES, SIV, and OCB.
+In the following we detail which files belong to which component and the
+respective licenses for using these source files.
+
+=== 2.1 SHA-256 ===
+
+=== 2.1.1 Files ===
+
+src/sha.h         - from RFC 4634, Section 8.1
+src/sha224-256.c  - from RFC 4634, Section 8.2.2
+
+=== 2.1.2 License ===
+(From RFC 4634 - 1.1 License)
+
+Permission is granted for all uses, commercial and non-commercial, of the
+sample code found in Section 8.  Royalty free license to use, copy, modify and
+distribute the software found in Section 8 is granted, provided that this
+document is identified in all material mentioning or referencing this software,
+and provided that redistributed derivative works do not contain misleading
+author or version information.
+
+The authors make no representations concerning either the merchantability of
+this software or the suitability of this software for any particular purpose.
+It is provided "as is" without express or implied warranty of any kind.
+
+=== 2.2 AES ===
+
+=== 2.2.1 Files ===
+
+src/crypto/aes.c
+src/crypto/aes.h
+src/crypto/rijndael-alg-fst.c
+src/crypto/rijndael-alg-fst.h
+
+=== 2.2.2 Licence ===
+
+=== 2.2.2.1 aes.c aes.h ===
+(Excerpt from source documentation)
+
+Copyright (c) 2003-2004 Kungliga Tekniska Högskolan
+(Royal Institute of Technology, Stockholm, Sweden).
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the Institute nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+=== 2.2.2.1 rijndael-alg-fst.c rijndael-alg-fst.h ===
+(Excerpt from source documentation)
+
+Optimised ANSI C code for the Rijndael cipher (now AES)
+
+@author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
+@author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
+@author Paulo Barreto <paulo.barreto@terra.com.br>
+
+This code is hereby placed in the public domain.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+=== 2.3 SIV ===
+
+=== 2.3.1 Files ===
+
+src/crypto/siv.c
+src/crypto/siv.h
+
+=== 2.2.2 Licence ===
+(Excerpt from source documentation)
+
+Copyright (c) The Industrial Lounge, 2007
+
+ Copyright holder grants permission for redistribution and use in source
+ and binary forms, with or without modification, provided that the
+ following conditions are met:
+    1. Redistribution of source code must retain the above copyright
+       notice, this list of conditions, and the following disclaimer
+       in all source files.
+    2. Redistribution in binary form must retain the above copyright
+       notice, this list of conditions, and the following disclaimer
+       in the documentation and/or other materials provided with the
+       distribution.
+    3. All advertising materials and documentation mentioning features
+   or use of this software must display the following acknowledgement:
+
+       "This product includes software written by
+        Dan Harkins (dharkins at lounge dot org)"
+
+ "DISCLAIMER OF LIABILITY
+
+ THIS SOFTWARE IS PROVIDED BY THE INDUSTRIAL LOUNGE ``AS IS''
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE INDUSTRIAL LOUNGE BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ SUCH DAMAGE."
+
+This license and distribution terms cannot be changed. In other words,
+this code cannot simply be copied and put under another distribution
+license (including the GNU public license).
+
+=== 2.3 OCB ===
+
+Note that Phillip Rogaway holds patents relevant to OCB. See the following for
+his patent grant: http://www.cs.ucdavis.edu/~rogaway/ocb/grant.htm
+
+=== 2.3.1 Files ===
+
+src/crypto/ae.h
+src/crypto/ocb.c
+
+=== 2.3.2 Licence ===
+(Excerpt from source documentation)
+
+=== 2.3.2.1 ocb.c ===
+
+OCB Version 3 Reference Code (Optimized C)     Last modified 12-JUN-2013
+------------------------------------------------------------------------
+Copyright (c) 2013 Ted Krovetz.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Phillip Rogaway holds patents relevant to OCB. See the following for
+his patent grant: http://www.cs.ucdavis.edu/~rogaway/ocb/grant.htm
+
+Special thanks to Keegan McAllister for suggesting several good improvements
+
+Comments are welcome: Ted Krovetz <ted@krovetz.net> - Dedicated to Laurel K
+
+=== 2.3.2.2 ae.h ===
+
+AEAD API 0.12 - 23-MAY-2012
+
+This file gives an interface appropriate for many authenticated
+encryption with associated data (AEAD) implementations. It does not try
+to accommodate all possible options or limitations that an implementation
+might have -- you should consult the documentation of your chosen
+implementation to find things like RFC 5116 constants, alignment
+requirements, whether the incremental interface is supported, etc.
+
+This file is in the public domain. It is provided "as is", without
+warranty of any kind. Use at your own risk.
+
+Comments are welcome: Ted Krovetz <ted@krovetz>.
+
