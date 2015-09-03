@@ -1,10 +1,11 @@
-/*
- * sbdi_crypto_type.h
- *
- *  Created on: Jun 19, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies the data type used to select the cryptographic abstraction
+/// layer to use for the cryptographic operations.
+///
+/// The Secure Block Device Library supports a number of different
+/// cryptographic operations for providing the data security.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

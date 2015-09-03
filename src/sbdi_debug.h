@@ -1,10 +1,7 @@
-/*
- * sbdi_debug.h
- *
- *  Created on: Jun 19, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies functions used to debug the Secure Block Device Library.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,10 +1,8 @@
-// Memory buffer for reading and writing primitive data types to a
-// in untyped memory region.
-//
-// Copyright (C) 2014 IAIK, Graz University of Technology
-// Author(s): Daniel Hein
-//
-
+///
+/// \file
+/// \brief Memory buffer for reading and writing primitive data types to an
+/// untyped memory region (implementation).
+///
 #include "sbdi_buffer.h"
 #include "sbdi_err.h"
 

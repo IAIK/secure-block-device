@@ -1,9 +1,11 @@
-/*
- * SbdiBLockLayerTest.cpp
- *
- *  Created on: May 21, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Tests the Secure Block Device Library's block layer.
+///
+/// The block layer handles all data operations on block granularity. Together
+/// with the cache it implements the "plumbing" of the SBD: reading/writing and
+/// protecting/checking data blocks.
+///
 
 #ifndef UINT32_MAX
 #include <limits>

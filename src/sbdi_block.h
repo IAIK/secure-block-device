@@ -1,9 +1,11 @@
-/*
- * sbdi_block.h
- *
- *  Created on: May 18, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Secure Block Device Library block layer interface.
+///
+/// The block layer handles all data operations on block granularity. Together
+/// with the cache it implements the "plumbing" of the SBD: reading/writing and
+/// protecting/checking data blocks.
+///
 
 #ifdef __cplusplus
 extern "C" {

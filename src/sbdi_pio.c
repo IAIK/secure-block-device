@@ -1,9 +1,8 @@
-/*
- * sbdi_pio.c
- *
- *  Created on: May 30, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief An implementation of the Secure Block Device Libarary's block
+/// device abstraction layer that uses files as storage back end.
+///
 
 #include "sbdi_pio.h"
 

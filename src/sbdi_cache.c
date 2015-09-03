@@ -1,9 +1,10 @@
-/*
- * sbdi_cache.c
- *
- *  Created on: May 16, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief The Secure Block Device Library's data cache implementation.
+///
+/// This implements the write back, write allocate data cache used by the SBD
+/// to speed up access to often used data.
+///
 
 #include "sbdi_cache.h"
 

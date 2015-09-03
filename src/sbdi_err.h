@@ -1,10 +1,7 @@
-/*
- * mt_err.h
- *
- *  Created on: 09.05.2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Global error codes an error handling macros.
+///
 #ifndef SBDI_ERR_H_
 #define SBDI_ERR_H_
 

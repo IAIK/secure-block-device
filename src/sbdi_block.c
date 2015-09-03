@@ -1,10 +1,10 @@
-/*
- * sbdi_block_layer.c
- *
- *  Created on: May 17, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Secure Block Device Library block layer implementation.
+///
+/// Implements the block layer, which together with the cache is responsible
+/// for reading/writing and protecting/checking all data handled by the SBD.
+///
 #include "merkletree.h"
 #include "sbdi_debug.h"
 #include "sbdi_block.h"

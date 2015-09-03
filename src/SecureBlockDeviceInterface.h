@@ -1,9 +1,10 @@
-/*
- * SecureBlockDeviceInterface.h
- *
- *  Created on: May 12, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Specifies the Secure Block Device Library's application programmer
+/// interface.
+///
+/// The SBD API is modeled after the POSIX file abstraction.
+///
 
 #ifdef __cplusplus
 extern "C" {

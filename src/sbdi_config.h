@@ -1,10 +1,7 @@
-/*
- * sbdi_config.h
- *
- *  Created on: May 16, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies global data types.
+///
 #ifndef SBDI_CONFIG_H_
 #define SBDI_CONFIG_H_
 

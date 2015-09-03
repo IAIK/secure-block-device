@@ -1,3 +1,7 @@
+///
+/// \file
+/// \brief Runs the Secure Block Device Library tests.
+///
 #include <cppunit/extensions/TestFactoryRegistry.h>
 #include <cppunit/ui/text/TestRunner.h>
 

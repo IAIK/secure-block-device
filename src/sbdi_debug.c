@@ -1,10 +1,7 @@
-/*
- * sbdi_debug.c
- *
- *  Created on: Jun 19, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Implements functions used to debug the Secure Block Device Library.
+///
 #include "sbdi_cache.h"
 
 #include <inttypes.h>

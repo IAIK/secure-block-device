@@ -1,10 +1,7 @@
-/*
- * sbdi_hdr.h
- *
- *  Created on: May 30, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies interface for handling Secure Block Device headers.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,10 +1,7 @@
-/*
- * sbdi_ctr_128b.c
- *
- *  Created on: May 15, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Implements a 128-bit counter
+///
 #include "sbdi_ctr_128b.h"
 
 #include <inttypes.h>

@@ -1,10 +1,8 @@
-//
-// sbdi_hmac.c
-//
-//  * Block encryption with AES-CBC
-//  * Block tags via HMAC-SHA256
-//
-
+///
+/// \file
+/// \brief Implements a Secure Block Device Library cryptographic abstraction
+/// layer using AES-CBC for block encryption and HMAC-SHA256 for block tags
+///
 #include "sbdi_hmac.h"
 #include "sbdi_buffer.h"
 #include "aes.h"

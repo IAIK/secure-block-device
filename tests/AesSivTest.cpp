@@ -1,10 +1,7 @@
-/*
- * AesSivTest.cpp
- *
- *  Created on: May 14, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Tests the SIV implementaion used by the Secure Block Device Library.
+///
 #include "crypto/siv.h"
 
 #include <string>

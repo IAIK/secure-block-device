@@ -1,10 +1,12 @@
-/*
- * sbdi_nocrypto.h
- *
- *  Created on: Jun 17, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies a Secure Block Device Library cryptographic abstraction
+/// layer using no cryptography whatsoever.
+///
+/// This cryptographic abstraction layer is intended for testing and debugging
+/// the Secure Block Device Library. It does not provide any form of protection
+/// for the actual data.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,10 +1,10 @@
-/*
- * SbdiBLockLayerTest.cpp
- *
- *  Created on: May 21, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Tests the Secure Block Device Library API.
+///
+/// If you are interested in an example on how to use the Secure Block Device
+/// Library in your application this is a good place to start.
+///
 #ifndef UINT32_MAX
 #include <limits>
 #define UINT32_MAX std::numeric_limits<uint32_t>::max()

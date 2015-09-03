@@ -1,15 +1,11 @@
-/*
- * sbdi_blic.h
- *
- * Secure Block Device Interface Block Layer Index Conversion library
- *
- * This header contains all functions used for converting between logic and
- * physical block indices and computing management block index from diverse
- * input indices.
- *
- *  Created on: May 28, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Secure Block Device Block Layer Index Conversion library
+///
+/// This header contains all functions used for converting between logic and
+/// physical block indices and computing management block index from diverse
+/// input indices.
+///
 
 #ifndef SBDI_BLIC_H_
 #define SBDI_BLIC_H_

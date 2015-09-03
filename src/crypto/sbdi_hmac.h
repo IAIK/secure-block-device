@@ -1,7 +1,10 @@
-/*
- * sbdi_hmac.h
- */
-
+///
+/// \file
+/// \brief Specifies a Secure Block Device Library cryptographic abstraction
+/// layer that uses AES-CBC and HMAC-SHA256.
+///
+/// This cryptographic abstraction layer is implemented for comparison only.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

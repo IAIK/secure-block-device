@@ -1,10 +1,7 @@
-/*
- * sbdi_hdr.c
- *
- *  Created on: May 30, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Manages Secure Block Device headers.
+///
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"
 #include "sbdi_ocb.h"

@@ -1,10 +1,7 @@
-/*
- * SbdiTest.h
- *
- *  Created on: May 23, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Global functions and macros used for testing.
+///
 #ifndef SBDITEST_H_
 #define SBDITEST_H_
 

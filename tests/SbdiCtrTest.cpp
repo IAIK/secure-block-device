@@ -1,9 +1,7 @@
-/*
- * SbdiCtrTest.cpp
- *
- *  Created on: May 15, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Tests the 128-bit counter used by the Secure Block Device Library.
+///
 
 #include "sbdi_ctr_128b.h"
 

@@ -1,9 +1,11 @@
-/*
- * secblock.c
- *
- *  Created on: May 13, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Implements the Secure Block Device Library's user interface (its
+/// API).
+///
+/// This implementation uses the SBD block layer to implement the SBD's API to
+/// the user (you).
+///
 
 #include "sbdi_siv.h"
 #include "sbdi_nocrypto.h"

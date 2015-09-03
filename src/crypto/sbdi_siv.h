@@ -1,10 +1,9 @@
-/*
- * sbdi_siv.h
- *
- *  Created on: Jun 13, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies a Secure Block Device Library cryptographic abstraction
+/// layer using the AES SIV mode of operation for data block protection and
+/// AES CMAC for management block protection.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,10 +1,14 @@
-/*
- * sbdi_ocb.h
- *
- *  Created on: Jun 17, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies a Secure Block Device Library cryptographic abstraction
+/// layer that uses AES in OCB mode for data block protection and AES CMAC for
+/// management block protection.
+///
+/// This cryptographic abstraction layer is very efficient, as it uses the
+/// one-pass OCB authenticating encryption mode. OCB is patent-encumbered. If
+/// you plan on using this cryptographic abstraction layer check
+/// http://web.cs.ucdavis.edu/~rogaway/ocb/license.htm .
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

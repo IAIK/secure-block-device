@@ -1,9 +1,13 @@
-/*
- * sbdi_crypto.h
- *
- *  Created on: Jun 13, 2014
- *      Author: dhein
- */
+///
+/// \file
+/// \brief Specifies the Secure Block Device Library's cryptographic
+/// abstraction layer.
+///
+/// The cryptographic abstraction layer hides the implementation of the actual
+/// authenticating encryption used to achieve the data security goals. It also
+/// hides the implementation of the message authentication code used to
+/// protect the integrity of the management blocks.
+///
 
 #ifdef __cplusplus
 extern "C" {

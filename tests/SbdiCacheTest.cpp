@@ -1,10 +1,7 @@
-/*
- * SbdiCtrTest.cpp
- *
- *  Created on: May 15, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Tests the Secure Block Device Library's data cache.
+///
 #include <cppunit/extensions/HelperMacros.h>
 
 #ifndef UINT32_MAX

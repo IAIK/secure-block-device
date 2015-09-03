@@ -1,10 +1,7 @@
-/*
- * sbdi_ctr_128b.h
- *
- *  Created on: May 15, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies the interface of a 128-bit counter.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif

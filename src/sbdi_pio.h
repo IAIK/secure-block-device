@@ -1,10 +1,11 @@
-/*
- * sbdi_pio.h
- *
- *  Created on: May 30, 2014
- *      Author: dhein
- */
-
+///
+/// \file
+/// \brief Specifies the interface of the Secure Block Device Library's block
+/// device abstraction layer.
+///
+/// The block device abstraction layer abstracts the details of the underlying
+/// back end storage used by the SBD.
+///
 #ifdef __cplusplus
 extern "C" {
 #endif
