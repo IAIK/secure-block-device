@@ -80,7 +80,11 @@ memory, because data encryption accounts for approximately 90% of the
 computation time spent by the Secure Block Device Library. Third, it allows
 selecting which authenticating encryption scheme to use. Currently, the Secure
 Block Device Library supports the use of the AES OCB [4] and AES SIV [5]
-authenticating encryption schemes. 
+authenticating encryption schemes.
+
+Also in agreement with the license of the AES SIV implementation we use:
+
+This product includes software written by Dan Harkins (dharkins at lounge dot org) 
 
 === 1.1.4.3 Extensibility ===
 
