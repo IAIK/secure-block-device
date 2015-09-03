@@ -33,12 +33,9 @@ silent: clean dep $(BIN)
 release: CFLAGS +=-O3 -fgnu89-inline -DNDEBUG -Wno-error=unused-function
 release: clean dep $(BIN)
 
-.PHONY: clean doc
+.PHONY: clean
 clean:
 	$(Q)rm -Rf $(BIN) $(OBJS) $(LIB) html latex .depend *.gcov *.gcno *.gcda
-
-doc:
-	$(Q)doxygen
 
 $(BIN) : $(PRG_OBJS) $(LIB)
 	$(Q)$(CC) $(CFLAGS) -o $(BIN) $(PRG_OBJS) $(LIB) $(LDFLAGS)

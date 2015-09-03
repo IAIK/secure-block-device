@@ -24,9 +24,10 @@ clean:
 	$(Q)$(MAKE) -C src/crypto clean
 	$(Q)$(MAKE) -C tests/ clean
 	$(Q)$(MAKE) -C src/ clean
+	$(Q)rm -Rf doc
 
 test:
 	$(Q)$(MAKE) -C tests/ test
 
 doc:
-	$(Q)$(MAKE) -C src/ doc
+	$(Q)doxygen
